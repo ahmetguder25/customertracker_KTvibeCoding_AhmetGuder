@@ -3,6 +3,8 @@ import sqlite3
 import os
 import json
 import requests
+import websocket
+import re
 from dotenv import load_dotenv
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash
@@ -404,6 +406,7 @@ def overview_detail(customer_id):
 
 @app.route("/api/analysis/generate/<int:customer_id>", methods=["POST"])
 def generate_analysis(customer_id):
+    load_dotenv(override=True)
     conn = get_db()
     customer = conn.execute("SELECT * FROM Customer WHERE Customerid=?", (customer_id,)).fetchone()
     if not customer:
@@ -420,22 +423,47 @@ def generate_analysis(customer_id):
     
     analysis_text = "Analysis not available due to missing API key or endpoint."
     if api_key and endpoint and api_key != "ABC123":
-        headers = {"api-key": api_key, "Content-Type": "application/json"}
-        payload = {
-            "messages": [
-                {"role": "system", "content": "You are a concise financial analyst. Reply in max 100 characters."},
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": 50,
-            "temperature": 0.5
-        }
         try:
-            resp = requests.post(endpoint, headers=headers, json=payload, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                analysis_text = data["choices"][0]["message"]["content"]
-            else:
-                analysis_text = f"API Error: {resp.status_code}"
+            ws_url = endpoint.replace("https://", "wss://").replace("http://", "ws://")
+            if "/chat/completions" in ws_url:
+                match = re.search(r"/deployments/([^/]+)/", ws_url)
+                deployment = match.group(1) if match else ""
+                base = ws_url.split("/openai/")[0]
+                api_version = re.search(r"api-version=([^&]+)", ws_url)
+                api_version = api_version.group(1) if api_version else "2024-10-01-preview"
+                ws_url = f"{base}/openai/realtime?api-version={api_version}&deployment={deployment}"
+
+            ws = websocket.WebSocket()
+            ws.connect(ws_url, header={"api-key": api_key})
+            
+            request_payload = {
+                "type": "response.create",
+                "response": {
+                    "modalities": ["text"],
+                    "instructions": prompt
+                }
+            }
+            ws.send(json.dumps(request_payload))
+            
+            analysis_text = ""
+            while True:
+                msg = ws.recv()
+                if not msg:
+                    break
+                data = json.loads(msg)
+                if data["type"] == "response.text.delta":
+                    analysis_text += data.get("delta", "")
+                elif data["type"] == "response.done":
+                    break
+                elif data["type"] == "error":
+                    analysis_text = f"API Error: {data.get('error', {}).get('message', 'Unknown')}"
+                    break
+                    
+            ws.close()
+            
+            if not analysis_text.strip():
+                analysis_text = "Analysis completed but returned empty."
+                
         except Exception as e:
             analysis_text = f"Error: {str(e)[:50]}"
     else:
