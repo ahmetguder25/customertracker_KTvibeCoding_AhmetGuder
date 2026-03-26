@@ -66,6 +66,16 @@ def init_db():
         )
     """)
 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS CustomerAnalysis (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id   INTEGER NOT NULL,
+            analysis_text TEXT    NOT NULL,
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (customer_id) REFERENCES Customer(Customerid) ON DELETE CASCADE
+        )
+    """)
+
     conn.commit()
     conn.close()
     print(f"Database schema synced at {DB_PATH}")

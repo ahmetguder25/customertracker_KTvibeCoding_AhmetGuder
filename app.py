@@ -2,6 +2,8 @@
 import sqlite3
 import os
 import json
+import requests
+from dotenv import load_dotenv
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash
 from werkzeug.utils import secure_filename
@@ -9,6 +11,7 @@ import io
 
 app = Flask(__name__)
 app.secret_key = "customer-tracker-secret-key-2026"
+load_dotenv()
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "customer_tracker.db")
 
 # Logo upload config
@@ -377,6 +380,8 @@ def overview_detail(customer_id):
     same_sector = conn.execute("SELECT COUNT(*) as cnt FROM Customer WHERE sector=?", (customer["sector"],)).fetchone()["cnt"]
     total_customers = conn.execute("SELECT COUNT(*) as cnt FROM Customer").fetchone()["cnt"]
 
+    analysis_row = conn.execute("SELECT * FROM CustomerAnalysis WHERE customer_id=? ORDER BY created_at DESC LIMIT 1", (customer_id,)).fetchone()
+
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
     conn.close()
@@ -392,8 +397,60 @@ def overview_detail(customer_id):
         deal_type_map=deal_type_map,
         total_customers=total_customers,
         same_sector=same_sector,
-        total_deal_size=total_deal_size
+        total_deal_size=total_deal_size,
+        analysis=analysis_row
     )
+
+
+@app.route("/api/analysis/generate/<int:customer_id>", methods=["POST"])
+def generate_analysis(customer_id):
+    conn = get_db()
+    customer = conn.execute("SELECT * FROM Customer WHERE Customerid=?", (customer_id,)).fetchone()
+    if not customer:
+        conn.close()
+        return {"error": "Customer not found"}, 404
+
+    deals = conn.execute("SELECT * FROM CustomerDeals WHERE customerid=?", (customer_id,)).fetchall()
+    
+    deal_info = ", ".join([f"${d['deal_size']} (Status ID {d['status']})" for d in deals])
+    prompt = f"Analyze customer '{customer['CustomerName']}' in sector '{customer['sector']}'. They have deals: {deal_info}. Write a 100 character max analysis."
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    endpoint = os.getenv("OPENAI_ENDPOINT")
+    
+    analysis_text = "Analysis not available due to missing API key or endpoint."
+    if api_key and endpoint and api_key != "ABC123":
+        headers = {"api-key": api_key, "Content-Type": "application/json"}
+        payload = {
+            "messages": [
+                {"role": "system", "content": "You are a concise financial analyst. Reply in max 100 characters."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 50,
+            "temperature": 0.5
+        }
+        try:
+            resp = requests.post(endpoint, headers=headers, json=payload, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                analysis_text = data["choices"][0]["message"]["content"]
+            else:
+                analysis_text = f"API Error: {resp.status_code}"
+        except Exception as e:
+            analysis_text = f"Error: {str(e)[:50]}"
+    else:
+        # Fallback if placeholder string
+        analysis_text = f"Sample AI Analysis for {customer['CustomerName']}: Solid sector footprint with {len(deals)} active deals."
+
+    analysis_text = analysis_text[:100]
+
+    conn.execute("INSERT INTO CustomerAnalysis (customer_id, analysis_text) VALUES (?, ?)", (customer_id, analysis_text))
+    conn.commit()
+    
+    latest = conn.execute("SELECT * FROM CustomerAnalysis WHERE customer_id=? ORDER BY created_at DESC LIMIT 1", (customer_id,)).fetchone()
+    conn.close()
+
+    return {"status": "success", "analysis": latest["analysis_text"], "created_at": latest["created_at"]}
 
 
 @app.route("/overview/<int:customer_id>/comment", methods=["POST"])

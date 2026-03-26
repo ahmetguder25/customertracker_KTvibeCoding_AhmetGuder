@@ -3,9 +3,25 @@
 
 {% block content %}
 <div class="space-y-8">
-    <div>
-        <h1 class="text-2xl font-bold tracking-tight">Customer Overview</h1>
-        <p class="text-gray-400 mt-1">Select a customer to view their profile, active deals, and team memos</p>
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight">Customer Overview</h1>
+            <p class="text-gray-400 mt-1">Select a customer to view their profile, active deals, and team memos</p>
+        </div>
+        <button id="btn-refresh-all" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 shadow shadow-brand-600/20">
+            Refresh All AI Analysis
+        </button>
+    </div>
+
+    <!-- Progress Bar Section (Hidden) -->
+    <div id="progress-container" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-4">
+        <div class="flex justify-between text-sm mb-2">
+            <span class="text-gray-300 font-medium">Refreshing AI Analysis...</span>
+            <span id="progress-text" class="text-brand-400 font-mono">0 / {{ customers|length }}</span>
+        </div>
+        <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
+            <div id="progress-bar" class="bg-brand-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
     </div>
 
     <!-- Customer Cards Grid -->
@@ -50,5 +66,61 @@
     {% if not customers %}
     <div class="text-center py-16 text-gray-500">No customers found.</div>
     {% endif %}
+    
+    <!-- Toast Notice -->
+    <div id="toast-success" class="fixed bottom-5 right-5 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-xl font-medium transition-all duration-500 opacity-0 translate-y-4 pointer-events-none z-50">
+        Refresh complete!
+    </div>
 </div>
+
+<script>
+document.getElementById('btn-refresh-all').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-refresh-all');
+    const container = document.getElementById('progress-container');
+    const text = document.getElementById('progress-text');
+    const bar = document.getElementById('progress-bar');
+    const toast = document.getElementById('toast-success');
+    
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    container.classList.remove('hidden');
+    
+    const cards = document.querySelectorAll('a[id^="customer-card-"]');
+    const ids = Array.from(cards).map(c => c.id.replace('customer-card-', ''));
+    const total = ids.length;
+    let done = 0;
+    
+    text.innerText = `0 / ${total}`;
+    bar.style.width = '0%';
+    
+    for (const id of ids) {
+        try {
+            await fetch(`/api/analysis/generate/${id}`, { method: 'POST' });
+        } catch(e) {
+            console.error('Failed to generate for ID', id, e);
+        }
+        done++;
+        text.innerText = `${done} / ${total}`;
+        bar.style.width = `${(done/total)*100}%`;
+    }
+    
+    // Process complete
+    setTimeout(() => {
+        container.classList.add('hidden');
+        
+        // Show Toast
+        toast.classList.remove('opacity-0', 'translate-y-4');
+        toast.classList.add('opacity-100', 'translate-y-0');
+        
+        // Fade Toast after 3s
+        setTimeout(() => {
+            toast.classList.remove('opacity-100', 'translate-y-0');
+            toast.classList.add('opacity-0', 'translate-y-4');
+        }, 3000);
+        
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }, 600);
+});
+</script>
 {% endblock %}
