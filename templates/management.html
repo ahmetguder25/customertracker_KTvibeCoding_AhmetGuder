@@ -5,39 +5,18 @@
 <div class="space-y-8">
     <div>
         <h1 class="text-2xl font-bold tracking-tight">Customer Management</h1>
-        <p class="text-gray-400 mt-1">Add, edit, or remove customer records</p>
+        <p class="text-gray-400 mt-1">Add new customers and manage their information and deals</p>
     </div>
 
     <!-- Add Customer Form -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4">Add New Customer</h2>
-        <form id="add-form" action="/management/add" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form id="add-form" action="/management/customer/add" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <label for="company_name" class="block text-xs font-medium text-gray-400 mb-1">Company Name *</label>
-                <input type="text" name="company_name" id="company_name" required
+                <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">Company Name *</label>
+                <input type="text" name="CustomerName" id="CustomerName" required
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition"
                     placeholder="e.g. Apex Capital">
-            </div>
-            <div>
-                <label for="contact_name" class="block text-xs font-medium text-gray-400 mb-1">Contact Name *</label>
-                <input type="text" name="contact_name" id="contact_name" required
-                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition"
-                    placeholder="e.g. John Miller">
-            </div>
-            <div>
-                <label for="deal_size" class="block text-xs font-medium text-gray-400 mb-1">Deal Size (USD) *</label>
-                <input type="number" name="deal_size" id="deal_size" required min="0" step="1000"
-                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition"
-                    placeholder="e.g. 5000000">
-            </div>
-            <div>
-                <label for="status" class="block text-xs font-medium text-gray-400 mb-1">Status *</label>
-                <select name="status" id="status" required
-                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                    {% for code, info in status_map.items()|sort %}
-                    <option value="{{ code }}">{{ info.description }}</option>
-                    {% endfor %}
-                </select>
             </div>
             <div>
                 <label for="sector" class="block text-xs font-medium text-gray-400 mb-1">Sector</label>
@@ -46,12 +25,13 @@
                     placeholder="e.g. Energy">
             </div>
             <div>
-                <label for="notes" class="block text-xs font-medium text-gray-400 mb-1">Notes</label>
-                <input type="text" name="notes" id="notes"
+                <label for="portfolio_manager" class="block text-xs font-medium text-gray-400 mb-1">Portfolio Manager</label>
+                <input type="text" name="portfolio_manager" id="portfolio_manager"
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition"
-                    placeholder="Optional notes">
+                    placeholder="e.g. John Doe">
             </div>
-            <div class="md:col-span-2">
+            
+            <div class="md:col-span-3 pt-2">
                 <button type="submit" id="btn-add"
                     class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25">
                     + Add Customer
@@ -62,39 +42,43 @@
 
     <!-- Existing Customers -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-800">
+        <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
             <h2 class="text-lg font-semibold">Existing Customers</h2>
+            <span class="text-xs text-gray-400">{{ customers|length }} Customers</span>
         </div>
         <div class="overflow-x-auto">
             <table id="mgmt-table" class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wider text-gray-500">
                         <th class="px-6 py-3">ID</th>
-                        <th class="px-6 py-3">Company</th>
-                        <th class="px-6 py-3">Contact</th>
-                        <th class="px-6 py-3 text-right">Deal Size</th>
-                        <th class="px-6 py-3">Status</th>
+                        <th class="px-6 py-3">Customer Name</th>
                         <th class="px-6 py-3">Sector</th>
+                        <th class="px-6 py-3">PM</th>
+                        <th class="px-6 py-3 text-center">Active Deals</th>
+                        <th class="px-6 py-3 text-right">Total Deal Size</th>
                         <th class="px-6 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800/60">
                     {% for c in customers %}
-                    {% set st = status_map.get(c['status']|string, {}) %}
                     <tr class="hover:bg-gray-800/40 transition-colors">
-                        <td class="px-6 py-3 font-mono text-gray-500">{{ c['id'] }}</td>
-                        <td class="px-6 py-3 font-medium text-white">{{ c['company_name'] }}</td>
-                        <td class="px-6 py-3 text-gray-300">{{ c['contact_name'] }}</td>
-                        <td class="px-6 py-3 text-right font-mono text-emerald-400">${{ "{:,.0f}".format(c['deal_size']) }}</td>
-                        <td class="px-6 py-3">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
-                                {{ st.get('description', c['status']) }}
+                        <td class="px-6 py-3 font-mono text-gray-500">{{ c['Customerid'] }}</td>
+                        <td class="px-6 py-3 font-medium text-white">{{ c['CustomerName'] }}</td>
+                        <td class="px-6 py-3 text-gray-400">{{ c['sector'] or '—' }}</td>
+                        <td class="px-6 py-3 text-gray-300">{{ c['portfolio_manager'] or '—' }}</td>
+                        
+                        <td class="px-6 py-3 text-center">
+                            <span class="bg-gray-800 text-gray-300 px-2 py-1 rounded text-xs font-medium">
+                                {{ deal_counts.get(c['Customerid'], 0) }} Deal(s)
                             </span>
                         </td>
-                        <td class="px-6 py-3 text-gray-400">{{ c['sector'] or '—' }}</td>
+                        <td class="px-6 py-3 text-right font-mono text-emerald-400">
+                            ${{ "{:,.0f}".format(deal_sums.get(c['Customerid']) or 0) }}
+                        </td>
+
                         <td class="px-6 py-3 text-center whitespace-nowrap">
-                            <a href="/management/edit/{{ c['id'] }}" class="text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">Edit</a>
-                            <form action="/management/delete/{{ c['id'] }}" method="POST" class="inline" onsubmit="return confirm('Delete {{ c['company_name'] }}?')">
+                            <a href="/management/edit/{{ c['Customerid'] }}" class="text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">Edit Customer & Deals</a>
+                            <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" class="inline" onsubmit="return confirm('WARNING: Deleting {{ c['CustomerName'] }} will also delete ALL associated deals and comments. Are you sure?')">
                                 <button type="submit" class="text-red-400 hover:text-red-300 text-xs font-medium transition">Delete</button>
                             </form>
                         </td>

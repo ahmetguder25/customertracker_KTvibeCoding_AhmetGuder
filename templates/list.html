@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Customers — Customer Tracker{% endblock %}
+{% block title %}Pipeline Deals — Customer Tracker{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">Customer List</h1>
-            <p class="text-gray-400 mt-1">All tracked deals in the pipeline</p>
+            <h1 class="text-2xl font-bold tracking-tight">Pipeline Deals</h1>
+            <p class="text-gray-400 mt-1">All tracked deals across our active customers</p>
         </div>
         <a href="/list/export" id="btn-export"
             class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-emerald-600/25">
@@ -22,9 +22,10 @@
             <table id="customer-table" class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wider text-gray-500">
-                        <th class="px-4 py-4">ID</th>
+                        <th class="px-4 py-4">Deal ID</th>
                         <th class="px-4 py-4">Company</th>
                         <th class="px-4 py-4">Contact</th>
+                        <th class="px-4 py-4">Deal Type</th>
                         <th class="px-4 py-4 text-right">Deal Size</th>
                         <th class="px-4 py-4">Status</th>
                         <th class="px-4 py-4">Sector</th>
@@ -39,44 +40,48 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800/60">
-                    {% for c in customers %}
-                    {% set st = status_map.get(c['status']|string, {}) %}
+                    {% for d in deals %}
+                    {% set st = status_map.get(d['status']|string, {}) %}
+                    {% set dt = deal_type_map.get(d['dealtype']|string, {}) %}
                     <tr class="hover:bg-gray-800/40 transition-colors">
-                        <td class="px-4 py-3 font-mono text-gray-500">{{ c['id'] }}</td>
-                        <td class="px-4 py-3 font-medium text-white whitespace-nowrap">{{ c['company_name'] }}</td>
-                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap">{{ c['contact_name'] }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-emerald-400">${{ "{:,.0f}".format(c['deal_size']) }}</td>
+                        <td class="px-4 py-3 font-mono text-gray-500">{{ d['id'] }}</td>
+                        <td class="px-4 py-3 font-medium text-white whitespace-nowrap">{{ d['CustomerName'] }}</td>
+                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap">{{ d['contact_name'] or '—' }}</td>
+                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap text-xs font-semibold">
+                            <span class="bg-gray-800 px-2 py-1 rounded text-gray-300 border border-gray-700">{{ dt.get('description', d['dealtype']) }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-emerald-400">${{ "{:,.0f}".format(d['deal_size']) if d['deal_size'] else '0' }}</td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
-                                {{ st.get('description', c['status']) }}
+                                {{ st.get('description', d['status']) }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-gray-400">{{ c['sector'] or '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-violet-400">{{ "${:,.0f}".format(c['credit_limit']) if c['credit_limit'] else '—' }}</td>
+                        <td class="px-4 py-3 text-gray-400">{{ d['sector'] or '—' }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-violet-400">{{ "${:,.0f}".format(d['credit_limit']) if d['credit_limit'] else '—' }}</td>
                         <td class="px-4 py-3">
-                            {% if c['value_segment'] %}
+                            {% if d['value_segment'] %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold
-                                {% if c['value_segment'] == 'A+' %}bg-purple-500/20 text-purple-400
-                                {% elif c['value_segment'] == 'A' %}bg-blue-500/20 text-blue-400
-                                {% elif c['value_segment'] == 'B' %}bg-cyan-500/20 text-cyan-400
+                                {% if d['value_segment'] == 'A+' %}bg-purple-500/20 text-purple-400
+                                {% elif d['value_segment'] == 'A' %}bg-blue-500/20 text-blue-400
+                                {% elif d['value_segment'] == 'B' %}bg-cyan-500/20 text-cyan-400
                                 {% else %}bg-gray-500/20 text-gray-400{% endif %}">
-                                {{ c['value_segment'] }}
+                                {{ d['value_segment'] }}
                             </span>
                             {% else %}—{% endif %}
                         </td>
-                        <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ c['branch'] or '—' }}</td>
-                        <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ c['region'] or '—' }}</td>
-                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap">{{ c['portfolio_manager'] or '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-cyan-400">{{ "${:,.0f}".format(c['foreign_trade_volume']) if c['foreign_trade_volume'] else '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-amber-400">{{ "${:,.0f}".format(c['memzuc_151_volume']) if c['memzuc_151_volume'] else '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-rose-400">{{ "${:,.0f}".format(c['memzuc_152_volume']) if c['memzuc_152_volume'] else '—' }}</td>
+                        <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ d['branch'] or '—' }}</td>
+                        <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ d['region'] or '—' }}</td>
+                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap">{{ d['portfolio_manager'] or '—' }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-cyan-400">{{ "${:,.0f}".format(d['foreign_trade_volume']) if d['foreign_trade_volume'] else '—' }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-amber-400">{{ "${:,.0f}".format(d['memzuc_151_volume']) if d['memzuc_151_volume'] else '—' }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-rose-400">{{ "${:,.0f}".format(d['memzuc_152_volume']) if d['memzuc_152_volume'] else '—' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        {% if not customers %}
-        <div class="text-center py-12 text-gray-500">No customers found.</div>
+        {% if not deals %}
+        <div class="text-center py-12 text-gray-500">No deals found.</div>
         {% endif %}
     </div>
 </div>
