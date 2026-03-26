@@ -5,10 +5,10 @@
 <div class="space-y-8">
     <div>
         <h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p class="text-gray-400 mt-1">Deal pipeline overview by status</p>
+        <p class="text-gray-400 mt-1">Deal pipeline overview & customer insights</p>
     </div>
 
-    <!-- KPI Cards -->
+    <!-- Pipeline KPI Cards -->
     <div id="kpi-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
             <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Total Deals</span>
@@ -24,21 +24,60 @@
         </div>
     </div>
 
-    <!-- Chart -->
+    <!-- Volume KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Total Credit Limit</span>
+            <span class="text-2xl font-bold text-violet-400">${{ "{:,.0f}".format(volume_totals.total_limit) }}</span>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Foreign Trade Vol.</span>
+            <span class="text-2xl font-bold text-cyan-400">${{ "{:,.0f}".format(volume_totals.total_ft) }}</span>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">MEMZUC 151 Vol.</span>
+            <span class="text-2xl font-bold text-amber-400">${{ "{:,.0f}".format(volume_totals.total_151) }}</span>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">MEMZUC 152 Vol.</span>
+            <span class="text-2xl font-bold text-rose-400">${{ "{:,.0f}".format(volume_totals.total_152) }}</span>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Pipeline Status Chart -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+            <h2 class="text-lg font-semibold mb-4">Customers by Deal Status</h2>
+            <div style="position:relative; height:320px;">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Value Segment Chart -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+            <h2 class="text-lg font-semibold mb-4">Value Segment Distribution</h2>
+            <div style="position:relative; height:320px;">
+                <canvas id="segmentChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Region Chart -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Customers by Deal Status</h2>
-        <div class="relative" style="max-height:400px;">
-            <canvas id="statusChart"></canvas>
+        <h2 class="text-lg font-semibold mb-4">Customers by Region</h2>
+        <div style="position:relative; height:320px;">
+            <canvas id="regionChart"></canvas>
         </div>
     </div>
 </div>
 
 <script>
+    // ── Pipeline Status ──────────────────────────────────────────────
     const chartData = {{ chart_data | safe }};
     const labels = Object.keys(chartData);
     const values = Object.values(chartData);
 
-    // KPI calculations
     const total = values.reduce((a, b) => a + b, 0);
     const active = total - (chartData["Closed Won"] || 0) - (chartData["Closed Lost"] || 0);
     const closedWon = chartData["Closed Won"] || 0;
@@ -49,7 +88,6 @@
     document.getElementById("kpi-active").textContent = active;
     document.getElementById("kpi-winrate").textContent = winRate + "%";
 
-    // Bar colors
     const colorMap = {
         "Lead":           { bg: "rgba(99,102,241,0.7)",  border: "rgb(99,102,241)"  },
         "Proposal":       { bg: "rgba(59,130,246,0.7)",  border: "rgb(59,130,246)"  },
@@ -76,7 +114,121 @@
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: "rgba(15,23,42,0.95)",
+                    titleColor: "#e2e8f0",
+                    bodyColor: "#94a3b8",
+                    borderColor: "#334155",
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    padding: 12,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: "#64748b", stepSize: 1, font: { family: "Inter" } },
+                    grid:  { color: "rgba(51,65,85,0.4)" },
+                },
+                x: {
+                    ticks: { color: "#94a3b8", font: { family: "Inter", weight: 500 } },
+                    grid:  { display: false },
+                }
+            }
+        }
+    });
+
+    // ── Value Segment Doughnut ───────────────────────────────────────
+    const segmentData = {{ segment_data | safe }};
+    const segLabels = Object.keys(segmentData);
+    const segValues = Object.values(segmentData);
+    const segColors = [
+        "rgba(139,92,246,0.8)",
+        "rgba(59,130,246,0.8)",
+        "rgba(16,185,129,0.8)",
+        "rgba(245,158,11,0.8)",
+        "rgba(239,68,68,0.8)",
+    ];
+
+    new Chart(document.getElementById("segmentChart"), {
+        type: "doughnut",
+        data: {
+            labels: segLabels,
+            datasets: [{
+                data: segValues,
+                backgroundColor: segColors.slice(0, segLabels.length),
+                borderColor: "rgb(17,24,39)",
+                borderWidth: 3,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "60%",
+            plugins: {
+                legend: {
+                    position: "bottom",
+                    labels: { color: "#94a3b8", font: { family: "Inter", size: 12 }, padding: 16 }
+                },
+                tooltip: {
+                    backgroundColor: "rgba(15,23,42,0.95)",
+                    titleColor: "#e2e8f0",
+                    bodyColor: "#94a3b8",
+                    borderColor: "#334155",
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    padding: 12,
+                }
+            }
+        }
+    });
+
+    // ── Region Bar Chart ─────────────────────────────────────────────
+    const regionData = {{ region_data | safe }};
+    const regLabels = Object.keys(regionData);
+    const regValues = Object.values(regionData);
+    const regColors = regLabels.map((_, i) => {
+        const palette = [
+            "rgba(6,182,212,0.7)",
+            "rgba(168,85,247,0.7)",
+            "rgba(34,197,94,0.7)",
+            "rgba(251,146,60,0.7)",
+            "rgba(244,63,94,0.7)",
+        ];
+        return palette[i % palette.length];
+    });
+    const regBorders = regLabels.map((_, i) => {
+        const palette = [
+            "rgb(6,182,212)",
+            "rgb(168,85,247)",
+            "rgb(34,197,94)",
+            "rgb(251,146,60)",
+            "rgb(244,63,94)",
+        ];
+        return palette[i % palette.length];
+    });
+
+    new Chart(document.getElementById("regionChart"), {
+        type: "bar",
+        data: {
+            labels: regLabels,
+            datasets: [{
+                label: "# of Customers",
+                data: regValues,
+                backgroundColor: regColors,
+                borderColor: regBorders,
+                borderWidth: 1,
+                borderRadius: 8,
+                barPercentage: 0.5,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
                 tooltip: {

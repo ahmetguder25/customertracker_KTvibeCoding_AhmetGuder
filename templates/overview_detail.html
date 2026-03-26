@@ -2,6 +2,7 @@
 {% block title %}{{ customer['company_name'] }} — Overview{% endblock %}
 
 {% block content %}
+{% set st = status_map.get(customer['status']|string, {}) %}
 <div class="space-y-6">
     <!-- Back link -->
     <a href="/overview" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-brand-400 transition-colors">
@@ -21,13 +22,8 @@
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-3 mb-1">
                     <h1 class="text-2xl font-bold tracking-tight text-white truncate">{{ customer['company_name'] }}</h1>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        {% if customer['status'] == 'Closed Won' %}bg-emerald-500/20 text-emerald-400
-                        {% elif customer['status'] == 'Closed Lost' %}bg-red-500/20 text-red-400
-                        {% elif customer['status'] == 'Due Diligence' %}bg-amber-500/20 text-amber-400
-                        {% elif customer['status'] == 'Proposal' %}bg-blue-500/20 text-blue-400
-                        {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
-                        {{ customer['status'] }}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
+                        {{ st.get('description', customer['status']) }}
                     </span>
                 </div>
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400 mt-2">
@@ -94,13 +90,8 @@
                 <canvas id="statusRing" width="180" height="180"></canvas>
             </div>
             <div class="mt-4 text-center">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold
-                    {% if customer['status'] == 'Closed Won' %}bg-emerald-500/20 text-emerald-400
-                    {% elif customer['status'] == 'Closed Lost' %}bg-red-500/20 text-red-400
-                    {% elif customer['status'] == 'Due Diligence' %}bg-amber-500/20 text-amber-400
-                    {% elif customer['status'] == 'Proposal' %}bg-blue-500/20 text-blue-400
-                    {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
-                    {{ customer['status'] }}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
+                    {{ st.get('description', customer['status']) }}
                 </span>
             </div>
         </div>
@@ -115,29 +106,22 @@
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
             <h2 class="text-sm font-semibold text-gray-300 mb-4">Status Pipeline</h2>
             <div class="space-y-3">
-                {% set status_order = ["Lead", "Proposal", "Due Diligence", "Closed Won", "Closed Lost"] %}
-                {% set status_icons = {
-                    "Lead": "🎯",
-                    "Proposal": "📄",
-                    "Due Diligence": "🔍",
-                    "Closed Won": "✅",
-                    "Closed Lost": "❌"
-                } %}
                 {% set reached = [true] %}
-                {% for s in status_order %}
+                {% for code, info in status_map.items()|sort %}
+                {% set status_icons = {"1": "🎯", "2": "📄", "3": "🔍", "4": "✅", "5": "❌"} %}
                 <div class="flex items-center gap-3 {{ 'opacity-30' if not reached[0] else '' }}">
                     <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm
-                        {% if s == customer['status'] %}bg-brand-600/30 ring-2 ring-brand-500
+                        {% if code == customer['status']|string %}bg-brand-600/30 ring-2 ring-brand-500
                         {% elif reached[0] %}bg-gray-800
                         {% else %}bg-gray-800/50{% endif %}">
-                        {{ status_icons[s] }}
+                        {{ status_icons.get(code, '●') }}
                     </div>
-                    <span class="text-sm {% if s == customer['status'] %}text-white font-semibold{% else %}text-gray-500{% endif %}">{{ s }}</span>
-                    {% if s == customer['status'] %}
+                    <span class="text-sm {% if code == customer['status']|string %}text-white font-semibold{% else %}text-gray-500{% endif %}">{{ info.description }}</span>
+                    {% if code == customer['status']|string %}
                     <span class="ml-auto text-xs text-brand-400 font-medium">Current</span>
                     {% endif %}
                 </div>
-                {% if s == customer['status'] %}{% if reached.append(false) %}{% endif %}{% endif %}
+                {% if code == customer['status']|string %}{% if reached.append(false) %}{% endif %}{% endif %}
                 {% endfor %}
             </div>
         </div>
@@ -208,31 +192,36 @@
 
 <!-- Chart.js Ring -->
 <script>
-    const statuses = {{ statuses | tojson }};
+    const statusMap = {{ status_map | tojson }};
     const currentStatus = "{{ customer['status'] }}";
-    const colorMap = {
-        "Lead":           { bg: "rgba(99,102,241,0.7)",  border: "rgb(99,102,241)"  },
-        "Proposal":       { bg: "rgba(59,130,246,0.7)",  border: "rgb(59,130,246)"  },
-        "Due Diligence":  { bg: "rgba(245,158,11,0.7)",  border: "rgb(245,158,11)"  },
-        "Closed Won":     { bg: "rgba(16,185,129,0.7)",  border: "rgb(16,185,129)"  },
-        "Closed Lost":    { bg: "rgba(239,68,68,0.7)",   border: "rgb(239,68,68)"   },
+
+    // Chart.js color map from parameter table
+    const chartColorMap = {
+        "1": { bg: "rgba(99,102,241,0.7)",  border: "rgb(99,102,241)"  },
+        "2": { bg: "rgba(59,130,246,0.7)",  border: "rgb(59,130,246)"  },
+        "3": { bg: "rgba(245,158,11,0.7)",  border: "rgb(245,158,11)"  },
+        "4": { bg: "rgba(16,185,129,0.7)",  border: "rgb(16,185,129)"  },
+        "5": { bg: "rgba(239,68,68,0.7)",   border: "rgb(239,68,68)"   },
     };
 
+    const codes = Object.keys(statusMap).sort();
+    const statusLabels = codes.map(c => statusMap[c].description);
+
     // Build data: current status = 1, others dim
-    const ringData = statuses.map(s => 1);
-    const ringBg = statuses.map(s => s === currentStatus
-        ? (colorMap[s]?.bg || "rgba(148,163,184,0.7)")
+    const ringData = codes.map(c => 1);
+    const ringBg = codes.map(c => c === currentStatus
+        ? (chartColorMap[c]?.bg || "rgba(148,163,184,0.7)")
         : "rgba(30,41,59,0.5)"
     );
-    const ringBorder = statuses.map(s => s === currentStatus
-        ? (colorMap[s]?.border || "rgb(148,163,184)")
+    const ringBorder = codes.map(c => c === currentStatus
+        ? (chartColorMap[c]?.border || "rgb(148,163,184)")
         : "rgba(51,65,85,0.5)"
     );
 
     new Chart(document.getElementById("statusRing"), {
         type: "doughnut",
         data: {
-            labels: statuses,
+            labels: statusLabels,
             datasets: [{
                 data: ringData,
                 backgroundColor: ringBg,

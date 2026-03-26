@@ -34,8 +34,8 @@
                 <label for="status" class="block text-xs font-medium text-gray-400 mb-1">Status *</label>
                 <select name="status" id="status" required
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                    {% for s in statuses %}
-                    <option value="{{ s }}">{{ s }}</option>
+                    {% for code, info in status_map.items()|sort %}
+                    <option value="{{ code }}">{{ info.description }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -80,19 +80,15 @@
                 </thead>
                 <tbody class="divide-y divide-gray-800/60">
                     {% for c in customers %}
+                    {% set st = status_map.get(c['status']|string, {}) %}
                     <tr class="hover:bg-gray-800/40 transition-colors">
                         <td class="px-6 py-3 font-mono text-gray-500">{{ c['id'] }}</td>
                         <td class="px-6 py-3 font-medium text-white">{{ c['company_name'] }}</td>
                         <td class="px-6 py-3 text-gray-300">{{ c['contact_name'] }}</td>
                         <td class="px-6 py-3 text-right font-mono text-emerald-400">${{ "{:,.0f}".format(c['deal_size']) }}</td>
                         <td class="px-6 py-3">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                {% if c['status'] == 'Closed Won' %}bg-emerald-500/20 text-emerald-400
-                                {% elif c['status'] == 'Closed Lost' %}bg-red-500/20 text-red-400
-                                {% elif c['status'] == 'Due Diligence' %}bg-amber-500/20 text-amber-400
-                                {% elif c['status'] == 'Proposal' %}bg-blue-500/20 text-blue-400
-                                {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
-                                {{ c['status'] }}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
+                                {{ st.get('description', c['status']) }}
                             </span>
                         </td>
                         <td class="px-6 py-3 text-gray-400">{{ c['sector'] or '—' }}</td>

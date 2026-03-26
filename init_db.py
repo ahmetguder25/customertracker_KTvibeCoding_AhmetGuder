@@ -34,6 +34,22 @@ def init_db():
         )
     """)
 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS customer_details (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id         INTEGER NOT NULL UNIQUE,
+            credit_limit        REAL,
+            value_segment       TEXT,
+            branch              TEXT,
+            region              TEXT,
+            portfolio_manager   TEXT,
+            foreign_trade_volume REAL,
+            memzuc_151_volume   REAL,
+            memzuc_152_volume   REAL,
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        )
+    """)
+
     # Only seed if table is empty
     cur.execute("SELECT COUNT(*) FROM customers")
     if cur.fetchone()[0] == 0:
@@ -64,6 +80,22 @@ def init_db():
             sample_comments,
         )
         print(f"Inserted {len(sample_comments)} sample comments.")
+
+    # Seed customer_details if empty
+    cur.execute("SELECT COUNT(*) FROM customer_details")
+    if cur.fetchone()[0] == 0:
+        details_data = [
+            (1, 10000000,  "A",      "Main Branch",      "Marmara",       "Ahmet Yilmaz",   2500000,  1800000,  950000),
+            (2, 25000000,  "A+",     "Corporate Branch",  "Ege",           "Mehmet Demir",    5200000,  3200000,  1750000),
+            (3, 15000000,  "B",      "SME Branch",        "Ic Anadolu",    "Ayse Kaya",       1800000,  1200000,  680000),
+            (4, 50000000,  "A+",     "Main Branch",       "Marmara",       "Fatma Celik",     8900000,  5400000,  3200000),
+            (5, 8000000,   "B",      "Retail Branch",     "Akdeniz",       "Ali Ozturk",      950000,   720000,   410000),
+        ]
+        cur.executemany(
+            "INSERT INTO customer_details (customer_id, credit_limit, value_segment, branch, region, portfolio_manager, foreign_trade_volume, memzuc_151_volume, memzuc_152_volume) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            details_data,
+        )
+        print(f"Inserted {len(details_data)} customer detail rows.")
 
     conn.commit()
     conn.close()

@@ -11,6 +11,7 @@
     <!-- Customer Cards Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {% for c in customers %}
+        {% set st = status_map.get(c['status']|string, {}) %}
         <a href="/overview/{{ c['id'] }}" id="customer-card-{{ c['id'] }}"
            class="group bg-gray-900 border border-gray-800 rounded-2xl p-5 flex gap-4 items-start
                   hover:border-brand-600/50 hover:shadow-lg hover:shadow-brand-600/5
@@ -29,13 +30,8 @@
                 <h3 class="font-semibold text-white group-hover:text-brand-400 transition-colors truncate">{{ c['company_name'] }}</h3>
                 <p class="text-xs text-gray-500 mt-0.5">{{ c['contact_name'] }}</p>
                 <div class="flex items-center gap-2 mt-2">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                        {% if c['status'] == 'Closed Won' %}bg-emerald-500/20 text-emerald-400
-                        {% elif c['status'] == 'Closed Lost' %}bg-red-500/20 text-red-400
-                        {% elif c['status'] == 'Due Diligence' %}bg-amber-500/20 text-amber-400
-                        {% elif c['status'] == 'Proposal' %}bg-blue-500/20 text-blue-400
-                        {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
-                        {{ c['status'] }}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
+                        {{ st.get('description', c['status']) }}
                     </span>
                     <span class="text-xs text-gray-600">{{ c['sector'] or '' }}</span>
                 </div>
