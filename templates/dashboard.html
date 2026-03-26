@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Customer Tracker{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p class="text-gray-400 mt-1">Deal pipeline overview by status</p>
+    </div>
+
+    <!-- KPI Cards -->
+    <div id="kpi-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Total Deals</span>
+            <span id="kpi-total" class="text-3xl font-bold text-white"></span>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Active Pipeline</span>
+            <span id="kpi-active" class="text-3xl font-bold text-brand-400"></span>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Win Rate</span>
+            <span id="kpi-winrate" class="text-3xl font-bold text-emerald-400"></span>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <h2 class="text-lg font-semibold mb-4">Customers by Deal Status</h2>
+        <div class="relative" style="max-height:400px;">
+            <canvas id="statusChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    const chartData = {{ chart_data | safe }};
+    const labels = Object.keys(chartData);
+    const values = Object.values(chartData);
+
+    // KPI calculations
+    const total = values.reduce((a, b) => a + b, 0);
+    const active = total - (chartData["Closed Won"] || 0) - (chartData["Closed Lost"] || 0);
+    const closedWon = chartData["Closed Won"] || 0;
+    const closedTotal = closedWon + (chartData["Closed Lost"] || 0);
+    const winRate = closedTotal > 0 ? Math.round((closedWon / closedTotal) * 100) : 0;
+
+    document.getElementById("kpi-total").textContent = total;
+    document.getElementById("kpi-active").textContent = active;
+    document.getElementById("kpi-winrate").textContent = winRate + "%";
+
+    // Bar colors
+    const colorMap = {
+        "Lead":           { bg: "rgba(99,102,241,0.7)",  border: "rgb(99,102,241)"  },
+        "Proposal":       { bg: "rgba(59,130,246,0.7)",  border: "rgb(59,130,246)"  },
+        "Due Diligence":  { bg: "rgba(245,158,11,0.7)",  border: "rgb(245,158,11)"  },
+        "Closed Won":     { bg: "rgba(16,185,129,0.7)",  border: "rgb(16,185,129)"  },
+        "Closed Lost":    { bg: "rgba(239,68,68,0.7)",   border: "rgb(239,68,68)"   },
+    };
+    const bgColors     = labels.map(l => (colorMap[l] || {}).bg     || "rgba(148,163,184,0.7)");
+    const borderColors = labels.map(l => (colorMap[l] || {}).border || "rgb(148,163,184)");
+
+    new Chart(document.getElementById("statusChart"), {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "# of Customers",
+                data: values,
+                backgroundColor: bgColors,
+                borderColor: borderColors,
+                borderWidth: 1,
+                borderRadius: 8,
+                barPercentage: 0.55,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: "rgba(15,23,42,0.95)",
+                    titleColor: "#e2e8f0",
+                    bodyColor: "#94a3b8",
+                    borderColor: "#334155",
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    padding: 12,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: "#64748b", stepSize: 1, font: { family: "Inter" } },
+                    grid:  { color: "rgba(51,65,85,0.4)" },
+                },
+                x: {
+                    ticks: { color: "#94a3b8", font: { family: "Inter", weight: 500 } },
+                    grid:  { display: false },
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

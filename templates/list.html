@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Customers — Customer Tracker{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight">Customer List</h1>
+        <p class="text-gray-400 mt-1">All tracked deals in the pipeline</p>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table id="customer-table" class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wider text-gray-500">
+                        <th class="px-6 py-4">ID</th>
+                        <th class="px-6 py-4">Company</th>
+                        <th class="px-6 py-4">Contact</th>
+                        <th class="px-6 py-4 text-right">Deal Size</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4">Sector</th>
+                        <th class="px-6 py-4">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/60">
+                    {% for c in customers %}
+                    <tr class="hover:bg-gray-800/40 transition-colors">
+                        <td class="px-6 py-3 font-mono text-gray-500">{{ c['id'] }}</td>
+                        <td class="px-6 py-3 font-medium text-white">{{ c['company_name'] }}</td>
+                        <td class="px-6 py-3 text-gray-300">{{ c['contact_name'] }}</td>
+                        <td class="px-6 py-3 text-right font-mono text-emerald-400">${{ "{:,.0f}".format(c['deal_size']) }}</td>
+                        <td class="px-6 py-3">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if c['status'] == 'Closed Won' %}bg-emerald-500/20 text-emerald-400
+                                {% elif c['status'] == 'Closed Lost' %}bg-red-500/20 text-red-400
+                                {% elif c['status'] == 'Due Diligence' %}bg-amber-500/20 text-amber-400
+                                {% elif c['status'] == 'Proposal' %}bg-blue-500/20 text-blue-400
+                                {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
+                                {{ c['status'] }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-gray-400">{{ c['sector'] or '—' }}</td>
+                        <td class="px-6 py-3 text-gray-500 text-xs">{{ c['created_at'][:10] if c['created_at'] else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if not customers %}
+        <div class="text-center py-12 text-gray-500">No customers found.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
