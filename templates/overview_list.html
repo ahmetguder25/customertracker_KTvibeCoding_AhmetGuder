@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Overview — Customer Tracker{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight">Customer Overview</h1>
+        <p class="text-gray-400 mt-1">Select a customer to view their full profile &amp; analysis</p>
+    </div>
+
+    <!-- Customer Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {% for c in customers %}
+        <a href="/overview/{{ c['id'] }}" id="customer-card-{{ c['id'] }}"
+           class="group bg-gray-900 border border-gray-800 rounded-2xl p-5 flex gap-4 items-start
+                  hover:border-brand-600/50 hover:shadow-lg hover:shadow-brand-600/5
+                  transition-all duration-300 hover:-translate-y-0.5">
+            <!-- Logo -->
+            <div class="flex-shrink-0 w-14 h-14 rounded-xl bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center">
+                {% if c['logo_filename'] %}
+                <img src="{{ url_for('static', filename='logos/' + c['logo_filename']) }}"
+                     alt="{{ c['company_name'] }} logo" class="w-full h-full object-cover">
+                {% else %}
+                <span class="text-2xl font-bold text-gray-500">{{ c['company_name'][0] }}</span>
+                {% endif %}
+            </div>
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-white group-hover:text-brand-400 transition-colors truncate">{{ c['company_name'] }}</h3>
+                <p class="text-xs text-gray-500 mt-0.5">{{ c['contact_name'] }}</p>
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                        {% if c['status'] == 'Closed Won' %}bg-emerald-500/20 text-emerald-400
+                        {% elif c['status'] == 'Closed Lost' %}bg-red-500/20 text-red-400
+                        {% elif c['status'] == 'Due Diligence' %}bg-amber-500/20 text-amber-400
+                        {% elif c['status'] == 'Proposal' %}bg-blue-500/20 text-blue-400
+                        {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
+                        {{ c['status'] }}
+                    </span>
+                    <span class="text-xs text-gray-600">{{ c['sector'] or '' }}</span>
+                </div>
+                <p class="text-sm font-mono text-emerald-400 mt-2">${{ "{:,.0f}".format(c['deal_size']) }}</p>
+            </div>
+            <!-- Arrow -->
+            <div class="flex-shrink-0 self-center text-gray-700 group-hover:text-brand-400 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% if not customers %}
+    <div class="text-center py-16 text-gray-500">No customers found.</div>
+    {% endif %}
+</div>
+{% endblock %}

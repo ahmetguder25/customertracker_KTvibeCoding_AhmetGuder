@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Edit Customer — Customer Tracker{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-2xl mx-auto">
+    <div>
+        <a href="/management" class="text-brand-400 hover:text-brand-300 text-sm transition">&larr; Back to Management</a>
+        <h1 class="text-2xl font-bold tracking-tight mt-2">Edit Customer</h1>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <form action="/management/edit/{{ customer['id'] }}" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="company_name" class="block text-xs font-medium text-gray-400 mb-1">Company Name *</label>
+                <input type="text" name="company_name" id="company_name" required value="{{ customer['company_name'] }}"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+            </div>
+            <div>
+                <label for="contact_name" class="block text-xs font-medium text-gray-400 mb-1">Contact Name *</label>
+                <input type="text" name="contact_name" id="contact_name" required value="{{ customer['contact_name'] }}"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+            </div>
+            <div>
+                <label for="deal_size" class="block text-xs font-medium text-gray-400 mb-1">Deal Size (USD) *</label>
+                <input type="number" name="deal_size" id="deal_size" required min="0" step="1000" value="{{ customer['deal_size']|int }}"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+            </div>
+            <div>
+                <label for="status" class="block text-xs font-medium text-gray-400 mb-1">Status *</label>
+                <select name="status" id="status" required
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                    {% for s in statuses %}
+                    <option value="{{ s }}" {% if s == customer['status'] %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="sector" class="block text-xs font-medium text-gray-400 mb-1">Sector</label>
+                <input type="text" name="sector" id="sector" value="{{ customer['sector'] or '' }}"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+            </div>
+            <div>
+                <label for="notes" class="block text-xs font-medium text-gray-400 mb-1">Notes</label>
+                <input type="text" name="notes" id="notes" value="{{ customer['notes'] or '' }}"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+            </div>
+            <div class="md:col-span-2 flex gap-3">
+                <button type="submit"
+                    class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25">
+                    Save Changes
+                </button>
+                <a href="/management"
+                    class="bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium px-6 py-2.5 rounded-lg text-sm transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

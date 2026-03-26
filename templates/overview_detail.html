@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}{{ customer['company_name'] }} — Overview{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Back link -->
+    <a href="/overview" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-brand-400 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Back to Overview
+    </a>
+
+    <!-- ════════════════ HEADER ════════════════ -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 relative overflow-hidden">
+        <!-- Gradient overlay -->
+        <div class="absolute inset-0 bg-gradient-to-br from-brand-600/10 via-transparent to-transparent pointer-events-none"></div>
+
+        <div class="relative flex items-start justify-between gap-6">
+            <!-- Left: Company info -->
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-1">
+                    <h1 class="text-2xl font-bold tracking-tight text-white truncate">{{ customer['company_name'] }}</h1>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if customer['status'] == 'Closed Won' %}bg-emerald-500/20 text-emerald-400
+                        {% elif customer['status'] == 'Closed Lost' %}bg-red-500/20 text-red-400
+                        {% elif customer['status'] == 'Due Diligence' %}bg-amber-500/20 text-amber-400
+                        {% elif customer['status'] == 'Proposal' %}bg-blue-500/20 text-blue-400
+                        {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
+                        {{ customer['status'] }}
+                    </span>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400 mt-2">
+                    <span class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        {{ customer['contact_name'] }}
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                        {{ customer['sector'] or 'N/A' }}
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        Added {{ customer['created_at'][:10] if customer['created_at'] else 'N/A' }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Right: Company Logo -->
+            <div class="flex-shrink-0 w-20 h-20 rounded-2xl bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shadow-lg">
+                {% if customer['logo_filename'] %}
+                <img src="{{ url_for('static', filename='logos/' + customer['logo_filename']) }}"
+                     alt="{{ customer['company_name'] }} logo" class="w-full h-full object-cover" id="company-logo">
+                {% else %}
+                <span class="text-3xl font-bold text-gray-500">{{ customer['company_name'][0] }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════ METRICS ROW ════════════════ -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Deal Size</span>
+            <p class="text-2xl font-bold text-emerald-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['deal_size']) }}</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Days in Pipeline</span>
+            <p class="text-2xl font-bold text-white mt-1">{{ days_in_pipeline }}</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">vs. Avg Deal</span>
+            <p class="text-2xl font-bold mt-1
+                {% if customer['deal_size'] >= avg_deal %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                {% if avg_deal > 0 %}
+                    {{ "{:+.0f}%".format(((customer['deal_size'] - avg_deal) / avg_deal) * 100) }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Sector Peers</span>
+            <p class="text-2xl font-bold text-brand-400 mt-1">{{ same_sector }} <span class="text-sm font-normal text-gray-500">companies</span></p>
+        </div>
+    </div>
+
+    <!-- ════════════════ ANALYSIS ROW ════════════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Pipeline Position Chart -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <h2 class="text-sm font-semibold text-gray-300 mb-4">Pipeline Position</h2>
+            <div class="flex justify-center">
+                <canvas id="statusRing" width="180" height="180"></canvas>
+            </div>
+            <div class="mt-4 text-center">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold
+                    {% if customer['status'] == 'Closed Won' %}bg-emerald-500/20 text-emerald-400
+                    {% elif customer['status'] == 'Closed Lost' %}bg-red-500/20 text-red-400
+                    {% elif customer['status'] == 'Due Diligence' %}bg-amber-500/20 text-amber-400
+                    {% elif customer['status'] == 'Proposal' %}bg-blue-500/20 text-blue-400
+                    {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
+                    {{ customer['status'] }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <h2 class="text-sm font-semibold text-gray-300 mb-3">Deal Notes</h2>
+            <p class="text-gray-400 text-sm leading-relaxed">{{ customer['notes'] or 'No notes available.' }}</p>
+        </div>
+
+        <!-- Deal Timeline -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <h2 class="text-sm font-semibold text-gray-300 mb-4">Status Pipeline</h2>
+            <div class="space-y-3">
+                {% set status_order = ["Lead", "Proposal", "Due Diligence", "Closed Won", "Closed Lost"] %}
+                {% set status_icons = {
+                    "Lead": "🎯",
+                    "Proposal": "📄",
+                    "Due Diligence": "🔍",
+                    "Closed Won": "✅",
+                    "Closed Lost": "❌"
+                } %}
+                {% set reached = [true] %}
+                {% for s in status_order %}
+                <div class="flex items-center gap-3 {{ 'opacity-30' if not reached[0] else '' }}">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm
+                        {% if s == customer['status'] %}bg-brand-600/30 ring-2 ring-brand-500
+                        {% elif reached[0] %}bg-gray-800
+                        {% else %}bg-gray-800/50{% endif %}">
+                        {{ status_icons[s] }}
+                    </div>
+                    <span class="text-sm {% if s == customer['status'] %}text-white font-semibold{% else %}text-gray-500{% endif %}">{{ s }}</span>
+                    {% if s == customer['status'] %}
+                    <span class="ml-auto text-xs text-brand-400 font-medium">Current</span>
+                    {% endif %}
+                </div>
+                {% if s == customer['status'] %}{% if reached.append(false) %}{% endif %}{% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════ TEAM MEMOS ════════════════ -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                </svg>
+                Team Memos
+            </h2>
+            <span class="text-xs text-gray-500 bg-gray-800 px-2.5 py-1 rounded-full">{{ comments|length }} memo{{ 's' if comments|length != 1 else '' }}</span>
+        </div>
+
+        <!-- Existing Comments -->
+        <div class="space-y-3 mb-6 max-h-96 overflow-y-auto pr-1" id="memo-list">
+            {% if comments %}
+                {% for comment in comments %}
+                <div class="comment-card bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:border-gray-600/50 transition-colors">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-full bg-brand-600/30 flex items-center justify-center text-xs font-bold text-brand-400">
+                                {{ comment['author'][0] }}
+                            </div>
+                            <span class="text-sm font-medium text-gray-200">{{ comment['author'] }}</span>
+                        </div>
+                        <span class="text-xs text-gray-600">{{ comment['created_at'][:16] if comment['created_at'] else '' }}</span>
+                    </div>
+                    <p class="text-sm text-gray-400 leading-relaxed pl-9">{{ comment['content'] }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-8 text-gray-600">
+                    <svg class="w-8 h-8 mx-auto mb-2 text-gray-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                    </svg>
+                    No memos yet. Be the first to add one.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Add Comment Form -->
+        <form action="/overview/{{ customer['id'] }}/comment" method="POST" class="border-t border-gray-700/50 pt-5">
+            <h3 class="text-sm font-medium text-gray-300 mb-3">Add a Memo</h3>
+            <div class="flex gap-3 mb-3">
+                <input type="text" name="author" id="comment-author" required
+                       placeholder="Your name"
+                       class="w-48 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors">
+            </div>
+            <div class="flex gap-3">
+                <textarea name="content" id="comment-content" required rows="2"
+                          placeholder="Write a memo for the team..."
+                          class="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors resize-none"></textarea>
+                <button type="submit" id="submit-comment"
+                        class="self-end bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/20 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    </svg>
+                    Send
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Chart.js Ring -->
+<script>
+    const statuses = {{ statuses | tojson }};
+    const currentStatus = "{{ customer['status'] }}";
+    const colorMap = {
+        "Lead":           { bg: "rgba(99,102,241,0.7)",  border: "rgb(99,102,241)"  },
+        "Proposal":       { bg: "rgba(59,130,246,0.7)",  border: "rgb(59,130,246)"  },
+        "Due Diligence":  { bg: "rgba(245,158,11,0.7)",  border: "rgb(245,158,11)"  },
+        "Closed Won":     { bg: "rgba(16,185,129,0.7)",  border: "rgb(16,185,129)"  },
+        "Closed Lost":    { bg: "rgba(239,68,68,0.7)",   border: "rgb(239,68,68)"   },
+    };
+
+    // Build data: current status = 1, others dim
+    const ringData = statuses.map(s => 1);
+    const ringBg = statuses.map(s => s === currentStatus
+        ? (colorMap[s]?.bg || "rgba(148,163,184,0.7)")
+        : "rgba(30,41,59,0.5)"
+    );
+    const ringBorder = statuses.map(s => s === currentStatus
+        ? (colorMap[s]?.border || "rgb(148,163,184)")
+        : "rgba(51,65,85,0.5)"
+    );
+
+    new Chart(document.getElementById("statusRing"), {
+        type: "doughnut",
+        data: {
+            labels: statuses,
+            datasets: [{
+                data: ringData,
+                backgroundColor: ringBg,
+                borderColor: ringBorder,
+                borderWidth: 2,
+                hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: false,
+            cutout: "65%",
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: "rgba(15,23,42,0.95)",
+                    titleColor: "#e2e8f0",
+                    bodyColor: "#94a3b8",
+                    borderColor: "#334155",
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    padding: 10,
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

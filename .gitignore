@@ -1,0 +1,14 @@
+# Database
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+venv/
+
+# ngrok
+ngrok.exe
