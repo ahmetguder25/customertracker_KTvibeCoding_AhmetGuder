@@ -5,18 +5,18 @@
 <div class="space-y-8">
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">Customer Overview</h1>
-            <p class="text-gray-400 mt-1">Select a customer to view their profile, active deals, and team memos</p>
+            <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('ov_title', 'Customer Overview') }}</h1>
+            <p class="text-gray-400 mt-1">{{ lang_dict.get('ov_subtitle', 'Select a customer to view their profile, active deals, and team memos') }}</p>
         </div>
         <button id="btn-refresh-all" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 shadow shadow-brand-600/20">
-            Refresh All AI Analysis
+            {{ lang_dict.get('ov_refresh_all', 'Refresh All AI Analysis') }}
         </button>
     </div>
 
     <!-- Progress Bar Section (Hidden) -->
     <div id="progress-container" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-4">
         <div class="flex justify-between text-sm mb-2">
-            <span class="text-gray-300 font-medium">Refreshing AI Analysis...</span>
+            <span class="text-gray-300 font-medium">{{ lang_dict.get('ov_refreshing', 'Refreshing AI Analysis...') }}</span>
             <span id="progress-text" class="text-brand-400 font-mono">0 / {{ customers|length }}</span>
         </div>
         <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
@@ -46,9 +46,9 @@
                 <p class="text-xs text-gray-500 mt-0.5">{{ c['portfolio_manager'] or 'Unassigned' }}</p>
                 <div class="flex items-center gap-2 mt-2">
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-300">
-                        {{ c['deal_count'] }} Active Deals
+                        {{ c['deal_count'] }} {{ lang_dict.get('ov_deals_title', 'Active Deals') }}
                     </span>
-                    <span class="text-xs text-gray-600">{{ c['sector'] or '' }}</span>
+                    <span class="text-xs text-gray-600">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '') }}</span>
                 </div>
                 <!-- Aggregated Deal Size -->
                 <p class="text-sm font-mono text-emerald-400 mt-2">${{ "{:,.0f}".format(c['total_deal_size'] or 0) }}</p>
@@ -64,12 +64,12 @@
     </div>
 
     {% if not customers %}
-    <div class="text-center py-16 text-gray-500">No customers found.</div>
+    <div class="text-center py-16 text-gray-500">{{ lang_dict.get('dash_empty_recent', 'No customers found.') }}</div>
     {% endif %}
     
     <!-- Toast Notice -->
     <div id="toast-success" class="fixed bottom-5 right-5 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-xl font-medium transition-all duration-500 opacity-0 translate-y-4 pointer-events-none z-50">
-        Refresh complete!
+        {{ lang_dict.get('ov_refresh_complete', 'Refresh complete!') }}
     </div>
 </div>
 

@@ -1,0 +1,5 @@
+Analyze customer '{customer_name}' in sector '{sector}'. They have the following active pipeline deals: {deal_info}. 
+
+Write a comprehensive but brief profile analysis summarizing this data. Your output must be exactly {max_chars} characters maximum.
+
+CRITICAL INSTRUCTION: Write this analysis in English.

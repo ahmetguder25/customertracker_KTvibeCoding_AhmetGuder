@@ -4,22 +4,22 @@
 {% block content %}
 <div class="space-y-8">
     <div>
-        <h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p class="text-gray-400 mt-1">Deal pipeline overview & customer insights</p>
+        <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('dash_title', 'Portfolio Dashboard') }}</h1>
+        <p class="text-gray-400 mt-1">{{ lang_dict.get('dash_subtitle', 'Deal pipeline overview & customer insights') }}</p>
     </div>
 
     <!-- Pipeline KPI Cards -->
     <div id="kpi-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Total Deals</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_total_deals', 'Total Deals') }}</span>
             <span id="kpi-total" class="text-3xl font-bold text-white"></span>
         </div>
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Active Pipeline</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_active_pipeline', 'Active Pipeline') }}</span>
             <span id="kpi-active" class="text-3xl font-bold text-brand-400"></span>
         </div>
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Win Rate</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_win_rate', 'Win Rate') }}</span>
             <span id="kpi-winrate" class="text-3xl font-bold text-emerald-400"></span>
         </div>
     </div>
@@ -27,19 +27,19 @@
     <!-- Volume KPI Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Total Credit Limit</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_credit_limit', 'Total Credit Limit') }}</span>
             <span class="text-2xl font-bold text-violet-400">${{ "{:,.0f}".format(volume_totals.total_limit) }}</span>
         </div>
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Foreign Trade Vol.</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_foreign_trade', 'Foreign Trade Vol.') }}</span>
             <span class="text-2xl font-bold text-cyan-400">${{ "{:,.0f}".format(volume_totals.total_ft) }}</span>
         </div>
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">MEMZUC 151 Vol.</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_151_vol', 'MEMZUC 151 Vol.') }}</span>
             <span class="text-2xl font-bold text-amber-400">${{ "{:,.0f}".format(volume_totals.total_151) }}</span>
         </div>
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">MEMZUC 152 Vol.</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_152_vol', 'MEMZUC 152 Vol.') }}</span>
             <span class="text-2xl font-bold text-rose-400">${{ "{:,.0f}".format(volume_totals.total_152) }}</span>
         </div>
     </div>
@@ -48,7 +48,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Pipeline Status Chart -->
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-            <h2 class="text-lg font-semibold mb-4">Customers by Deal Status</h2>
+            <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_pipeline_title', 'Customers by Deal Status') }}</h2>
             <div style="position:relative; height:320px;">
                 <canvas id="statusChart"></canvas>
             </div>
@@ -56,16 +56,35 @@
 
         <!-- Value Segment Chart -->
         <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-            <h2 class="text-lg font-semibold mb-4">Value Segment Distribution</h2>
+            <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_segment_title', 'Value Segment Distribution') }}</h2>
             <div style="position:relative; height:320px;">
                 <canvas id="segmentChart"></canvas>
             </div>
         </div>
     </div>
+    
+    <!-- AI Chat Assistant -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            {{ lang_dict.get('dash_ai_chat', 'Ollama AI Assistant') }}
+        </h2>
+        <div class="flex flex-col gap-4">
+            <div id="chat-box" class="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 h-64 overflow-y-auto text-sm space-y-3 flex flex-col">
+                <div class="text-gray-400 text-center m-auto">{{ lang_dict.get('dash_ai_chat_empty', 'Ask a question to the local AI model...') }}</div>
+            </div>
+            <form id="chat-form" class="flex gap-2">
+                <input type="text" id="chat-input" required placeholder="{{ lang_dict.get('dash_ai_chat_ph', 'Type your message...') }}" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                <button type="submit" id="chat-submit" class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-all duration-200">
+                    {{ lang_dict.get('dash_ai_chat_send', 'Send') }}
+                </button>
+            </form>
+        </div>
+    </div>
 
     <!-- Region Chart -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Customers by Region</h2>
+        <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_region_title', 'Customers by Region') }}</h2>
         <div style="position:relative; height:320px;">
             <canvas id="regionChart"></canvas>
         </div>
@@ -254,5 +273,64 @@
             }
         }
     });
+
+    // ── AI Chat Assistant ──────────────────────────────────────────
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatBox = document.getElementById('chat-box');
+    const chatSubmit = document.getElementById('chat-submit');
+
+    if (chatForm) {
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if(!message) return;
+
+            // Remove placeholder text if present
+            const placeholder = chatBox.querySelector('.text-center');
+            if(placeholder) placeholder.remove();
+
+            // Add user message to UI
+            const userDiv = document.createElement('div');
+            userDiv.className = 'flex justify-end';
+            userDiv.innerHTML = `<div class="bg-brand-600 text-white rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap">${message}</div>`;
+            chatBox.appendChild(userDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            chatInput.value = '';
+            chatInput.disabled = true;
+            chatSubmit.disabled = true;
+            chatSubmit.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                const data = await res.json();
+                
+                const aiDiv = document.createElement('div');
+                aiDiv.className = 'flex justify-start';
+                if(!res.ok || data.error) {
+                    aiDiv.innerHTML = `<div class="bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap">Error: ${data.error || 'Server returned an error'}</div>`;
+                } else {
+                    aiDiv.innerHTML = `<div class="bg-gray-700 text-white border border-gray-600/50 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap leading-relaxed">${data.response}</div>`;
+                }
+                chatBox.appendChild(aiDiv);
+            } catch (err) {
+                const errDiv = document.createElement('div');
+                errDiv.className = 'flex justify-start';
+                errDiv.innerHTML = `<div class="bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg px-3 py-2 max-w-[80%]">Network Error: Could not reach the AI service.</div>`;
+                chatBox.appendChild(errDiv);
+            }
+
+            chatInput.disabled = false;
+            chatSubmit.disabled = false;
+            chatSubmit.innerHTML = "{{ lang_dict.get('dash_ai_chat_send', 'Send') }}";
+            chatBox.scrollTop = chatBox.scrollHeight;
+            chatInput.focus();
+        });
+    }
 </script>
 {% endblock %}

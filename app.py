@@ -7,7 +7,8 @@ import websocket
 import re
 from dotenv import load_dotenv
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify, session
+from pyngrok import ngrok
 from werkzeug.utils import secure_filename
 import io
 
@@ -15,6 +16,20 @@ app = Flask(__name__)
 app.secret_key = "customer-tracker-secret-key-2026"
 load_dotenv()
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "customer_tracker.db")
+
+from datetime import timedelta
+
+def to_tr_time(t_str):
+    """Converts UTC SQLite timestamp string to Istanbul TS (+3) and formats as YYYY-MM-DD HH:MM"""
+    if not t_str: return ""
+    try:
+        dt = datetime.strptime(str(t_str)[:19].replace('T', ' '), "%Y-%m-%d %H:%M:%S")
+        dt += timedelta(hours=3)
+        return dt.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return str(t_str)[:16]
+
+app.jinja_env.filters['tr_time'] = to_tr_time
 
 # Logo upload config
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logos")
@@ -35,10 +50,14 @@ def get_param_map(param_type, conn=None):
     if conn is None:
         conn = get_db()
         close_conn = True
+        
+    from flask import has_request_context
+    lang_id = session.get('lang', 0) if has_request_context() else 0
+    
     rows = conn.execute(
         "SELECT ParamCode, ParamDescription, ParamValue, ParamValue2, ParamValue3 "
-        "FROM Parameter WHERE ParamType=? ORDER BY CAST(ParamCode AS INTEGER)",
-        (param_type,)
+        "FROM Parameter WHERE ParamType=? AND LanguageId=? ORDER BY CAST(ParamCode AS INTEGER)",
+        (param_type, lang_id)
     ).fetchall()
     if close_conn:
         conn.close()
@@ -53,6 +72,26 @@ def get_param_map(param_type, conn=None):
             "logo": r["ParamValue3"] or "",
         }
     return param_map
+
+
+@app.context_processor
+def inject_lang_dict():
+    """Injects the 'lang_dict' and 'current_lang' into ALL templates automatically."""
+    from flask import has_request_context
+    lang_id = session.get('lang', 0) if has_request_context() else 0
+    conn = get_db()
+    rows = conn.execute("SELECT Id, Description FROM Dictionary WHERE LanguageId=?", (lang_id,)).fetchall()
+    conn.close()
+    lang_dict = {row["Id"]: row["Description"] for row in rows}
+    return dict(lang_dict=lang_dict, current_lang=lang_id)
+
+
+@app.route("/set_language/<int:lang_id>")
+def set_language(lang_id):
+    """Switch language between English (0) and Turkish (1)."""
+    if lang_id in (0, 1):
+        session['lang'] = lang_id
+    return redirect(request.referrer or url_for("dashboard"))
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -128,6 +167,7 @@ def customer_list():
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
     fec_map = get_param_map("FEC", conn)
+    sector_map = get_param_map("Sector", conn)
     
     # Flat list joining Deals and Customers (structured only)
     deals = conn.execute("""
@@ -144,7 +184,7 @@ def customer_list():
     conn.close()
     
     return render_template("list.html", deals=deals, status_map=status_map,
-                           deal_type_map=deal_type_map, fec_map=fec_map, customers=customers)
+                           deal_type_map=deal_type_map, fec_map=fec_map, sector_map=sector_map, customers=customers)
 
 
 @app.route("/deals/<int:deal_id>")
@@ -165,10 +205,11 @@ def deal_detail(deal_id):
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
     fec_map = get_param_map("FEC", conn)
+    sector_map = get_param_map("Sector", conn)
     conn.close()
 
     return render_template("deal_detail.html", deal=deal, status_map=status_map,
-                           deal_type_map=deal_type_map, fec_map=fec_map)
+                           deal_type_map=deal_type_map, fec_map=fec_map, sector_map=sector_map)
 
 
 @app.route("/deals/add", methods=["POST"])
@@ -228,10 +269,11 @@ def edit_deal(deal_id):
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
     fec_map = get_param_map("FEC", conn)
+    sector_map = get_param_map("Sector", conn)
     conn.close()
 
     return render_template("deal_edit.html", deal=deal, status_map=status_map,
-                           deal_type_map=deal_type_map, fec_map=fec_map)
+                           deal_type_map=deal_type_map, fec_map=fec_map, sector_map=sector_map)
 
 
 @app.route("/deals/delete/<int:deal_id>", methods=["POST"])
@@ -252,6 +294,7 @@ def export_excel():
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
     fec_map = get_param_map("FEC", conn)
+    sector_map = get_param_map("Sector", conn)
     
     deals = conn.execute("""
         SELECT d.*, c.CustomerName, c.sector, c.credit_limit, c.value_segment, 
@@ -291,11 +334,12 @@ def export_excel():
         status_desc = status_map.get(str(d["status"]), {}).get("description", d["status"])
         dealtype_desc = deal_type_map.get(str(d["dealtype"]), {}).get("description", d["dealtype"])
         currency_acronym = fec_map.get(str(d["currency"] or 0), {}).get("bg", "TRY")
+        sector_desc = sector_map.get(str(d["sector"] or ""), {}).get("description", d["sector"])
         
         values = [
             d["id"], d["CustomerName"], d["contact_name"], dealtype_desc, d["deal_size"],
             d["expected_pricing_pa"] or "", currency_acronym, status_desc,
-            d["sector"] or "", d["credit_limit"] or "", d["value_segment"] or "",
+            sector_desc or "", d["credit_limit"] or "", d["value_segment"] or "",
             d["branch"] or "", d["region"] or "", d["portfolio_manager"] or "",
             d["foreign_trade_volume"] or "", d["memzuc_151_volume"] or "", d["memzuc_152_volume"] or "",
             d["notes"] or ""
@@ -331,9 +375,10 @@ def export_excel():
 def management():
     """List all structured Customers"""
     conn = get_db()
+    sector_map = get_param_map("Sector", conn)
     customers = conn.execute("SELECT * FROM Customer WHERE IsStructured=1 ORDER BY Customerid DESC").fetchall()
     conn.close()
-    return render_template("management.html", customers=customers)
+    return render_template("management.html", customers=customers, sector_map=sector_map)
 
 
 @app.route("/api/customer/lookup/<int:account_number>")
@@ -346,11 +391,13 @@ def lookup_customer(account_number):
     ).fetchone()
     conn.close()
     if customer:
+        sector_map = get_param_map("Sector", conn)
+        sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
         return jsonify({
             "found": True,
             "Customerid": customer["Customerid"],
             "CustomerName": customer["CustomerName"],
-            "sector": customer["sector"] or "",
+            "sector": sector_desc or "",
             "portfolio_manager": customer["portfolio_manager"] or "",
             "IsStructured": customer["IsStructured"],
         })
@@ -412,10 +459,11 @@ def edit_customer(customer_id):
     if not customer:
         conn.close()
         return redirect(url_for("management"))
-
+        
+    sector_map = get_param_map("Sector", conn)
     conn.close()
 
-    return render_template("edit.html", customer=customer)
+    return render_template("edit.html", customer=customer, sector_map=sector_map)
 
 
 @app.route("/management/customer/delete/<int:customer_id>", methods=["POST"])
@@ -442,8 +490,9 @@ def overview():
         GROUP BY c.Customerid
         ORDER BY c.CustomerName
     """).fetchall()
+    sector_map = get_param_map("Sector", conn)
     conn.close()
-    return render_template("overview_list.html", customers=customers)
+    return render_template("overview_list.html", customers=customers, sector_map=sector_map)
 
 
 @app.route("/overview/<int:customer_id>")
@@ -460,11 +509,13 @@ def overview_detail(customer_id):
     same_sector = conn.execute("SELECT COUNT(*) as cnt FROM Customer WHERE sector=?", (customer["sector"],)).fetchone()["cnt"]
     total_customers = conn.execute("SELECT COUNT(*) as cnt FROM Customer").fetchone()["cnt"]
 
-    analysis_row = conn.execute("SELECT * FROM CustomerAnalysis WHERE customer_id=? ORDER BY created_at DESC LIMIT 1", (customer_id,)).fetchone()
+    lang_id = session.get("lang", 0)
+    analysis_row = conn.execute("SELECT * FROM CustomerAnalysis WHERE customer_id=? AND LanguageId=? ORDER BY created_at DESC LIMIT 1", (customer_id, lang_id)).fetchone()
 
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
     fec_map = get_param_map("FEC", conn)
+    sector_map = get_param_map("Sector", conn)
     conn.close()
 
     total_deal_size = sum((d["deal_size"] or 0) for d in deals)
@@ -477,6 +528,7 @@ def overview_detail(customer_id):
         status_map=status_map,
         deal_type_map=deal_type_map,
         fec_map=fec_map,
+        sector_map=sector_map,
         total_customers=total_customers,
         same_sector=same_sector,
         total_deal_size=total_deal_size,
@@ -495,8 +547,31 @@ def generate_analysis(customer_id):
 
     deals = conn.execute("SELECT * FROM CustomerDeals WHERE customerid=?", (customer_id,)).fetchall()
     
+    lang_id = session.get("lang", 0)
     deal_info = ", ".join([f"${d['deal_size']} (Status ID {d['status']})" for d in deals])
-    prompt = f"Analyze customer '{customer['CustomerName']}' in sector '{customer['sector']}'. They have deals: {deal_info}. Write a 100 character max analysis."
+    
+    prompt_file = "prompt_tr.txt" if lang_id == 1 else "prompt_en.txt"
+    prompt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), prompt_file)
+    max_chars = 100
+    
+    try:
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            prompt_template = f.read()
+    except Exception:
+        if lang_id == 1:
+            prompt_template = "'{sector}' sektöründeki '{customer_name}' müşterisini analiz et. Anlaşmalar: {deal_info}. En fazla {max_chars} karakterlik analiz yaz."
+        else:
+            prompt_template = "Analyze customer '{customer_name}' in sector '{sector}'. Deals: {deal_info}. Write a {max_chars} character max analysis."
+
+    sector_map = get_param_map("Sector", conn)
+    sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
+
+    prompt = prompt_template.format(
+        customer_name=customer['CustomerName'],
+        sector=sector_desc,
+        deal_info=deal_info,
+        max_chars=max_chars
+    )
 
     api_key = os.getenv("OPENAI_API_KEY")
     endpoint = os.getenv("OPENAI_ENDPOINT")
@@ -552,13 +627,36 @@ def generate_analysis(customer_id):
 
     analysis_text = analysis_text[:100]
 
-    conn.execute("INSERT INTO CustomerAnalysis (customer_id, analysis_text) VALUES (?, ?)", (customer_id, analysis_text))
+    conn.execute("INSERT INTO CustomerAnalysis (customer_id, analysis_text, LanguageId) VALUES (?, ?, ?)", (customer_id, analysis_text, lang_id))
     conn.commit()
     
-    latest = conn.execute("SELECT * FROM CustomerAnalysis WHERE customer_id=? ORDER BY created_at DESC LIMIT 1", (customer_id,)).fetchone()
+    latest = conn.execute("SELECT * FROM CustomerAnalysis WHERE customer_id=? AND LanguageId=? ORDER BY created_at DESC LIMIT 1", (customer_id, lang_id)).fetchone()
     conn.close()
 
-    return {"status": "success", "analysis": latest["analysis_text"], "created_at": latest["created_at"]}
+    return {"status": "success", "analysis": latest["analysis_text"], "created_at": to_tr_time(latest["created_at"])}
+
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    data = request.get_json()
+    if not data or "message" not in data:
+        return jsonify({"error": "No message provided"}), 400
+    
+    user_message = data["message"]
+    
+    payload = {
+        "model": "gemma3:1b",
+        "stream": False,
+        "prompt": user_message
+    }
+    
+    try:
+        response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=60)
+        response.raise_for_status()
+        ollama_data = response.json()
+        return jsonify({"response": ollama_data.get("response", "")})
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Ollama API error: {str(e)}"}), 500
 
 
 @app.route("/overview/<int:customer_id>/comment", methods=["POST"])
@@ -577,4 +675,17 @@ def add_comment(customer_id):
 
 
 if __name__ == "__main__":
+    # Start ngrok only if we are the main process (not the reloader)
+    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        auth_token = os.environ.get("NGROK_AUTH_TOKEN")
+        if auth_token and auth_token != "ABC1234":
+            try:
+                ngrok.set_auth_token(auth_token)
+                public_url = ngrok.connect(5000).public_url
+                print(f"\n[{'*'*40}]\n* NGROK TUNNEL ACTIVE: {public_url}\n[{'*'*40}]\n")
+            except Exception as e:
+                print(f" * Failed to start ngrok tunnel: {e}")
+        else:
+            print("\n * NGROK is skipped: Please update NGROK_AUTH_TOKEN in .env\n")
+
     app.run(debug=True, port=5000)

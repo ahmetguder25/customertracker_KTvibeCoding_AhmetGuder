@@ -5,8 +5,8 @@
 <div class="space-y-6">
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">Pipeline Deals</h1>
-            <p class="text-gray-400 mt-1">All tracked deals across our active customers</p>
+            <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('list_title', 'Pipeline Deals') }}</h1>
+            <p class="text-gray-400 mt-1">{{ lang_dict.get('list_subtitle', 'All tracked deals across our active customers') }}</p>
         </div>
         <div class="flex gap-3">
             <button onclick="document.getElementById('add-deal-panel').classList.toggle('hidden')" id="btn-new-deal"
@@ -14,45 +14,45 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                 </svg>
-                New Deal
+                {{ lang_dict.get('list_btn_add_deal', 'New Deal') }}
             </button>
-            <a href="/list/export" id="btn-export"
+            <a href="/list/export" id="btn-export" title="{{ lang_dict.get('list_btn_export', 'Export pipeline to Excel') }}"
                 class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-emerald-600/25">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/>
                 </svg>
-                Export
+                {{ lang_dict.get('list_btn_export_txt', 'Export') }}
             </a>
         </div>
     </div>
 
     <!-- Add Deal Panel (hidden by default) -->
     <div id="add-deal-panel" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-6 animate-fadeIn">
-        <h2 class="text-lg font-semibold mb-4 text-emerald-400">Add New Deal</h2>
+        <h2 class="text-lg font-semibold mb-4 text-emerald-400">{{ lang_dict.get('list_add_title', 'Add New Deal') }}</h2>
         <form action="/deals/add" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
-                <label class="block text-xs text-gray-400 mb-1">Customer *</label>
+                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_sel_customer', 'Customer') }} *</label>
                 <select name="customerid" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600">
-                    <option value="">Select Customer</option>
+                    <option value="">{{ lang_dict.get('list_sel_customer', 'Select Customer') }}</option>
                     {% for c in customers %}
                     <option value="{{ c['Customerid'] }}">{{ c['CustomerName'] }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">Contact Name</label>
-                <input type="text" name="contact_name" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="Contact...">
+                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_contact', 'Contact Name') }}</label>
+                <input type="text" name="contact_name" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="...">
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">Deal Size *</label>
+                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_deal_size', 'Deal Size') }} *</label>
                 <input type="number" name="deal_size" required step="1" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="1000000">
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">Expected Pricing p.a. (%)</label>
+                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_exp_pricing', 'Expected Pricing p.a.') }} (%)</label>
                 <input type="number" name="expected_pricing_pa" step="0.01" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="3.50">
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">Currency</label>
+                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_currency', 'Currency') }}</label>
                 <select name="currency" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
                     {% for code, info in fec_map.items() %}
                     <option value="{{ code }}">{{ info.description }} ({{ info.bg }})</option>
@@ -60,7 +60,7 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">Status *</label>
+                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_status', 'Status') }} *</label>
                 <select name="status" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
                     {% for code, info in status_map.items()|sort %}
                     <option value="{{ code }}">{{ info.description }}</option>
@@ -68,7 +68,7 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">Deal Type *</label>
+                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_deal_type', 'Deal Type') }} *</label>
                 <select name="dealtype" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
                     {% for code, info in deal_type_map.items()|sort %}
                     <option value="{{ code }}">{{ info.description }}</option>
@@ -76,12 +76,12 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">Notes</label>
-                <input type="text" name="notes" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="Notes...">
+                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_notes', 'Notes') }}</label>
+                <input type="text" name="notes" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="...">
             </div>
             <div class="md:col-span-4 flex gap-3 pt-2">
-                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">Add Deal</button>
-                <button type="button" onclick="document.getElementById('add-deal-panel').classList.add('hidden')" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">Cancel</button>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">{{ lang_dict.get('list_btn_add_deal', 'Add Deal') }}</button>
+                <button type="button" onclick="document.getElementById('add-deal-panel').classList.add('hidden')" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">Vazgeç / Cancel</button>
             </div>
         </form>
     </div>
@@ -91,14 +91,14 @@
             <table id="customer-table" class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wider text-gray-500">
-                        <th class="px-4 py-4">Deal ID</th>
-                        <th class="px-4 py-4">Company</th>
-                        <th class="px-4 py-4">Contact</th>
-                        <th class="px-4 py-4">Deal Type</th>
-                        <th class="px-4 py-4 text-right">Deal Size</th>
-                        <th class="px-4 py-4 text-right">Pricing p.a.</th>
-                        <th class="px-4 py-4">Currency</th>
-                        <th class="px-4 py-4">Status</th>
+                        <th class="px-4 py-4">ID</th>
+                        <th class="px-4 py-4">{{ lang_dict.get('list_tbl_company', 'Company') }}</th>
+                        <th class="px-4 py-4">{{ lang_dict.get('list_tbl_contact', 'Contact') }}</th>
+                        <th class="px-4 py-4">{{ lang_dict.get('list_deal_type', 'Deal Type') }}</th>
+                        <th class="px-4 py-4 text-right">{{ lang_dict.get('list_deal_size', 'Deal Size') }}</th>
+                        <th class="px-4 py-4 text-right">{{ lang_dict.get('list_exp_pricing', 'Pricing p.a.') }}</th>
+                        <th class="px-4 py-4">{{ lang_dict.get('list_currency', 'Currency') }}</th>
+                        <th class="px-4 py-4">{{ lang_dict.get('list_status', 'Status') }}</th>
                         <th class="px-4 py-4">Segment</th>
                         <th class="px-4 py-4">Branch</th>
                         <th class="px-4 py-4">Region</th>
@@ -152,7 +152,7 @@
             </table>
         </div>
         {% if not deals %}
-        <div class="text-center py-12 text-gray-500">No deals found. Click "New Deal" to create one.</div>
+        <div class="text-center py-12 text-gray-500">{{ lang_dict.get('list_empty', 'No deals found. Click "New Deal" to create one.') }}</div>
         {% endif %}
     </div>
 </div>

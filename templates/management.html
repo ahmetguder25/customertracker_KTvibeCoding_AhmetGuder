@@ -4,13 +4,13 @@
 {% block content %}
 <div class="space-y-8">
     <div>
-        <h1 class="text-2xl font-bold tracking-tight">Customer Management</h1>
-        <p class="text-gray-400 mt-1">Add customers from the company database to your structured finance tracking</p>
+        <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('mgmt_title', 'Customer Management') }}</h1>
+        <p class="text-gray-400 mt-1">{{ lang_dict.get('mgmt_subtitle', 'Add customers from the company database to your structured finance tracking') }}</p>
     </div>
 
     <!-- Add Customer -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Add Customer</h2>
+        <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('mgmt_add_title', 'Add Customer') }}</h2>
         <style>
             /* Hide number input spinners */
             input[type=number]::-webkit-inner-spin-button, 
@@ -29,48 +29,48 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <!-- Account Number (active) -->
                 <div>
-                    <label for="accountNumber" class="block text-xs font-medium text-gray-400 mb-1">Account Number *</label>
+                    <label for="accountNumber" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_acc_label', 'Account Number *') }}</label>
                     <div class="relative">
                         <input type="number" id="accountNumber" required
                             class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition"
-                            placeholder="Enter account number">
+                            placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Enter account number') }}">
                         <div class="absolute top-full left-0 mt-1 w-[200%] sm:w-[150%] z-10">
-                            <p id="lookup-error" class="text-xs text-red-400 hidden">Customer could not be found.</p>
-                            <p id="lookup-already" class="text-xs text-amber-400 hidden leading-tight">Customer is already tracked in structured finance.</p>
-                            <p id="lookup-success" class="text-xs text-emerald-400 hidden">Customer found ✓</p>
+                            <p id="lookup-error" class="text-xs text-red-400 hidden">{{ lang_dict.get('mgmt_err_notfound', 'Customer could not be found.') }}</p>
+                            <p id="lookup-already" class="text-xs text-amber-400 hidden leading-tight">{{ lang_dict.get('mgmt_err_tracked', 'Customer is already tracked in structured finance.') }}</p>
+                            <p id="lookup-success" class="text-xs text-emerald-400 hidden">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Customer Name (disabled) -->
                 <div>
-                    <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">Company Name</label>
+                    <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_company_col', 'Company Name') }}</label>
                     <input type="text" id="CustomerName" disabled
                         class="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed transition"
-                        placeholder="— auto-filled —">
+                        placeholder="—">
                 </div>
 
                 <!-- Sector (disabled) -->
                 <div>
-                    <label for="sector" class="block text-xs font-medium text-gray-400 mb-1">Sector</label>
+                    <label for="sector" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_sector_col', 'Sector') }}</label>
                     <input type="text" id="sector" disabled
                         class="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed transition"
-                        placeholder="— auto-filled —">
+                        placeholder="—">
                 </div>
 
                 <!-- Portfolio Manager (disabled) -->
                 <div>
-                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-400 mb-1">Portfolio Manager</label>
+                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }}</label>
                     <input type="text" id="portfolio_manager" disabled
                         class="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed transition"
-                        placeholder="— auto-filled —">
+                        placeholder="—">
                 </div>
             </div>
 
             <div class="pt-2">
                 <button type="submit" id="btn-add" disabled
                     class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-brand-600">
-                    + Add Customer
+                    {{ lang_dict.get('mgmt_btn_add', '+ Add Customer') }}
                 </button>
             </div>
         </form>
@@ -79,18 +79,18 @@
     <!-- Existing Customers -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
-            <h2 class="text-lg font-semibold">Tracked Customers</h2>
-            <span class="text-xs text-gray-400">{{ customers|length }} Customers</span>
+            <h2 class="text-lg font-semibold">{{ lang_dict.get('mgmt_tbl_title', 'Tracked Customers') }}</h2>
+            <span class="text-xs text-gray-400"></span>
         </div>
         <div class="overflow-x-auto">
             <table id="mgmt-table" class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wider text-gray-500">
-                        <th class="px-6 py-3">Account #</th>
-                        <th class="px-6 py-3">Customer Name</th>
-                        <th class="px-6 py-3">Sector</th>
-                        <th class="px-6 py-3">PM</th>
-                        <th class="px-6 py-3 text-center">Actions</th>
+                        <th class="px-6 py-3">{{ lang_dict.get('mgmt_tbl_acc', 'Account #') }}</th>
+                        <th class="px-6 py-3">{{ lang_dict.get('mgmt_company_col', 'Company Name') }}</th>
+                        <th class="px-6 py-3">{{ lang_dict.get('mgmt_sector_col', 'Sector') }}</th>
+                        <th class="px-6 py-3">{{ lang_dict.get('mgmt_pm_col', 'PM') }}</th>
+                        <th class="px-6 py-3 text-center">{{ lang_dict.get('mgmt_tbl_actions', 'Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800/60">
@@ -98,12 +98,12 @@
                     <tr class="hover:bg-gray-800/40 transition-colors">
                         <td class="px-6 py-3 font-mono text-gray-500">{{ c['Customerid'] }}</td>
                         <td class="px-6 py-3 font-medium text-white">{{ c['CustomerName'] }}</td>
-                        <td class="px-6 py-3 text-gray-400">{{ c['sector'] or '—' }}</td>
+                        <td class="px-6 py-3 text-gray-400">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
                         <td class="px-6 py-3 text-gray-300">{{ c['portfolio_manager'] or '—' }}</td>
                         <td class="px-6 py-3 text-center whitespace-nowrap">
-                            <a href="/management/edit/{{ c['Customerid'] }}" class="text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">Edit Customer</a>
-                            <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" class="inline" onsubmit="return confirm('Remove {{ c['CustomerName'] }} from structured finance tracking?')">
-                                <button type="submit" class="text-red-400 hover:text-red-300 text-xs font-medium transition">Remove</button>
+                            <a href="/management/edit/{{ c['Customerid'] }}" class="text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">{{ lang_dict.get('mgmt_btn_edit', 'Edit Customer') }}</a>
+                            <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" class="inline" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_remove', 'Remove {} from structured finance tracking?').format(c['CustomerName']) }}')">
+                                <button type="submit" class="text-red-400 hover:text-red-300 text-xs font-medium transition">{{ lang_dict.get('mgmt_btn_remove', 'Remove') }}</button>
                             </form>
                         </td>
                     </tr>
@@ -112,7 +112,7 @@
             </table>
         </div>
         {% if not customers %}
-        <div class="text-center py-12 text-gray-500">No customers tracked yet. Look up an account number above to add one.</div>
+        <div class="text-center py-12 text-gray-500">{{ lang_dict.get('mgmt_empty', 'No customers tracked yet. Look up an account number above to add one.') }}</div>
         {% endif %}
     </div>
 </div>

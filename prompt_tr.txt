@@ -1,0 +1,5 @@
+'{sector}' sektöründeki '{customer_name}' müşterisini analiz et. Şu anki aktif anlaşmaları şunlardır: {deal_info}.
+
+Bu verileri özetleyen kısa ve öz bir profil analizi yaz. Çıktın en fazla {max_chars} karakter uzunluğunda olmalıdır.
+
+KRİTİK TALİMAT: Tüm analizi YALNIZCA TÜRKÇE olarak yazmalısın. Kesinlikle İngilizce kullanma.

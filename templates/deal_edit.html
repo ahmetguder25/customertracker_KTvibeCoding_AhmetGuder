@@ -4,20 +4,20 @@
 {% block content %}
 <div class="space-y-6 max-w-3xl mx-auto">
     <div>
-        <a href="/deals/{{ deal['id'] }}" class="text-brand-400 hover:text-brand-300 text-sm transition">&larr; Back to Deal Detail</a>
-        <h1 class="text-2xl font-bold tracking-tight mt-2">Edit Deal #{{ deal['id'] }} — {{ deal['CustomerName'] }}</h1>
+        <a href="/deals/{{ deal['id'] }}" class="text-brand-400 hover:text-brand-300 text-sm transition">&larr; {{ lang_dict.get('edit_deal_back', 'Back to Deal Detail') }}</a>
+        <h1 class="text-2xl font-bold tracking-tight mt-2">{{ lang_dict.get('edit_deal_title', 'Edit Deal #{}').format(deal['id']) }} — {{ deal['CustomerName'] }}</h1>
     </div>
 
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
         <form action="/deals/edit/{{ deal['id'] }}" method="POST" class="space-y-5">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="contact_name" class="block text-xs font-medium text-gray-400 mb-1">Contact Name</label>
+                    <label for="contact_name" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('list_contact', 'Contact Name') }}</label>
                     <input type="text" name="contact_name" id="contact_name" value="{{ deal['contact_name'] or '' }}"
                         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
                 </div>
                 <div>
-                    <label for="deal_size" class="block text-xs font-medium text-gray-400 mb-1">Deal Size *</label>
+                    <label for="deal_size" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('list_deal_size', 'Deal Size') }} *</label>
                     <input type="number" name="deal_size" id="deal_size" required step="1" value="{{ deal['deal_size']|int if deal['deal_size'] else '' }}"
                         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
                 </div>
@@ -25,14 +25,14 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="expected_pricing_pa" class="block text-xs font-medium text-gray-400 mb-1">Expected Pricing p.a. (%)</label>
+                    <label for="expected_pricing_pa" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('list_exp_pricing', 'Expected Pricing p.a.') }} (%)</label>
                     <input type="number" name="expected_pricing_pa" id="expected_pricing_pa" step="0.01"
                         value="{{ deal['expected_pricing_pa'] if deal['expected_pricing_pa'] else '' }}"
                         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition"
                         placeholder="e.g. 3.50">
                 </div>
                 <div>
-                    <label for="currency" class="block text-xs font-medium text-gray-400 mb-1">Currency</label>
+                    <label for="currency" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('list_currency', 'Currency') }}</label>
                     <select name="currency" id="currency"
                         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
                         {% for code, info in fec_map.items() %}
@@ -44,7 +44,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="status" class="block text-xs font-medium text-gray-400 mb-1">Status *</label>
+                    <label for="status" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('list_status', 'Status') }} *</label>
                     <select name="status" id="status" required
                         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
                         {% for code, info in status_map.items()|sort %}
@@ -53,7 +53,7 @@
                     </select>
                 </div>
                 <div>
-                    <label for="dealtype" class="block text-xs font-medium text-gray-400 mb-1">Deal Type *</label>
+                    <label for="dealtype" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('list_deal_type', 'Deal Type') }} *</label>
                     <select name="dealtype" id="dealtype" required
                         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
                         {% for code, info in deal_type_map.items()|sort %}
@@ -64,7 +64,7 @@
             </div>
 
             <div>
-                <label for="notes" class="block text-xs font-medium text-gray-400 mb-1">Notes</label>
+                <label for="notes" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('list_notes', 'Notes') }}</label>
                 <textarea name="notes" id="notes" rows="3"
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition resize-none"
                     placeholder="Deal notes...">{{ deal['notes'] or '' }}</textarea>
@@ -73,10 +73,10 @@
             <div class="flex gap-3 pt-2">
                 <button type="submit"
                     class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25">
-                    Save Changes
+                    {{ lang_dict.get('edit_btn_save', 'Save Changes') }}
                 </button>
                 <a href="/deals/{{ deal['id'] }}" class="bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200">
-                    Cancel
+                    {{ lang_dict.get('edit_btn_cancel', 'Cancel') }}
                 </a>
             </div>
         </form>

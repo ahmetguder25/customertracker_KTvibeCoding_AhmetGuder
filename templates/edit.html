@@ -4,8 +4,8 @@
 {% block content %}
 <div class="space-y-8 max-w-4xl mx-auto">
     <div>
-        <a href="/management" class="text-brand-400 hover:text-brand-300 text-sm transition">&larr; Back to Management</a>
-        <h1 class="text-2xl font-bold tracking-tight mt-2">Edit Customer: {{ customer['CustomerName'] }}</h1>
+        <a href="/management" class="text-brand-400 hover:text-brand-300 text-sm transition">&larr; {{ lang_dict.get('edit_back', 'Back to Management') }}</a>
+        <h1 class="text-2xl font-bold tracking-tight mt-2">{{ lang_dict.get('edit_title', 'Edit Customer: {}').format(customer['CustomerName']) }}</h1>
     </div>
 
     <!-- Flash messages -->
@@ -23,7 +23,7 @@
 
     <!-- Editable Customer Info -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4 border-b border-gray-800 pb-3">Core Customer Information</h2>
+        <h2 class="text-lg font-semibold mb-4 border-b border-gray-800 pb-3">{{ lang_dict.get('edit_section_core', 'Core Customer Information') }}</h2>
         <form action="/management/edit/{{ customer['Customerid'] }}" method="POST" enctype="multipart/form-data" class="space-y-6">
 
             <!-- Logo Section -->
@@ -44,28 +44,33 @@
                     {% endif %}
                 </div>
                 <div class="flex-1">
-                    <label for="logo" class="block text-xs font-medium text-gray-400 mb-2">Upload or Change Logo</label>
+                    <label for="logo" class="block text-xs font-medium text-gray-400 mb-2">{{ lang_dict.get('edit_logo_label', 'Upload or Change Logo') }}</label>
                     <input type="file" name="logo" id="logo" accept=".png,.jpg,.jpeg,.gif,.svg"
                         class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-600 file:text-white hover:file:bg-brand-700 file:cursor-pointer file:transition-all cursor-pointer"
                         onchange="previewLogo(this)">
-                    <p class="text-xs text-gray-500 mt-2">Max 2 MB · PNG, JPG, GIF, or SVG</p>
+                    <p class="text-xs text-gray-500 mt-2">{{ lang_dict.get('edit_logo_hint', 'Max 2 MB · PNG, JPG, GIF, or SVG') }}</p>
                 </div>
             </div>
 
             <!-- Editable Fields: Name, Sector, PM -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">Company Name *</label>
+                    <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_company_col', 'Company Name') }} *</label>
                     <input type="text" name="CustomerName" id="CustomerName" required value="{{ customer['CustomerName'] }}"
                         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
                 </div>
                 <div>
-                    <label for="sector" class="block text-xs font-medium text-gray-400 mb-1">Sector</label>
-                    <input type="text" name="sector" id="sector" value="{{ customer['sector'] or '' }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                    <label for="sector" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_sector_col', 'Sector') }}</label>
+                    <select name="sector" id="sector"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition appearance-none">
+                        <option value="" class="text-gray-500">{{ lang_dict.get('list_filter_all', 'None') }}</option>
+                        {% for s_code, s_info in sector_map.items()|sort %}
+                        <option value="{{ s_code }}" {% if customer['sector']|string == s_code %}selected{% endif %}>{{ s_info['description'] }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div>
-                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-400 mb-1">Portfolio Manager</label>
+                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }}</label>
                     <input type="text" name="portfolio_manager" id="portfolio_manager" value="{{ customer['portfolio_manager'] or '' }}"
                         class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
                 </div>
@@ -74,7 +79,7 @@
             <div class="flex gap-3 pt-2">
                 <button type="submit"
                     class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25">
-                    Save Customer Info
+                    {{ lang_dict.get('edit_btn_save', 'Save Customer Info') }}
                 </button>
             </div>
         </form>
@@ -82,14 +87,14 @@
 
     <!-- Read-Only Financial Information from DB -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4 border-b border-gray-800 pb-3 text-gray-300">Financial Data <span class="text-xs font-normal text-gray-500 ml-2">(read from database)</span></h2>
+        <h2 class="text-lg font-semibold mb-4 border-b border-gray-800 pb-3 text-gray-300">{{ lang_dict.get('edit_section_fin', 'Financial Data') }} <span class="text-xs font-normal text-gray-500 ml-2">{{ lang_dict.get('edit_fin_hint', '(read from database)') }}</span></h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Credit Limit</span>
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_credit_limit', 'Credit Limit') }}</span>
                 <p class="text-lg font-bold text-violet-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</p>
             </div>
             <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Value Segment</span>
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('detail_segment', 'Value Segment') }}</span>
                 <p class="text-lg font-bold text-white mt-1">
                     {% if customer['value_segment'] %}
                     <span class="inline-flex items-center px-2 py-0.5 rounded-md text-sm font-semibold
@@ -103,23 +108,23 @@
                 </p>
             </div>
             <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Branch</span>
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('detail_branch', 'Branch') }}</span>
                 <p class="text-lg font-bold text-gray-300 mt-1">{{ customer['branch'] or '—' }}</p>
             </div>
             <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Region</span>
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('detail_region', 'Region') }}</span>
                 <p class="text-lg font-bold text-gray-300 mt-1">{{ customer['region'] or '—' }}</p>
             </div>
             <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Foreign Trade Vol.</span>
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_foreign_trade', 'Foreign Trade Vol.') }}</span>
                 <p class="text-lg font-bold text-cyan-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</p>
             </div>
             <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Memzuc 151 Vol.</span>
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_151_vol', 'Memzuc 151 Vol.') }}</span>
                 <p class="text-lg font-bold text-amber-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['memzuc_151_volume'] or 0) }}</p>
             </div>
             <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Memzuc 152 Vol.</span>
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_152_vol', 'Memzuc 152 Vol.') }}</span>
                 <p class="text-lg font-bold text-rose-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['memzuc_152_volume'] or 0) }}</p>
             </div>
         </div>
