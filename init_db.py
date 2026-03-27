@@ -218,6 +218,8 @@ def init_db():
         ("ov_refresh_all", "Refresh All AI Analysis", "Tüm Yapay Zeka Analizlerini Yenile"),
         ("ov_refreshing", "Refreshing AI Analysis...", "YZ Analizleri Yenileniyor..."),
         ("ov_refresh_complete", "Refresh complete!", "Yenileme tamamlandı!"),
+        ("ov_subtitle", "Select a customer to view their profile, active deals, and team memos", "Profilini, aktif fırsatlarını ve takım notlarını görüntülemek için bir müşteri seçin."),
+
         
         ("dash_title", "Portfolio Dashboard", "Portföy Özeti"),
         ("dash_subtitle", "High-level overview of active tracking limits and current pipeline.", "Aktif limitler ve mevcut fırsatların genel özeti."),
