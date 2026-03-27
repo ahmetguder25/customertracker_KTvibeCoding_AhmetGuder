@@ -8,13 +8,82 @@
             <h1 class="text-2xl font-bold tracking-tight">Pipeline Deals</h1>
             <p class="text-gray-400 mt-1">All tracked deals across our active customers</p>
         </div>
-        <a href="/list/export" id="btn-export"
-            class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-emerald-600/25">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/>
-            </svg>
-            Export to Excel
-        </a>
+        <div class="flex gap-3">
+            <button onclick="document.getElementById('add-deal-panel').classList.toggle('hidden')" id="btn-new-deal"
+                class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+                New Deal
+            </button>
+            <a href="/list/export" id="btn-export"
+                class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-emerald-600/25">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                </svg>
+                Export
+            </a>
+        </div>
+    </div>
+
+    <!-- Add Deal Panel (hidden by default) -->
+    <div id="add-deal-panel" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-6 animate-fadeIn">
+        <h2 class="text-lg font-semibold mb-4 text-emerald-400">Add New Deal</h2>
+        <form action="/deals/add" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Customer *</label>
+                <select name="customerid" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600">
+                    <option value="">Select Customer</option>
+                    {% for c in customers %}
+                    <option value="{{ c['Customerid'] }}">{{ c['CustomerName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Contact Name</label>
+                <input type="text" name="contact_name" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="Contact...">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Deal Size *</label>
+                <input type="number" name="deal_size" required step="1" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="1000000">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Expected Pricing p.a. (%)</label>
+                <input type="number" name="expected_pricing_pa" step="0.01" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="3.50">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Currency</label>
+                <select name="currency" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+                    {% for code, info in fec_map.items() %}
+                    <option value="{{ code }}">{{ info.description }} ({{ info.bg }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Status *</label>
+                <select name="status" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+                    {% for code, info in status_map.items()|sort %}
+                    <option value="{{ code }}">{{ info.description }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Deal Type *</label>
+                <select name="dealtype" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+                    {% for code, info in deal_type_map.items()|sort %}
+                    <option value="{{ code }}">{{ info.description }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Notes</label>
+                <input type="text" name="notes" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="Notes...">
+            </div>
+            <div class="md:col-span-4 flex gap-3 pt-2">
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">Add Deal</button>
+                <button type="button" onclick="document.getElementById('add-deal-panel').classList.add('hidden')" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">Cancel</button>
+            </div>
+        </form>
     </div>
 
     <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
@@ -27,37 +96,37 @@
                         <th class="px-4 py-4">Contact</th>
                         <th class="px-4 py-4">Deal Type</th>
                         <th class="px-4 py-4 text-right">Deal Size</th>
+                        <th class="px-4 py-4 text-right">Pricing p.a.</th>
+                        <th class="px-4 py-4">Currency</th>
                         <th class="px-4 py-4">Status</th>
-                        <th class="px-4 py-4">Sector</th>
-                        <th class="px-4 py-4 text-right">Limit</th>
                         <th class="px-4 py-4">Segment</th>
                         <th class="px-4 py-4">Branch</th>
                         <th class="px-4 py-4">Region</th>
-                        <th class="px-4 py-4">PM</th>
-                        <th class="px-4 py-4 text-right">FT Vol.</th>
-                        <th class="px-4 py-4 text-right">M151</th>
-                        <th class="px-4 py-4 text-right">M152</th>
+                        <th class="px-4 py-4 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800/60">
                     {% for d in deals %}
                     {% set st = status_map.get(d['status']|string, {}) %}
                     {% set dt = deal_type_map.get(d['dealtype']|string, {}) %}
-                    <tr class="hover:bg-gray-800/40 transition-colors">
+                    {% set cur = fec_map.get((d['currency'] or 0)|string, {}) %}
+                    <tr class="hover:bg-gray-800/40 transition-colors cursor-pointer" onclick="window.location='/deals/{{ d['id'] }}'" title="Click to view deal details">
                         <td class="px-4 py-3 font-mono text-gray-500">{{ d['id'] }}</td>
                         <td class="px-4 py-3 font-medium text-white whitespace-nowrap">{{ d['CustomerName'] }}</td>
                         <td class="px-4 py-3 text-gray-300 whitespace-nowrap">{{ d['contact_name'] or '—' }}</td>
                         <td class="px-4 py-3 text-gray-300 whitespace-nowrap text-xs font-semibold">
                             <span class="bg-gray-800 px-2 py-1 rounded text-gray-300 border border-gray-700">{{ dt.get('description', d['dealtype']) }}</span>
                         </td>
-                        <td class="px-4 py-3 text-right font-mono text-emerald-400">${{ "{:,.0f}".format(d['deal_size']) if d['deal_size'] else '0' }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-emerald-400">{{ "{:,.0f}".format(d['deal_size']) if d['deal_size'] else '0' }} {{ cur.get('bg', 'TRY') }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-amber-400">{% if d['expected_pricing_pa'] %}{{ "{:.2f}".format(d['expected_pricing_pa']) }}%{% else %}—{% endif %}</td>
+                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap">
+                            <span class="bg-gray-800 px-2 py-0.5 rounded text-xs font-medium text-gray-300 border border-gray-700">{{ cur.get('bg', 'TRY') }}</span>
+                        </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
-                                {{ st.get('description', d['status']) }}
+                                {% if st.get('logo') %}{{ st.get('logo') }} {% endif %}{{ st.get('description', d['status']) }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-gray-400">{{ d['sector'] or '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-violet-400">{{ "${:,.0f}".format(d['credit_limit']) if d['credit_limit'] else '—' }}</td>
                         <td class="px-4 py-3">
                             {% if d['value_segment'] %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold
@@ -71,17 +140,19 @@
                         </td>
                         <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ d['branch'] or '—' }}</td>
                         <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ d['region'] or '—' }}</td>
-                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap">{{ d['portfolio_manager'] or '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-cyan-400">{{ "${:,.0f}".format(d['foreign_trade_volume']) if d['foreign_trade_volume'] else '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-amber-400">{{ "${:,.0f}".format(d['memzuc_151_volume']) if d['memzuc_151_volume'] else '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-rose-400">{{ "${:,.0f}".format(d['memzuc_152_volume']) if d['memzuc_152_volume'] else '—' }}</td>
+                        <td class="px-4 py-3 text-center whitespace-nowrap" onclick="event.stopPropagation()">
+                            <a href="/deals/edit/{{ d['id'] }}" class="text-brand-400 hover:text-brand-300 text-xs font-medium mr-2 transition">Edit</a>
+                            <form action="/deals/delete/{{ d['id'] }}" method="POST" class="inline" onsubmit="return confirm('Delete this deal?')">
+                                <button type="submit" class="text-red-400 hover:text-red-300 text-xs font-medium transition">Delete</button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% if not deals %}
-        <div class="text-center py-12 text-gray-500">No deals found.</div>
+        <div class="text-center py-12 text-gray-500">No deals found. Click "New Deal" to create one.</div>
         {% endif %}
     </div>
 </div>

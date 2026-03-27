@@ -21,7 +21,7 @@
     {% endif %}
     {% endwith %}
 
-    <!-- Customer Info Editor -->
+    <!-- Editable Customer Info -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4 border-b border-gray-800 pb-3">Core Customer Information</h2>
         <form action="/management/edit/{{ customer['Customerid'] }}" method="POST" enctype="multipart/form-data" class="space-y-6">
@@ -52,7 +52,7 @@
                 </div>
             </div>
 
-            <!-- Customer Info Fields -->
+            <!-- Editable Fields: Name, Sector, PM -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">Company Name *</label>
@@ -71,53 +71,6 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label for="credit_limit" class="block text-xs font-medium text-gray-400 mb-1">Credit Limit (USD)</label>
-                    <input type="number" name="credit_limit" id="credit_limit" step="1" value="{{ customer['credit_limit']|int if customer['credit_limit'] else '' }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                </div>
-                <div>
-                    <label for="value_segment" class="block text-xs font-medium text-gray-400 mb-1">Value Segment</label>
-                    <select name="value_segment" id="value_segment"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                        <option value="">-- None --</option>
-                        <option value="A+" {% if customer['value_segment'] == 'A+' %}selected{% endif %}>A+</option>
-                        <option value="A" {% if customer['value_segment'] == 'A' %}selected{% endif %}>A</option>
-                        <option value="B" {% if customer['value_segment'] == 'B' %}selected{% endif %}>B</option>
-                        <option value="C" {% if customer['value_segment'] == 'C' %}selected{% endif %}>C</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="branch" class="block text-xs font-medium text-gray-400 mb-1">Branch</label>
-                    <input type="text" name="branch" id="branch" value="{{ customer['branch'] or '' }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                </div>
-                <div>
-                    <label for="region" class="block text-xs font-medium text-gray-400 mb-1">Region</label>
-                    <input type="text" name="region" id="region" value="{{ customer['region'] or '' }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label for="foreign_trade_volume" class="block text-xs font-medium text-gray-400 mb-1">Foreign Trade Vol.</label>
-                    <input type="number" name="foreign_trade_volume" id="foreign_trade_volume" step="1" value="{{ customer['foreign_trade_volume']|int if customer['foreign_trade_volume'] else '' }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                </div>
-                <div>
-                    <label for="memzuc_151_volume" class="block text-xs font-medium text-gray-400 mb-1">Memzuc 151 Vol.</label>
-                    <input type="number" name="memzuc_151_volume" id="memzuc_151_volume" step="1" value="{{ customer['memzuc_151_volume']|int if customer['memzuc_151_volume'] else '' }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                </div>
-                <div>
-                    <label for="memzuc_152_volume" class="block text-xs font-medium text-gray-400 mb-1">Memzuc 152 Vol.</label>
-                    <input type="number" name="memzuc_152_volume" id="memzuc_152_volume" step="1" value="{{ customer['memzuc_152_volume']|int if customer['memzuc_152_volume'] else '' }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                </div>
-            </div>
-
             <div class="flex gap-3 pt-2">
                 <button type="submit"
                     class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25">
@@ -127,92 +80,48 @@
         </form>
     </div>
 
-    <!-- Deals Manager -->
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden mt-8">
-        <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-800/20">
-            <h2 class="text-lg font-semibold text-white">Deals for this Customer</h2>
-        </div>
-        
-        <!-- List of existing deals -->
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm table-auto border-b border-gray-800">
-                <thead>
-                    <tr class="bg-gray-900/50 text-left text-xs uppercase tracking-wider text-gray-500">
-                        <th class="px-4 py-3 font-semibold">Deal ID</th>
-                        <th class="px-4 py-3 font-semibold">Contact</th>
-                        <th class="px-4 py-3 font-semibold text-right">Size (USD)</th>
-                        <th class="px-4 py-3 font-semibold">Status</th>
-                        <th class="px-4 py-3 font-semibold">Type</th>
-                        <th class="px-4 py-3 font-semibold">Notes</th>
-                        <th class="px-4 py-3 font-semibold text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800 border-b border-gray-800">
-                    {% for d in deals %}
-                    {% set st = status_map.get(d['status']|string, {}) %}
-                    {% set dt = deal_type_map.get(d['dealtype']|string, {}) %}
-                    <tr class="hover:bg-gray-800/40 transition-colors">
-                        <td class="px-4 py-3 font-mono text-gray-500">{{ d['id'] }}</td>
-                        <td class="px-4 py-3 text-white">{{ d['contact_name'] }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-emerald-400">${{ "{:,.0f}".format(d['deal_size']) }}</td>
-                        <td class="px-4 py-3">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
-                                {{ st.get('description', d['status']) }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-gray-300">
-                            {{ dt.get('description', d['dealtype']) }}
-                        </td>
-                        <td class="px-4 py-3 text-gray-400 text-xs truncate max-w-[150px]" title="{{ d['notes'] }}">{{ d['notes'] or '—' }}</td>
-                        <td class="px-4 py-3 text-right">
-                            <form action="/management/deal/delete/{{ d['id'] }}" method="POST" class="inline" onsubmit="return confirm('Delete this deal?')">
-                                <button type="submit" class="text-red-400 hover:text-red-300 text-xs font-medium transition">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% if not deals %}
-                    <tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">No deals associated with this customer yet.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Add Deal Form -->
-        <div class="p-6 bg-gray-800/10">
-            <h3 class="text-sm font-semibold mb-4 text-emerald-400">Add New Deal</h3>
-            <form action="/management/deal/add/{{ customer['Customerid'] }}" method="POST" class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-                <div class="col-span-1">
-                    <label class="block text-xs text-gray-400 mb-1">Contact Name</label>
-                    <input type="text" name="contact_name" required class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white">
-                </div>
-                <div class="col-span-1">
-                    <label class="block text-xs text-gray-400 mb-1">Deal Size</label>
-                    <input type="number" name="deal_size" required step="1" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white">
-                </div>
-                <div class="col-span-1">
-                    <label class="block text-xs text-gray-400 mb-1">Status</label>
-                    <select name="status" required class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-xs text-white">
-                        {% for code, info in status_map.items()|sort %}
-                        <option value="{{ code }}">{{ info.description }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-span-1">
-                    <label class="block text-xs text-gray-400 mb-1">Deal Type</label>
-                    <select name="dealtype" required class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-xs text-white">
-                        {% for code, info in deal_type_map.items()|sort %}
-                        <option value="{{ code }}">{{ info.description }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-span-1 md:col-span-1 border-gray-700 rounded bg-gray-800 px-3 py-2">
-                    <input type="text" name="notes" placeholder="Notes..." class="w-full bg-transparent text-sm text-white focus:outline-none placeholder-gray-500">
-                </div>
-                <div class="col-span-1 text-right">
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded text-sm font-medium transition-colors">Add</button>
-                </div>
-            </form>
+    <!-- Read-Only Financial Information from DB -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <h2 class="text-lg font-semibold mb-4 border-b border-gray-800 pb-3 text-gray-300">Financial Data <span class="text-xs font-normal text-gray-500 ml-2">(read from database)</span></h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Credit Limit</span>
+                <p class="text-lg font-bold text-violet-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</p>
+            </div>
+            <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Value Segment</span>
+                <p class="text-lg font-bold text-white mt-1">
+                    {% if customer['value_segment'] %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-sm font-semibold
+                        {% if customer['value_segment'] == 'A+' %}bg-purple-500/20 text-purple-400
+                        {% elif customer['value_segment'] == 'A' %}bg-blue-500/20 text-blue-400
+                        {% elif customer['value_segment'] == 'B' %}bg-cyan-500/20 text-cyan-400
+                        {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                        {{ customer['value_segment'] }}
+                    </span>
+                    {% else %}—{% endif %}
+                </p>
+            </div>
+            <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Branch</span>
+                <p class="text-lg font-bold text-gray-300 mt-1">{{ customer['branch'] or '—' }}</p>
+            </div>
+            <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Region</span>
+                <p class="text-lg font-bold text-gray-300 mt-1">{{ customer['region'] or '—' }}</p>
+            </div>
+            <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Foreign Trade Vol.</span>
+                <p class="text-lg font-bold text-cyan-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</p>
+            </div>
+            <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Memzuc 151 Vol.</span>
+                <p class="text-lg font-bold text-amber-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['memzuc_151_volume'] or 0) }}</p>
+            </div>
+            <div class="bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
+                <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Memzuc 152 Vol.</span>
+                <p class="text-lg font-bold text-rose-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['memzuc_152_volume'] or 0) }}</p>
+            </div>
         </div>
     </div>
 </div>

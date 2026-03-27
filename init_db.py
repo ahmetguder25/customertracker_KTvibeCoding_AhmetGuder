@@ -31,6 +31,8 @@ def init_db():
             customerid    INTEGER NOT NULL,
             contact_name  TEXT,
             deal_size     REAL,
+            expected_pricing_pa  REAL,
+            currency      INTEGER DEFAULT 0,
             status        INTEGER,
             dealtype      INTEGER,
             notes         TEXT,
@@ -75,6 +77,49 @@ def init_db():
             FOREIGN KEY (customer_id) REFERENCES Customer(Customerid) ON DELETE CASCADE
         )
     """)
+
+    # ── Migrate existing DB: add new columns if missing ─────────────────────
+    try:
+        cur.execute("ALTER TABLE CustomerDeals ADD COLUMN expected_pricing_pa REAL")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE CustomerDeals ADD COLUMN currency INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE Customer ADD COLUMN IsStructured INTEGER DEFAULT 0")
+        # Existing customers should remain visible
+        cur.execute("UPDATE Customer SET IsStructured=1 WHERE IsStructured IS NULL OR IsStructured=0")
+    except Exception:
+        pass
+
+    # ── Seed FEC (currency) parameters ──────────────────────────────────────
+    fec_params = [
+        ("FEC", "0",  "Turkish Lira",     "TRY"),
+        ("FEC", "1",  "American Dollar",  "USD"),
+        ("FEC", "19", "EURO",             "EUR"),
+    ]
+    for pt, pc, desc, val in fec_params:
+        cur.execute(
+            "INSERT OR IGNORE INTO Parameter (ParamType, ParamCode, ParamDescription, ParamValue) VALUES (?, ?, ?, ?)",
+            (pt, pc, desc, val)
+        )
+
+    # ── Seed Status logos in ParamValue3 ────────────────────────────────────
+    status_logos = {
+        "1": "🎯",   # Lead
+        "2": "📄",   # Proposal
+        "3": "🔍",   # Due Diligence
+        "4": "✅",   # Closed Won
+        "5": "❌",   # Closed Lost
+        "6": "🧪",   # Test
+    }
+    for code, logo in status_logos.items():
+        cur.execute(
+            "UPDATE Parameter SET ParamValue3=? WHERE ParamType='Status' AND ParamCode=?",
+            (logo, code)
+        )
 
     conn.commit()
     conn.close()

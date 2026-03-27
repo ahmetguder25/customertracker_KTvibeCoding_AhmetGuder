@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Edit Deal #{{ deal['id'] }} — Customer Tracker{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-3xl mx-auto">
+    <div>
+        <a href="/deals/{{ deal['id'] }}" class="text-brand-400 hover:text-brand-300 text-sm transition">&larr; Back to Deal Detail</a>
+        <h1 class="text-2xl font-bold tracking-tight mt-2">Edit Deal #{{ deal['id'] }} — {{ deal['CustomerName'] }}</h1>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <form action="/deals/edit/{{ deal['id'] }}" method="POST" class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="contact_name" class="block text-xs font-medium text-gray-400 mb-1">Contact Name</label>
+                    <input type="text" name="contact_name" id="contact_name" value="{{ deal['contact_name'] or '' }}"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                </div>
+                <div>
+                    <label for="deal_size" class="block text-xs font-medium text-gray-400 mb-1">Deal Size *</label>
+                    <input type="number" name="deal_size" id="deal_size" required step="1" value="{{ deal['deal_size']|int if deal['deal_size'] else '' }}"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="expected_pricing_pa" class="block text-xs font-medium text-gray-400 mb-1">Expected Pricing p.a. (%)</label>
+                    <input type="number" name="expected_pricing_pa" id="expected_pricing_pa" step="0.01"
+                        value="{{ deal['expected_pricing_pa'] if deal['expected_pricing_pa'] else '' }}"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition"
+                        placeholder="e.g. 3.50">
+                </div>
+                <div>
+                    <label for="currency" class="block text-xs font-medium text-gray-400 mb-1">Currency</label>
+                    <select name="currency" id="currency"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                        {% for code, info in fec_map.items() %}
+                        <option value="{{ code }}" {% if code == (deal['currency'] or 0)|string %}selected{% endif %}>{{ info.description }} ({{ info.bg }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="status" class="block text-xs font-medium text-gray-400 mb-1">Status *</label>
+                    <select name="status" id="status" required
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                        {% for code, info in status_map.items()|sort %}
+                        <option value="{{ code }}" {% if code == deal['status']|string %}selected{% endif %}>{{ info.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="dealtype" class="block text-xs font-medium text-gray-400 mb-1">Deal Type *</label>
+                    <select name="dealtype" id="dealtype" required
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                        {% for code, info in deal_type_map.items()|sort %}
+                        <option value="{{ code }}" {% if code == deal['dealtype']|string %}selected{% endif %}>{{ info.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="notes" class="block text-xs font-medium text-gray-400 mb-1">Notes</label>
+                <textarea name="notes" id="notes" rows="3"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition resize-none"
+                    placeholder="Deal notes...">{{ deal['notes'] or '' }}</textarea>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="submit"
+                    class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25">
+                    Save Changes
+                </button>
+                <a href="/deals/{{ deal['id'] }}" class="bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

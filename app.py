@@ -7,7 +7,7 @@ import websocket
 import re
 from dotenv import load_dotenv
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify
 from werkzeug.utils import secure_filename
 import io
 
@@ -36,7 +36,7 @@ def get_param_map(param_type, conn=None):
         conn = get_db()
         close_conn = True
     rows = conn.execute(
-        "SELECT ParamCode, ParamDescription, ParamValue, ParamValue2 "
+        "SELECT ParamCode, ParamDescription, ParamValue, ParamValue2, ParamValue3 "
         "FROM Parameter WHERE ParamType=? ORDER BY CAST(ParamCode AS INTEGER)",
         (param_type,)
     ).fetchall()
@@ -50,6 +50,7 @@ def get_param_map(param_type, conn=None):
             "description": r["ParamDescription"],
             "bg": r["ParamValue"] or "bg-gray-500/20",
             "text": r["ParamValue2"] or "text-gray-400",
+            "logo": r["ParamValue3"] or "",
         }
     return param_map
 
@@ -76,20 +77,20 @@ def dashboard():
     for code, info in status_map.items():
         chart_data[info["description"]] = status_counts.get(code, 0)
 
-    # Customer aggregates
+    # Customer aggregates (structured only)
     volume_totals = conn.execute("""
         SELECT
             COALESCE(SUM(foreign_trade_volume), 0)  as total_ft,
             COALESCE(SUM(memzuc_151_volume), 0)     as total_151,
             COALESCE(SUM(memzuc_152_volume), 0)     as total_152,
             COALESCE(SUM(credit_limit), 0)          as total_limit
-        FROM Customer
+        FROM Customer WHERE IsStructured=1
     """).fetchone()
 
     segments = conn.execute("""
         SELECT value_segment, COUNT(*) as cnt
         FROM Customer
-        WHERE value_segment IS NOT NULL AND value_segment != ''
+        WHERE IsStructured=1 AND value_segment IS NOT NULL AND value_segment != ''
         GROUP BY value_segment
     """).fetchall()
     segment_data = {row["value_segment"]: row["cnt"] for row in segments}
@@ -97,7 +98,7 @@ def dashboard():
     regions = conn.execute("""
         SELECT region, COUNT(*) as cnt
         FROM Customer
-        WHERE region IS NOT NULL AND region != ''
+        WHERE IsStructured=1 AND region IS NOT NULL AND region != ''
         GROUP BY region
     """).fetchall()
     region_data = {row["region"]: row["cnt"] for row in regions}
@@ -119,24 +120,127 @@ def dashboard():
     )
 
 
+# ── Deals Tab Routes ─────────────────────────────────────────────────────────
+
 @app.route("/list")
 def customer_list():
     conn = get_db()
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
+    fec_map = get_param_map("FEC", conn)
     
-    # Flat list joining Deals and Customers
+    # Flat list joining Deals and Customers (structured only)
     deals = conn.execute("""
         SELECT d.*, c.CustomerName, c.sector, c.credit_limit, c.value_segment, 
                c.branch, c.region, c.portfolio_manager, c.foreign_trade_volume, 
                c.memzuc_151_volume, c.memzuc_152_volume
         FROM CustomerDeals d
         JOIN Customer c ON d.customerid = c.Customerid
+        WHERE c.IsStructured=1
         ORDER BY d.created_at DESC
     """).fetchall()
+
+    customers = conn.execute("SELECT Customerid, CustomerName FROM Customer WHERE IsStructured=1 ORDER BY CustomerName").fetchall()
     conn.close()
     
-    return render_template("list.html", deals=deals, status_map=status_map, deal_type_map=deal_type_map)
+    return render_template("list.html", deals=deals, status_map=status_map,
+                           deal_type_map=deal_type_map, fec_map=fec_map, customers=customers)
+
+
+@app.route("/deals/<int:deal_id>")
+def deal_detail(deal_id):
+    conn = get_db()
+    deal = conn.execute("""
+        SELECT d.*, c.CustomerName, c.sector, c.credit_limit, c.value_segment,
+               c.branch, c.region, c.portfolio_manager, c.foreign_trade_volume,
+               c.memzuc_151_volume, c.memzuc_152_volume, c.LogoFilename
+        FROM CustomerDeals d
+        JOIN Customer c ON d.customerid = c.Customerid
+        WHERE d.id=?
+    """, (deal_id,)).fetchone()
+    if not deal:
+        conn.close()
+        return redirect(url_for("customer_list"))
+
+    status_map = get_param_map("Status", conn)
+    deal_type_map = get_param_map("DealType", conn)
+    fec_map = get_param_map("FEC", conn)
+    conn.close()
+
+    return render_template("deal_detail.html", deal=deal, status_map=status_map,
+                           deal_type_map=deal_type_map, fec_map=fec_map)
+
+
+@app.route("/deals/add", methods=["POST"])
+def add_deal():
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO CustomerDeals (customerid, contact_name, deal_size, expected_pricing_pa, currency, status, dealtype, notes) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            int(request.form["customerid"]),
+            request.form.get("contact_name", ""),
+            float(request.form["deal_size"]),
+            float(request.form["expected_pricing_pa"]) if request.form.get("expected_pricing_pa") else None,
+            int(request.form.get("currency", 0)),
+            request.form["status"],
+            request.form["dealtype"],
+            request.form.get("notes", "")
+        )
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("customer_list"))
+
+
+@app.route("/deals/edit/<int:deal_id>", methods=["GET", "POST"])
+def edit_deal(deal_id):
+    conn = get_db()
+    if request.method == "POST":
+        conn.execute(
+            """UPDATE CustomerDeals SET contact_name=?, deal_size=?, expected_pricing_pa=?, currency=?,
+               status=?, dealtype=?, notes=? WHERE id=?""",
+            (
+                request.form.get("contact_name", ""),
+                float(request.form["deal_size"]),
+                float(request.form["expected_pricing_pa"]) if request.form.get("expected_pricing_pa") else None,
+                int(request.form.get("currency", 0)),
+                request.form["status"],
+                request.form["dealtype"],
+                request.form.get("notes", ""),
+                deal_id
+            )
+        )
+        conn.commit()
+        conn.close()
+        return redirect(url_for("deal_detail", deal_id=deal_id))
+
+    deal = conn.execute("""
+        SELECT d.*, c.CustomerName
+        FROM CustomerDeals d
+        JOIN Customer c ON d.customerid = c.Customerid
+        WHERE d.id=?
+    """, (deal_id,)).fetchone()
+    if not deal:
+        conn.close()
+        return redirect(url_for("customer_list"))
+
+    status_map = get_param_map("Status", conn)
+    deal_type_map = get_param_map("DealType", conn)
+    fec_map = get_param_map("FEC", conn)
+    conn.close()
+
+    return render_template("deal_edit.html", deal=deal, status_map=status_map,
+                           deal_type_map=deal_type_map, fec_map=fec_map)
+
+
+@app.route("/deals/delete/<int:deal_id>", methods=["POST"])
+def delete_deal(deal_id):
+    conn = get_db()
+    conn.execute("DELETE FROM CustomerDeals WHERE id=?", (deal_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("customer_list"))
 
 
 @app.route("/list/export")
@@ -147,6 +251,7 @@ def export_excel():
     conn = get_db()
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
+    fec_map = get_param_map("FEC", conn)
     
     deals = conn.execute("""
         SELECT d.*, c.CustomerName, c.sector, c.credit_limit, c.value_segment, 
@@ -154,6 +259,7 @@ def export_excel():
                c.memzuc_151_volume, c.memzuc_152_volume
         FROM CustomerDeals d
         JOIN Customer c ON d.customerid = c.Customerid
+        WHERE c.IsStructured=1
         ORDER BY c.CustomerName, d.created_at DESC
     """).fetchall()
     conn.close()
@@ -163,7 +269,8 @@ def export_excel():
     ws.title = "Pipeline Deals"
 
     headers = [
-        "Deal ID", "Company Name", "Contact Name", "Deal Type", "Deal Size (USD)", "Status",
+        "Deal ID", "Company Name", "Contact Name", "Deal Type", "Deal Size", "Expected Pricing p.a.",
+        "Currency", "Status",
         "Sector", "Credit Limit", "Value Segment", "Branch", "Region",
         "Portfolio Manager", "Foreign Trade Volume", "MEMZUC 151 Volume", "MEMZUC 152 Volume", "Notes"
     ]
@@ -183,9 +290,11 @@ def export_excel():
     for row_idx, d in enumerate(deals, 2):
         status_desc = status_map.get(str(d["status"]), {}).get("description", d["status"])
         dealtype_desc = deal_type_map.get(str(d["dealtype"]), {}).get("description", d["dealtype"])
+        currency_acronym = fec_map.get(str(d["currency"] or 0), {}).get("bg", "TRY")
         
         values = [
-            d["id"], d["CustomerName"], d["contact_name"], dealtype_desc, d["deal_size"], status_desc,
+            d["id"], d["CustomerName"], d["contact_name"], dealtype_desc, d["deal_size"],
+            d["expected_pricing_pa"] or "", currency_acronym, status_desc,
             d["sector"] or "", d["credit_limit"] or "", d["value_segment"] or "",
             d["branch"] or "", d["region"] or "", d["portfolio_manager"] or "",
             d["foreign_trade_volume"] or "", d["memzuc_151_volume"] or "", d["memzuc_152_volume"] or "",
@@ -220,37 +329,40 @@ def export_excel():
 
 @app.route("/management")
 def management():
-    """List all Customers"""
+    """List all structured Customers"""
     conn = get_db()
-    customers = conn.execute("SELECT * FROM Customer ORDER BY Customerid DESC").fetchall()
-    
-    # We will compute the sum of deals for each customer manually
-    deal_counts = {}
-    deal_sums = {}
-    aggs = conn.execute("SELECT customerid, COUNT(*) as cnt, SUM(deal_size) as total FROM CustomerDeals GROUP BY customerid").fetchall()
-    for row in aggs:
-        deal_counts[row["customerid"]] = row["cnt"]
-        deal_sums[row["customerid"]] = row["total"]
-
+    customers = conn.execute("SELECT * FROM Customer WHERE IsStructured=1 ORDER BY Customerid DESC").fetchall()
     conn.close()
-    return render_template("management.html", customers=customers, deal_counts=deal_counts, deal_sums=deal_sums)
+    return render_template("management.html", customers=customers)
+
+
+@app.route("/api/customer/lookup/<int:account_number>")
+def lookup_customer(account_number):
+    """Check if a customer exists by account number (Customerid)."""
+    conn = get_db()
+    customer = conn.execute(
+        "SELECT Customerid, CustomerName, sector, portfolio_manager, IsStructured FROM Customer WHERE Customerid=?",
+        (account_number,)
+    ).fetchone()
+    conn.close()
+    if customer:
+        return jsonify({
+            "found": True,
+            "Customerid": customer["Customerid"],
+            "CustomerName": customer["CustomerName"],
+            "sector": customer["sector"] or "",
+            "portfolio_manager": customer["portfolio_manager"] or "",
+            "IsStructured": customer["IsStructured"],
+        })
+    return jsonify({"found": False})
 
 
 @app.route("/management/customer/add", methods=["POST"])
 def add_customer():
+    """Mark an existing customer as IsStructured=1."""
+    customer_id = int(request.form["Customerid"])
     conn = get_db()
-    conn.execute(
-        """INSERT INTO Customer (CustomerName, sector, credit_limit, value_segment, branch, region, 
-           portfolio_manager, foreign_trade_volume, memzuc_151_volume, memzuc_152_volume) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (
-            request.form["CustomerName"], request.form.get("sector", ""),
-            request.form.get("credit_limit") or None, request.form.get("value_segment", ""),
-            request.form.get("branch", ""), request.form.get("region", ""),
-            request.form.get("portfolio_manager", ""), request.form.get("foreign_trade_volume") or None,
-            request.form.get("memzuc_151_volume") or None, request.form.get("memzuc_152_volume") or None,
-        )
-    )
+    conn.execute("UPDATE Customer SET IsStructured=1 WHERE Customerid=?", (customer_id,))
     conn.commit()
     conn.close()
     return redirect(url_for("management"))
@@ -277,15 +389,12 @@ def edit_customer(customer_id):
                 file.save(os.path.join(UPLOAD_FOLDER, safe_name))
                 logo_filename = safe_name
 
-        q = """UPDATE Customer SET CustomerName=?, sector=?, credit_limit=?, value_segment=?, 
-               branch=?, region=?, portfolio_manager=?, foreign_trade_volume=?, 
-               memzuc_151_volume=?, memzuc_152_volume=?"""
+        # Only update editable fields: CustomerName, sector, portfolio_manager, logo
+        q = """UPDATE Customer SET CustomerName=?, sector=?, portfolio_manager=?"""
         params = [
-            request.form["CustomerName"], request.form.get("sector", ""),
-            request.form.get("credit_limit") or None, request.form.get("value_segment", ""),
-            request.form.get("branch", ""), request.form.get("region", ""),
-            request.form.get("portfolio_manager", ""), request.form.get("foreign_trade_volume") or None,
-            request.form.get("memzuc_151_volume") or None, request.form.get("memzuc_152_volume") or None
+            request.form["CustomerName"],
+            request.form.get("sector", ""),
+            request.form.get("portfolio_manager", ""),
         ]
         
         if logo_filename:
@@ -304,49 +413,17 @@ def edit_customer(customer_id):
         conn.close()
         return redirect(url_for("management"))
 
-    deals = conn.execute("SELECT * FROM CustomerDeals WHERE customerid=? ORDER BY created_at DESC", (customer_id,)).fetchall()
-    status_map = get_param_map("Status", conn)
-    deal_type_map = get_param_map("DealType", conn)
     conn.close()
 
-    return render_template("edit.html", customer=customer, deals=deals, status_map=status_map, deal_type_map=deal_type_map)
+    return render_template("edit.html", customer=customer)
 
 
 @app.route("/management/customer/delete/<int:customer_id>", methods=["POST"])
 def delete_customer(customer_id):
+    """Soft delete: set IsStructured=0."""
     conn = get_db()
-    conn.execute("DELETE FROM Customer WHERE Customerid=?", (customer_id,))
+    conn.execute("UPDATE Customer SET IsStructured=0 WHERE Customerid=?", (customer_id,))
     conn.commit()
-    conn.close()
-    return redirect(url_for("management"))
-
-
-@app.route("/management/deal/add/<int:customer_id>", methods=["POST"])
-def add_deal(customer_id):
-    conn = get_db()
-    conn.execute(
-        """INSERT INTO CustomerDeals (customerid, contact_name, deal_size, status, dealtype, notes) 
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (
-            customer_id, request.form.get("contact_name", ""),
-            float(request.form["deal_size"]), request.form["status"],
-            request.form["dealtype"], request.form.get("notes", "")
-        )
-    )
-    conn.commit()
-    conn.close()
-    return redirect(url_for("edit_customer", customer_id=customer_id))
-
-
-@app.route("/management/deal/delete/<int:deal_id>", methods=["POST"])
-def delete_deal(deal_id):
-    conn = get_db()
-    deal = conn.execute("SELECT customerid FROM CustomerDeals WHERE id=?", (deal_id,)).fetchone()
-    if deal:
-        conn.execute("DELETE FROM CustomerDeals WHERE id=?", (deal_id,))
-        conn.commit()
-        conn.close()
-        return redirect(url_for("edit_customer", customer_id=deal["customerid"]))
     conn.close()
     return redirect(url_for("management"))
 
@@ -361,6 +438,7 @@ def overview():
         SELECT c.*, COUNT(d.id) as deal_count, SUM(d.deal_size) as total_deal_size
         FROM Customer c
         LEFT JOIN CustomerDeals d ON c.Customerid = d.customerid
+        WHERE c.IsStructured=1
         GROUP BY c.Customerid
         ORDER BY c.CustomerName
     """).fetchall()
@@ -386,6 +464,7 @@ def overview_detail(customer_id):
 
     status_map = get_param_map("Status", conn)
     deal_type_map = get_param_map("DealType", conn)
+    fec_map = get_param_map("FEC", conn)
     conn.close()
 
     total_deal_size = sum((d["deal_size"] or 0) for d in deals)
@@ -397,6 +476,7 @@ def overview_detail(customer_id):
         comments=comments,
         status_map=status_map,
         deal_type_map=deal_type_map,
+        fec_map=fec_map,
         total_customers=total_customers,
         same_sector=same_sector,
         total_deal_size=total_deal_size,

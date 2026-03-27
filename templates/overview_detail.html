@@ -103,6 +103,7 @@
             {% for d in deals %}
             {% set st = status_map.get(d['status']|string, {}) %}
             {% set dt = deal_type_map.get(d['dealtype']|string, {}) %}
+            {% set cur = fec_map.get((d['currency'] or 0)|string, {}) %}
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col lg:flex-row gap-6 items-start lg:items-center">
                 <!-- Deal Header Info -->
                 <div class="flex-1 min-w-0">
@@ -110,27 +111,31 @@
                         <span class="font-mono text-gray-500 text-sm">#{{ d['id'] }}</span>
                         <h3 class="text-lg font-bold text-white">{{ dt.get('description', d['dealtype']) }}</h3>
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
-                            {{ st.get('description', d['status']) }}
+                            {% if st.get('logo') %}{{ st.get('logo') }} {% endif %}{{ st.get('description', d['status']) }}
                         </span>
                     </div>
                     <p class="text-sm text-gray-400 mb-2">Contact: <span class="text-gray-300">{{ d['contact_name'] or 'None' }}</span> &middot; Created: {{ d['created_at'][:10] }}</p>
-                    <p class="text-xl font-bold font-mono text-emerald-400">${{ "{:,.0f}".format(d['deal_size']) }}</p>
+                    <div class="flex items-center gap-4">
+                        <p class="text-xl font-bold font-mono text-emerald-400">{{ "{:,.0f}".format(d['deal_size']) }} {{ cur.get('bg', 'TRY') }}</p>
+                        {% if d['expected_pricing_pa'] %}
+                        <span class="text-sm font-mono text-amber-400">{{ "{:.2f}".format(d['expected_pricing_pa']) }}% p.a.</span>
+                        {% endif %}
+                    </div>
                     <p class="text-sm text-gray-500 mt-3">{{ d['notes'] or 'No notes for this deal.' }}</p>
                 </div>
                 
-                <!-- Timeline/Pipeline (simplified) -->
+                <!-- Timeline/Pipeline -->
                 <div class="lg:w-64 bg-gray-800/30 rounded-xl p-4 border border-gray-800/50">
                     <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Status Timeline</h4>
                     <div class="space-y-2">
                         {% set reached = [true] %}
                         {% for code, info in status_map.items() %}
-                        {% set status_icons = {"1": "🎯", "2": "📄", "3": "🔍", "4": "✅", "5": "❌"} %}
                         <div class="flex items-center gap-2 {{ 'opacity-30' if not reached[0] else '' }}">
                             <div class="w-5 h-5 rounded flex items-center justify-center text-xs
                                 {% if code == d['status']|string %}bg-brand-600/30 ring-1 ring-brand-500
                                 {% elif reached[0] %}bg-gray-700
                                 {% else %}bg-gray-800/50{% endif %}">
-                                {{ status_icons.get(code, '●') }}
+                                {{ info.get('logo', '●') }}
                             </div>
                             <span class="text-xs {% if code == d['status']|string %}text-white font-semibold{% else %}text-gray-500{% endif %} truncate">{{ info.description }}</span>
                         </div>
