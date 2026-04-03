@@ -3,13 +3,11 @@ import sqlite3
 import os
 import json
 import requests
-import websocket
 import re
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, redirect, url_for,
                    send_file, flash, jsonify, session, has_request_context)
-from pyngrok import ngrok
 from werkzeug.utils import secure_filename
 import io
 
@@ -640,39 +638,13 @@ def generate_analysis(customer_id):
         sector=sector_desc, deal_info=deal_info, max_chars=max_chars,
     )
 
-    api_key  = os.getenv("OPENAI_API_KEY")
-    endpoint = os.getenv("OPENAI_ENDPOINT")
-    analysis_text = "Analysis not available due to missing API key or endpoint."
-
-    if api_key and endpoint and api_key != "ABC123":
-        try:
-            ws_url = endpoint.replace("https://", "wss://").replace("http://", "ws://")
-            if "/chat/completions" in ws_url:
-                m          = re.search(r"/deployments/([^/]+)/", ws_url)
-                deployment = m.group(1) if m else ""
-                base       = ws_url.split("/openai/")[0]
-                av         = re.search(r"api-version=([^&]+)", ws_url)
-                api_ver    = av.group(1) if av else "2024-10-01-preview"
-                ws_url     = f"{base}/openai/realtime?api-version={api_ver}&deployment={deployment}"
-            ws = websocket.WebSocket()
-            ws.connect(ws_url, header={"api-key": api_key})
-            ws.send(json.dumps({"type": "response.create", "response": {"modalities": ["text"], "instructions": prompt}}))
-            analysis_text = ""
-            while True:
-                msg  = ws.recv()
-                if not msg: break
-                data = json.loads(msg)
-                if   data["type"] == "response.text.delta": analysis_text += data.get("delta", "")
-                elif data["type"] == "response.done":       break
-                elif data["type"] == "error":
-                    analysis_text = f"API Error: {data.get('error', {}).get('message', 'Unknown')}"; break
-            ws.close()
-            if not analysis_text.strip():
-                analysis_text = "Analysis completed but returned empty."
-        except Exception as e:
-            analysis_text = f"Error: {str(e)[:50]}"
-    else:
-        analysis_text = f"Sample AI Analysis for {customer['CustomerName']}: Solid sector footprint with {len(deals)} active deals."
+    try:
+        payload = {"model": "qwen3-coder:30b", "stream": False, "prompt": prompt}
+        resp = requests.post("http://localhost:11434/api/generate", json=payload, timeout=60)
+        resp.raise_for_status()
+        analysis_text = resp.json().get("response", "Analysis completed but returned empty.")
+    except Exception as e:
+        analysis_text = f"Ollama Error: {str(e)[:50]}"
 
     analysis_text = analysis_text[:100]
     conn.execute(load_query("analysis_insert"), (customer_id, analysis_text, lang_id))
@@ -689,7 +661,7 @@ def api_chat():
     data = request.get_json()
     if not data or "message" not in data:
         return jsonify({"error": "No message provided"}), 400
-    payload = {"model": "gemma3:1b", "stream": False, "prompt": data["message"]}
+    payload = {"model": "qwen3-coder:30b", "stream": False, "prompt": data["message"]}
     try:
         resp = requests.post("http://localhost:11434/api/generate", json=payload, timeout=60)
         resp.raise_for_status()
@@ -715,15 +687,4 @@ def add_comment(customer_id):
 # ── Entry Point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        auth_token = os.environ.get("NGROK_AUTH_TOKEN")
-        if auth_token and auth_token != "ABC1234":
-            try:
-                ngrok.set_auth_token(auth_token)
-                public_url = ngrok.connect(5000).public_url
-                print(f"\n[{'*'*40}]\n* NGROK TUNNEL ACTIVE: {public_url}\n[{'*'*40}]\n")
-            except Exception as e:
-                print(f" * Failed to start ngrok tunnel: {e}")
-        else:
-            print("\n * NGROK is skipped: Please update NGROK_AUTH_TOKEN in .env\n")
     app.run(debug=True, port=5000)

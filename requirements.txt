@@ -1,6 +1,5 @@
 flask
 python-dotenv
-pyngrok
 pillow
 requests
 openpyxl
