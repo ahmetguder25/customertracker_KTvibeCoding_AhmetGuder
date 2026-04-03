@@ -1,7 +1,7 @@
 flask
-sqlite3
 python-dotenv
 pyngrok
 pillow
 requests
 openpyxl
+pyodbc

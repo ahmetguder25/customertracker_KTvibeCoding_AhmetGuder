@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Tracker — Connect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0a0d14;
+      --surface:     #111520;
+      --surface2:    #171c2e;
+      --border:      rgba(255,255,255,0.07);
+      --border-hi:   rgba(255,255,255,0.15);
+      --text:        #e2e8f0;
+      --muted:       #64748b;
+      --blue:        #3b82f6;
+      --blue-glow:   rgba(59,130,246,0.25);
+      --blue-dark:   rgba(59,130,246,0.10);
+      --amber:       #f59e0b;
+      --amber-glow:  rgba(245,158,11,0.25);
+      --amber-dark:  rgba(245,158,11,0.10);
+      --red:         #ef4444;
+      --red-glow:    rgba(239,68,68,0.20);
+      --green:       #22c55e;
+    }
+
+    html, body {
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* animated mesh background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 30%, rgba(59,130,246,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 70%, rgba(245,158,11,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* subtle grid */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .page {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      gap: 2.5rem;
+    }
+
+    /* ── Header ── */
+    .header { text-align: center; }
+    .logo-ring {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 72px; height: 72px; border-radius: 20px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+      box-shadow: 0 0 0 1px rgba(59,130,246,0.4), 0 8px 32px rgba(59,130,246,0.3);
+      margin-bottom: 1.25rem;
+    }
+    .logo-ring svg { width: 36px; height: 36px; color: #fff; }
+    h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+    h1 span { background: linear-gradient(90deg, #60a5fa, #93c5fd); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { margin-top: .5rem; color: var(--muted); font-size: .95rem; font-weight: 400; }
+
+    /* ── Flash messages ── */
+    .flash-box {
+      width: 100%; max-width: 600px;
+      padding: .85rem 1.25rem;
+      border-radius: 12px;
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+      font-size: .875rem;
+      display: flex; align-items: flex-start; gap: .75rem;
+    }
+    .flash-box svg { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Card grid ── */
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      width: 100%; max-width: 660px;
+    }
+    @media (max-width: 520px) { .cards { grid-template-columns: 1fr; } }
+
+    .env-card {
+      position: relative;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem 1.75rem 1.75rem;
+      cursor: pointer;
+      transition: border-color .25s, transform .25s, box-shadow .25s;
+      user-select: none;
+    }
+    .env-card:hover {
+      transform: translateY(-2px);
+    }
+    .env-card input[type="radio"] { display: none; }
+
+    /* TEST */
+    .env-card.test:hover        { border-color: rgba(59,130,246,0.5); box-shadow: 0 0 0 4px var(--blue-dark), 0 12px 40px rgba(0,0,0,0.4); }
+    .env-card.test.selected     { border-color: var(--blue); box-shadow: 0 0 0 4px var(--blue-dark), 0 12px 40px rgba(0,0,0,0.5); background: var(--surface2); }
+
+    /* PROD */
+    .env-card.prod:hover        { border-color: rgba(245,158,11,0.5); box-shadow: 0 0 0 4px var(--amber-dark), 0 12px 40px rgba(0,0,0,0.4); }
+    .env-card.prod.selected     { border-color: var(--amber); box-shadow: 0 0 0 4px var(--amber-dark), 0 12px 40px rgba(0,0,0,0.5); background: var(--surface2); }
+
+    .card-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 52px; height: 52px; border-radius: 14px;
+      margin-bottom: 1.2rem;
+    }
+    .test .card-icon  { background: linear-gradient(135deg,#1e3a8a,#2563eb); box-shadow: 0 4px 16px rgba(59,130,246,0.35); }
+    .prod .card-icon  { background: linear-gradient(135deg,#78350f,#d97706); box-shadow: 0 4px 16px rgba(245,158,11,0.35); }
+    .card-icon svg    { width: 26px; height: 26px; color: #fff; }
+
+    .card-title  { font-size: 1.15rem; font-weight: 700; margin-bottom: .35rem; }
+    .card-server { font-size: .8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: .75rem; }
+    .test .card-server { color: var(--blue); }
+    .prod .card-server { color: var(--amber); }
+
+    .card-desc   { font-size: .82rem; color: var(--muted); line-height: 1.55; }
+
+    .card-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      margin-top: 1.1rem;
+      padding: .3rem .75rem;
+      border-radius: 99px;
+      font-size: .75rem; font-weight: 600;
+    }
+    .test .card-badge { background: var(--blue-dark); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25); }
+    .prod .card-badge { background: var(--amber-dark); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
+    .card-badge .dot  {
+      width: 6px; height: 6px; border-radius: 50%;
+    }
+    .test .dot { background: var(--blue); }
+    .prod .dot { background: var(--amber); }
+
+    .check-ring {
+      position: absolute; top: 1rem; right: 1rem;
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid var(--border-hi);
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color .2s, background .2s;
+    }
+    .test.selected .check-ring { border-color: var(--blue); background: var(--blue); }
+    .prod.selected .check-ring { border-color: var(--amber); background: var(--amber); }
+    .check-ring svg { width: 13px; height: 13px; color: #fff; opacity: 0; transition: opacity .15s; }
+    .selected .check-ring svg  { opacity: 1; }
+
+    /* ── Prod warning banner ── */
+    .prod-warning {
+      display: none;
+      width: 100%; max-width: 660px;
+      padding: .75rem 1.1rem;
+      border-radius: 12px;
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.25);
+      color: #fcd34d;
+      font-size: .8rem;
+      align-items: center; gap: .65rem;
+    }
+    .prod-warning.visible { display: flex; }
+    .prod-warning svg { flex-shrink: 0; }
+
+    /* ── Action button ── */
+    .actions { width: 100%; max-width: 660px; }
+    .btn-connect {
+      width: 100%; padding: .95rem 2rem;
+      border: none; border-radius: 14px;
+      font-size: 1rem; font-weight: 700; letter-spacing: .02em;
+      cursor: pointer; transition: opacity .2s, transform .15s, box-shadow .2s;
+      background: linear-gradient(90deg, #2563eb, #3b82f6);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(59,130,246,0.35);
+    }
+    .btn-connect:hover               { opacity: .9; transform: translateY(-1px); }
+    .btn-connect:active              { transform: translateY(0); }
+    .btn-connect.prod-mode           { background: linear-gradient(90deg, #b45309, #f59e0b); box-shadow: 0 4px 20px rgba(245,158,11,0.35); }
+
+    /* ── Footer note ── */
+    .footnote { color: var(--muted); font-size: .78rem; text-align: center; }
+     a.switch-link { color: var(--blue); text-decoration: none; }
+     a.switch-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-ring">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v5c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+          <path d="M3 10v5c0 1.66 4.03 3 9 3s9-1.34 9-3v-5"/>
+        </svg>
+      </div>
+      <h1>Customer <span>Tracker</span></h1>
+      <p class="subtitle">Select the environment you want to connect to</p>
+    </div>
+
+    <!-- Flash errors -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="flash-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        {{ message }}
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <!-- Environment cards -->
+    <form method="POST" action="/set-env" id="envForm">
+      <div class="cards">
+
+        <!-- TEST -->
+        <label class="env-card test selected" id="card-test" for="env-test">
+          <input type="radio" name="env" id="env-test" value="test" checked />
+          <div class="check-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <div class="card-server">Local &nbsp;·&nbsp; SQLite</div>
+          <div class="card-title">TEST Environment</div>
+          <div class="card-desc">Connect to the local SQLite database with dummy data. Safe for development and feature testing — no real data is affected.</div>
+          <div class="card-badge"><span class="dot"></span>customer_tracker.db</div>
+        </label>
+
+        <!-- PROD -->
+        <label class="env-card prod" id="card-prod" for="env-prod">
+          <input type="radio" name="env" id="env-prod" value="prod" />
+          <div class="check-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+              <line x1="6" y1="6" x2="6.01" y2="6"/>
+              <line x1="6" y1="18" x2="6.01" y2="18"/>
+            </svg>
+          </div>
+          <div class="card-server">SRVDNZ &nbsp;·&nbsp; SQL Server</div>
+          <div class="card-title">PROD Environment</div>
+          <div class="card-desc">Connect to the production SQL Server using Windows Authentication. This contains <strong style="color:#fbbf24">live data</strong> — all changes are permanent.</div>
+          <div class="card-badge"><span class="dot"></span>Windows Auth · Trusted</div>
+        </label>
+
+      </div>
+
+      <!-- Prod warning -->
+      <div class="prod-warning" id="prodWarning">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        You are about to connect to <strong>&nbsp;production data&nbsp;</strong>. Any edits, deletions or additions will affect real records on SRVDNZ immediately.
+      </div>
+
+      <!-- Connect button -->
+      <div class="actions" style="margin-top:1.25rem;">
+        <button type="submit" class="btn-connect" id="connectBtn">
+          Connect to TEST &rarr;
+        </button>
+      </div>
+    </form>
+
+    <p class="footnote">
+      Customer Tracker &nbsp;·&nbsp; Internal Use Only
+    </p>
+  </div>
+
+  <script>
+    const cards    = document.querySelectorAll('.env-card');
+    const radios   = document.querySelectorAll('input[type="radio"]');
+    const warning  = document.getElementById('prodWarning');
+    const btn      = document.getElementById('connectBtn');
+
+    function update() {
+      const val = document.querySelector('input[name="env"]:checked').value;
+      cards.forEach(c => c.classList.remove('selected'));
+      document.getElementById('card-' + val).classList.add('selected');
+      if (val === 'prod') {
+        warning.classList.add('visible');
+        btn.textContent = 'Connect to PROD →';
+        btn.classList.add('prod-mode');
+      } else {
+        warning.classList.remove('visible');
+        btn.textContent = 'Connect to TEST →';
+        btn.classList.remove('prod-mode');
+      }
+    }
+
+    radios.forEach(r => r.addEventListener('change', update));
+    update();
+  </script>
+</body>
+</html>
