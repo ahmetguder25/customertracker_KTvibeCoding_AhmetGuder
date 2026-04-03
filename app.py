@@ -608,7 +608,6 @@ def overview_detail(customer_id):
 
 @app.route("/api/analysis/generate/<int:customer_id>", methods=["POST"])
 def generate_analysis(customer_id):
-    load_dotenv(override=True)
     conn     = get_db()
     customer = conn.execute(load_query("mgmt_get_customer"), (customer_id,)).fetchone()
     if not customer:
