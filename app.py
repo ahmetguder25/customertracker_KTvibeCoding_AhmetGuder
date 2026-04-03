@@ -4,7 +4,6 @@ import os
 import json
 import requests
 import re
-from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, redirect, url_for,
                    send_file, flash, jsonify, session, has_request_context)
@@ -14,7 +13,6 @@ import io
 # ── App Setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = "customer-tracker-secret-key-2026"
-load_dotenv()
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 DB_PATH    = os.path.join(BASE_DIR, "customer_tracker.db")
@@ -113,8 +111,17 @@ def _get_db_prod() -> DbConnection:
             "pyodbc is not installed. Run: pip install pyodbc"
         ) from exc
 
-    server  = os.getenv("PROD_SERVER", "SRVDNZ")
-    db_name = os.getenv("PROD_DB_NAME", "")       # set in .env on the prod machine
+    server  = "SRVDNZ"
+    db_name = ""
+    config_path = os.path.join(BASE_DIR, "config.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                server = config.get("PROD_SERVER", server)
+                db_name = config.get("PROD_DB_NAME", db_name)
+        except Exception as exc:
+            print(f"Warning: Failed to load config.json: {exc}")
 
     # Auto-detect installed SQL Server ODBC driver (prefer 18, then 17)
     drivers = [d for d in pyodbc.drivers() if "SQL Server" in d]
