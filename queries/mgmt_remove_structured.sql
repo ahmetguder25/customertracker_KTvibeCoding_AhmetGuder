@@ -1,3 +1,2 @@
-UPDATE Customer
-SET IsStructured = 0
+DELETE FROM CustomerDetail
 WHERE Customerid = ?

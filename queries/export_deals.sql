@@ -1,7 +1,7 @@
-SELECT d.*, c.CustomerName, c.sector, c.credit_limit, c.value_segment,
-       c.branch, c.region, c.portfolio_manager, c.foreign_trade_volume,
-       c.memzuc_151_volume, c.memzuc_152_volume
+SELECT d.*, c.CustomerName, cd.sector, cd.credit_limit, c.ValueSegment AS value_segment,
+       c.BranchName AS branch, c.RegionalOfficeName AS region, c.PortfolioOwnerName AS portfolio_manager, cd.foreign_trade_volume,
+       cd.memzuc_151_volume, cd.memzuc_152_volume
 FROM CustomerDeals d
 JOIN Customer c ON d.customerid = c.Customerid
-WHERE c.IsStructured = 1
+JOIN CustomerDetail cd ON c.Customerid = cd.Customerid
 ORDER BY c.CustomerName, d.created_at DESC

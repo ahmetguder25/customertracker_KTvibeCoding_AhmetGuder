@@ -1,6 +1,6 @@
-SELECT region, COUNT(*) AS cnt
-FROM Customer
-WHERE IsStructured = 1
-  AND region IS NOT NULL
-  AND region != ''
-GROUP BY region
+SELECT c.RegionalOfficeName AS region, COUNT(*) AS cnt
+FROM Customer c
+JOIN CustomerDetail cd ON c.Customerid = cd.Customerid
+WHERE c.RegionalOfficeName IS NOT NULL
+  AND c.RegionalOfficeName != ''
+GROUP BY c.RegionalOfficeName

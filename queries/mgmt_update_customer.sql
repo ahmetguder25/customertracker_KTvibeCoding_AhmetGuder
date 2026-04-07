@@ -1,5 +1,3 @@
-UPDATE Customer
-SET CustomerName      = ?,
-    sector            = ?,
-    portfolio_manager = ?
+UPDATE CustomerDetail
+SET sector = ?
 WHERE Customerid = ?

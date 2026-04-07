@@ -94,13 +94,15 @@
 <script>
     // ── Pipeline Status ──────────────────────────────────────────────
     const chartData = {{ chart_data | safe }};
-    const labels = Object.keys(chartData);
-    const values = Object.values(chartData);
+    const codeKeys = Object.keys(chartData);
+    const labels = codeKeys.map(k => chartData[k].label);
+    const values = codeKeys.map(k => chartData[k].count);
 
     const total = values.reduce((a, b) => a + b, 0);
-    const active = total - (chartData["Closed Won"] || 0) - (chartData["Closed Lost"] || 0);
-    const closedWon = chartData["Closed Won"] || 0;
-    const closedTotal = closedWon + (chartData["Closed Lost"] || 0);
+    const closedWon = (chartData["4"] && chartData["4"].count) ? chartData["4"].count : 0;
+    const closedLost = (chartData["5"] && chartData["5"].count) ? chartData["5"].count : 0;
+    const active = total - closedWon - closedLost;
+    const closedTotal = closedWon + closedLost;
     const winRate = closedTotal > 0 ? Math.round((closedWon / closedTotal) * 100) : 0;
 
     document.getElementById("kpi-total").textContent = total;
@@ -108,14 +110,15 @@
     document.getElementById("kpi-winrate").textContent = winRate + "%";
 
     const colorMap = {
-        "Lead":           { bg: "rgba(99,102,241,0.7)",  border: "rgb(99,102,241)"  },
-        "Proposal":       { bg: "rgba(59,130,246,0.7)",  border: "rgb(59,130,246)"  },
-        "Due Diligence":  { bg: "rgba(245,158,11,0.7)",  border: "rgb(245,158,11)"  },
-        "Closed Won":     { bg: "rgba(16,185,129,0.7)",  border: "rgb(16,185,129)"  },
-        "Closed Lost":    { bg: "rgba(239,68,68,0.7)",   border: "rgb(239,68,68)"   },
+        "1": { bg: "rgba(99,102,241,0.7)",  border: "rgb(99,102,241)"  },
+        "2": { bg: "rgba(59,130,246,0.7)",  border: "rgb(59,130,246)"  },
+        "3": { bg: "rgba(245,158,11,0.7)",  border: "rgb(245,158,11)"  },
+        "4": { bg: "rgba(16,185,129,0.7)",  border: "rgb(16,185,129)"  },
+        "5": { bg: "rgba(239,68,68,0.7)",   border: "rgb(239,68,68)"   },
+        "6": { bg: "rgba(20,184,166,0.7)",  border: "rgb(20,184,166)"  },
     };
-    const bgColors     = labels.map(l => (colorMap[l] || {}).bg     || "rgba(148,163,184,0.7)");
-    const borderColors = labels.map(l => (colorMap[l] || {}).border || "rgb(148,163,184)");
+    const bgColors     = codeKeys.map(k => (colorMap[k] || {}).bg     || "rgba(148,163,184,0.7)");
+    const borderColors = codeKeys.map(k => (colorMap[k] || {}).border || "rgb(148,163,184)");
 
     new Chart(document.getElementById("statusChart"), {
         type: "bar",

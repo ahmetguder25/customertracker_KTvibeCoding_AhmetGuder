@@ -91,7 +91,12 @@ class DbConnection:
 
 
 def get_db() -> DbConnection:
-    """Return the correct DB connection based on env stored in session."""
+    """Return the local database connection (which has Deals, CustomerDetail, and the cached Customer)."""
+    return _get_db_test()
+
+
+def get_customer_db() -> DbConnection:
+    """Return connection to SRVDNZ BOA database if PROD, else local SQLite."""
     env = session.get("env", "test") if has_request_context() else "test"
     if env == "prod":
         return _get_db_prod()
@@ -271,8 +276,13 @@ def dashboard():
 
     rows          = conn.execute(load_query("dashboard_status_counts")).fetchall()
     status_counts = {str(row["status"]): row["cnt"] for row in rows}
-    chart_data    = {info["description"]: status_counts.get(code, 0)
-                     for code, info in status_map.items()}
+    chart_data    = {
+        str(code): {
+            "label": info["description"],
+            "count": status_counts.get(str(code), 0)
+        }
+        for code, info in status_map.items()
+    }
 
     volume_totals = conn.execute(load_query("dashboard_volume_totals")).fetchone()
     segments      = conn.execute(load_query("dashboard_segments")).fetchall()
@@ -473,30 +483,77 @@ def management():
 
 @app.route("/api/customer/lookup/<int:account_number>")
 def lookup_customer(account_number):
-    conn     = get_db()
-    customer = conn.execute(load_query("mgmt_lookup_customer"), (account_number,)).fetchone()
-    conn.close()
-    if customer:
-        sector_map = get_param_map("Sector")
-        sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
-        return jsonify({
-            "found":            True,
-            "Customerid":       customer["Customerid"],
-            "CustomerName":     customer["CustomerName"],
-            "sector":           sector_desc or "",
-            "portfolio_manager": customer["portfolio_manager"] or "",
-            "IsStructured":     customer["IsStructured"],
-        })
-    return jsonify({"found": False})
+    env = session.get("env", "test") if has_request_context() else "test"
+    
+    if env == "prod":
+        conn_real = get_customer_db()
+        customer = conn_real.execute(load_query("customer_lookup_real"), (account_number,)).fetchone()
+        conn_real.close()
+        
+        if customer:
+            conn_local = get_db()
+            already = conn_local.execute("SELECT 1 FROM CustomerDetail WHERE Customerid = ?", (account_number,)).fetchone()
+            conn_local.close()
+            
+            return jsonify({
+                "found": True,
+                "Customerid": customer["Customerid"],
+                "CustomerName": customer["CustomerName"],
+                "sector": "",
+                "portfolio_manager": customer["PortfolioOwnerName"],
+                "IsStructured": 1 if already else 0
+            })
+        return jsonify({"found": False})
+    
+    else:
+        conn     = get_db()
+        customer = conn.execute(load_query("mgmt_lookup_customer"), (account_number,)).fetchone()
+        conn.close()
+        if customer:
+            sector_map = get_param_map("Sector")
+            sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
+            return jsonify({
+                "found":            True,
+                "Customerid":       customer["Customerid"],
+                "CustomerName":     customer["CustomerName"],
+                "sector":           sector_desc or "",
+                "portfolio_manager": customer["portfolio_manager"] or "",
+                "IsStructured":     customer["IsStructured"],
+            })
+        return jsonify({"found": False})
 
 
 @app.route("/management/customer/add", methods=["POST"])
 def add_customer():
     customer_id = int(request.form["Customerid"])
-    conn = get_db()
-    conn.execute(load_query("mgmt_set_structured"), (customer_id,))
-    conn.commit()
-    conn.close()
+    env = session.get("env", "test") if has_request_context() else "test"
+    
+    if env == "prod":
+        conn_real = get_customer_db()
+        customer = conn_real.execute(load_query("customer_lookup_real"), (customer_id,)).fetchone()
+        conn_real.close()
+        
+        if customer:
+            conn_local = get_db()
+            conn_local.execute(load_query("customer_upsert"), (
+                customer["Customerid"], customer["CustomerName"], customer["PortfolioOwnerName"],
+                customer["BranchName"], customer["ValueSegment"], customer["RegionalOfficeName"]
+            ))
+            try:
+                conn_local.execute(load_query("customerdetail_insert"), (customer_id,))
+            except sqlite3.IntegrityError:
+                pass
+            conn_local.commit()
+            conn_local.close()
+    else:
+        conn = get_db()
+        try:
+            conn.execute(load_query("customerdetail_insert"), (customer_id,))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            pass
+        conn.close()
+        
     return redirect(url_for("management"))
 
 
@@ -525,17 +582,13 @@ def edit_customer(customer_id):
 
         if logo_filename:
             conn.execute(load_query("mgmt_update_customer_logo"), (
-                request.form["CustomerName"],
                 request.form.get("sector", ""),
-                request.form.get("portfolio_manager", ""),
                 logo_filename,
                 customer_id,
             ))
         else:
             conn.execute(load_query("mgmt_update_customer"), (
-                request.form["CustomerName"],
                 request.form.get("sector", ""),
-                request.form.get("portfolio_manager", ""),
                 customer_id,
             ))
         conn.commit()
