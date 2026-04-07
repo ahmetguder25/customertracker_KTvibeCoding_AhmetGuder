@@ -6,7 +6,7 @@
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('list_title', 'Pipeline Deals') }}</h1>
-            <p class="text-gray-400 mt-1">{{ lang_dict.get('list_subtitle', 'All tracked deals across our active customers') }}</p>
+            <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-1">{{ lang_dict.get('list_subtitle', 'All tracked deals across our active customers') }}</p>
         </div>
         <div class="flex gap-3">
             <button onclick="document.getElementById('add-deal-panel').classList.toggle('hidden')" id="btn-new-deal"
@@ -27,12 +27,12 @@
     </div>
 
     <!-- Add Deal Panel (hidden by default) -->
-    <div id="add-deal-panel" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-6 animate-fadeIn">
-        <h2 class="text-lg font-semibold mb-4 text-emerald-400">{{ lang_dict.get('list_add_title', 'Add New Deal') }}</h2>
+    <div id="add-deal-panel" class="hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 animate-fadeIn">
+        <h2 class="text-lg font-semibold mb-4 text-emerald-600 dark:text-emerald-400">{{ lang_dict.get('list_add_title', 'Add New Deal') }}</h2>
         <form action="/deals/add" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
-                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_sel_customer', 'Customer') }} *</label>
-                <select name="customerid" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600">
+                <label class="block text-xs text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('list_sel_customer', 'Customer') }} *</label>
+                <select name="customerid" required class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-600">
                     <option value="">{{ lang_dict.get('list_sel_customer', 'Select Customer') }}</option>
                     {% for c in customers %}
                     <option value="{{ c['Customerid'] }}">{{ c['CustomerName'] }}</option>
@@ -40,57 +40,57 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_contact', 'Contact Name') }}</label>
-                <input type="text" name="contact_name" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="...">
+                <label class="block text-xs text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('list_contact', 'Contact Name') }}</label>
+                <input type="text" name="contact_name" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white" placeholder="...">
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_deal_size', 'Deal Size') }} *</label>
-                <input type="number" name="deal_size" required step="1" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="1000000">
+                <label class="block text-xs text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('list_deal_size', 'Deal Size') }} *</label>
+                <input type="number" name="deal_size" required step="1" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white" placeholder="1000000">
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_exp_pricing', 'Expected Pricing p.a.') }} (%)</label>
-                <input type="number" name="expected_pricing_pa" step="0.01" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="3.50">
+                <label class="block text-xs text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('list_exp_pricing', 'Expected Pricing p.a.') }} (%)</label>
+                <input type="number" name="expected_pricing_pa" step="0.01" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white" placeholder="3.50">
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_currency', 'Currency') }}</label>
-                <select name="currency" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+                <label class="block text-xs text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('list_currency', 'Currency') }}</label>
+                <select name="currency" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white">
                     {% for code, info in fec_map.items() %}
                     <option value="{{ code }}">{{ info.description }} ({{ info.bg }})</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_status', 'Status') }} *</label>
-                <select name="status" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+                <label class="block text-xs text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('list_status', 'Status') }} *</label>
+                <select name="status" required class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white">
                     {% for code, info in status_map.items()|sort %}
                     <option value="{{ code }}">{{ info.description }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_deal_type', 'Deal Type') }} *</label>
-                <select name="dealtype" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+                <label class="block text-xs text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('list_deal_type', 'Deal Type') }} *</label>
+                <select name="dealtype" required class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white">
                     {% for code, info in deal_type_map.items()|sort %}
                     <option value="{{ code }}">{{ info.description }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-gray-400 mb-1">{{ lang_dict.get('list_notes', 'Notes') }}</label>
-                <input type="text" name="notes" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="...">
+                <label class="block text-xs text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('list_notes', 'Notes') }}</label>
+                <input type="text" name="notes" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white" placeholder="...">
             </div>
             <div class="md:col-span-4 flex gap-3 pt-2">
                 <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">{{ lang_dict.get('list_btn_add_deal', 'Add Deal') }}</button>
-                <button type="button" onclick="document.getElementById('add-deal-panel').classList.add('hidden')" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">Vazgeç / Cancel</button>
+                <button type="button" onclick="document.getElementById('add-deal-panel').classList.add('hidden')" class="bg-gray-100 dark:bg-gray-800 hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">Vazgeç / Cancel</button>
             </div>
         </form>
     </div>
 
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
         <div class="overflow-x-auto">
             <table id="customer-table" class="w-full text-sm">
                 <thead>
-                    <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wider text-gray-500">
+                    <tr class="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-700 dark:text-gray-500">
                         <th class="px-4 py-4">ID</th>
                         <th class="px-4 py-4">{{ lang_dict.get('list_tbl_company', 'Company') }}</th>
                         <th class="px-4 py-4">{{ lang_dict.get('list_tbl_contact', 'Contact') }}</th>
@@ -111,16 +111,16 @@
                     {% set dt = deal_type_map.get(d['dealtype']|string, {}) %}
                     {% set cur = fec_map.get((d['currency'] or 0)|string, {}) %}
                     <tr class="hover:bg-gray-800/40 transition-colors cursor-pointer" onclick="window.location='/deals/{{ d['id'] }}'" title="Click to view deal details">
-                        <td class="px-4 py-3 font-mono text-gray-500">{{ d['id'] }}</td>
-                        <td class="px-4 py-3 font-medium text-white whitespace-nowrap">{{ d['CustomerName'] }}</td>
-                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap">{{ d['contact_name'] or '—' }}</td>
-                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap text-xs font-semibold">
-                            <span class="bg-gray-800 px-2 py-1 rounded text-gray-300 border border-gray-700">{{ dt.get('description', d['dealtype']) }}</span>
+                        <td class="px-4 py-3 font-mono text-gray-700 dark:text-gray-500">{{ d['id'] }}</td>
+                        <td class="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ d['CustomerName'] }}</td>
+                        <td class="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ d['contact_name'] or '—' }}</td>
+                        <td class="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap text-xs font-semibold">
+                            <span class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700">{{ dt.get('description', d['dealtype']) }}</span>
                         </td>
-                        <td class="px-4 py-3 text-right font-mono text-emerald-400">{{ "{:,.0f}".format(d['deal_size']) if d['deal_size'] else '0' }} {{ cur.get('bg', 'TRY') }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-amber-400">{% if d['expected_pricing_pa'] %}{{ "{:.2f}".format(d['expected_pricing_pa']) }}%{% else %}—{% endif %}</td>
-                        <td class="px-4 py-3 text-gray-300 whitespace-nowrap">
-                            <span class="bg-gray-800 px-2 py-0.5 rounded text-xs font-medium text-gray-300 border border-gray-700">{{ cur.get('bg', 'TRY') }}</span>
+                        <td class="px-4 py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">{{ "{:,.0f}".format(d['deal_size']) if d['deal_size'] else '0' }} {{ cur.get('bg', 'TRY') }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-amber-600 dark:text-amber-400">{% if d['expected_pricing_pa'] %}{{ "{:.2f}".format(d['expected_pricing_pa']) }}%{% else %}—{% endif %}</td>
+                        <td class="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                            <span class="bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700">{{ cur.get('bg', 'TRY') }}</span>
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
@@ -129,21 +129,17 @@
                         </td>
                         <td class="px-4 py-3">
                             {% if d['value_segment'] %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold
-                                {% if d['value_segment'] == 'A+' %}bg-purple-500/20 text-purple-400
-                                {% elif d['value_segment'] == 'A' %}bg-blue-500/20 text-blue-400
-                                {% elif d['value_segment'] == 'B' %}bg-cyan-500/20 text-cyan-400
-                                {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {% if d['value_segment'] == 'A+' %}bg-purple-500/20 text-purple-600 dark:text-purple-400 {% elif d['value_segment'] == 'A' %}bg-blue-500/20 text-blue-600 dark:text-blue-400 {% elif d['value_segment'] == 'B' %}bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 {% else %}bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-400 dark:text-gray-400 {% endif %}">
                                 {{ d['value_segment'] }}
                             </span>
                             {% else %}—{% endif %}
                         </td>
-                        <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ d['branch'] or '—' }}</td>
-                        <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ d['region'] or '—' }}</td>
+                        <td class="px-4 py-3 text-gray-700 dark:text-gray-400 dark:text-gray-400 whitespace-nowrap">{{ d['branch'] or '—' }}</td>
+                        <td class="px-4 py-3 text-gray-700 dark:text-gray-400 dark:text-gray-400 whitespace-nowrap">{{ d['region'] or '—' }}</td>
                         <td class="px-4 py-3 text-center whitespace-nowrap" onclick="event.stopPropagation()">
-                            <a href="/deals/edit/{{ d['id'] }}" class="text-brand-400 hover:text-brand-300 text-xs font-medium mr-2 transition">Edit</a>
+                            <a href="/deals/edit/{{ d['id'] }}" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-xs font-medium mr-2 transition">Edit</a>
                             <form action="/deals/delete/{{ d['id'] }}" method="POST" class="inline" onsubmit="return confirm('Delete this deal?')">
-                                <button type="submit" class="text-red-400 hover:text-red-300 text-xs font-medium transition">Delete</button>
+                                <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-300 text-xs font-medium transition">Delete</button>
                             </form>
                         </td>
                     </tr>
@@ -152,7 +148,7 @@
             </table>
         </div>
         {% if not deals %}
-        <div class="text-center py-12 text-gray-500">{{ lang_dict.get('list_empty', 'No deals found. Click "New Deal" to create one.') }}</div>
+        <div class="text-center py-12 text-gray-700 dark:text-gray-500">{{ lang_dict.get('list_empty', 'No deals found. Click "New Deal" to create one.') }}</div>
         {% endif %}
     </div>
 </div>

@@ -5,41 +5,41 @@
 <div class="space-y-8">
     <div>
         <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('dash_title', 'Portfolio Dashboard') }}</h1>
-        <p class="text-gray-400 mt-1">{{ lang_dict.get('dash_subtitle', 'Deal pipeline overview & customer insights') }}</p>
+        <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-1">{{ lang_dict.get('dash_subtitle', 'Deal pipeline overview & customer insights') }}</p>
     </div>
 
     <!-- Pipeline KPI Cards -->
     <div id="kpi-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_total_deals', 'Total Deals') }}</span>
-            <span id="kpi-total" class="text-3xl font-bold text-white"></span>
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_total_deals', 'Total Deals') }}</span>
+            <span id="kpi-total" class="text-3xl font-bold text-gray-900 dark:text-white"></span>
         </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_active_pipeline', 'Active Pipeline') }}</span>
-            <span id="kpi-active" class="text-3xl font-bold text-brand-400"></span>
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_active_pipeline', 'Active Pipeline') }}</span>
+            <span id="kpi-active" class="text-3xl font-bold text-brand-600 dark:text-brand-400"></span>
         </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_win_rate', 'Win Rate') }}</span>
-            <span id="kpi-winrate" class="text-3xl font-bold text-emerald-400"></span>
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_win_rate', 'Win Rate') }}</span>
+            <span id="kpi-winrate" class="text-3xl font-bold text-emerald-600 dark:text-emerald-400"></span>
         </div>
     </div>
 
     <!-- Volume KPI Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_credit_limit', 'Total Credit Limit') }}</span>
-            <span class="text-2xl font-bold text-violet-400">${{ "{:,.0f}".format(volume_totals.total_limit) }}</span>
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_credit_limit', 'Total Credit Limit') }}</span>
+            <span class="text-2xl font-bold text-violet-600 dark:text-violet-400">₺{{ "{:,.0f}".format(volume_totals.total_limit) }}</span>
         </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_foreign_trade', 'Foreign Trade Vol.') }}</span>
-            <span class="text-2xl font-bold text-cyan-400">${{ "{:,.0f}".format(volume_totals.total_ft) }}</span>
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_foreign_trade', 'Foreign Trade Vol.') }}</span>
+            <span class="text-2xl font-bold text-cyan-600 dark:text-cyan-400">${{ "{:,.0f}".format(volume_totals.total_ft) }}</span>
         </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_151_vol', 'MEMZUC 151 Vol.') }}</span>
-            <span class="text-2xl font-bold text-amber-400">${{ "{:,.0f}".format(volume_totals.total_151) }}</span>
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_151_vol', 'MEMZUC 151 Vol.') }}</span>
+            <span class="text-2xl font-bold text-amber-600 dark:text-amber-400">${{ "{:,.0f}".format(volume_totals.total_151) }}</span>
         </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500">{{ lang_dict.get('dash_152_vol', 'MEMZUC 152 Vol.') }}</span>
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
+            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_152_vol', 'MEMZUC 152 Vol.') }}</span>
             <span class="text-2xl font-bold text-rose-400">${{ "{:,.0f}".format(volume_totals.total_152) }}</span>
         </div>
     </div>
@@ -47,7 +47,7 @@
     <!-- Charts Row -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Pipeline Status Chart -->
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
             <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_pipeline_title', 'Customers by Deal Status') }}</h2>
             <div style="position:relative; height:320px;">
                 <canvas id="statusChart"></canvas>
@@ -55,7 +55,7 @@
         </div>
 
         <!-- Value Segment Chart -->
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
             <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_segment_title', 'Value Segment Distribution') }}</h2>
             <div style="position:relative; height:320px;">
                 <canvas id="segmentChart"></canvas>
@@ -64,17 +64,17 @@
     </div>
     
     <!-- AI Chat Assistant -->
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 mb-6">
         <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-            <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             {{ lang_dict.get('dash_ai_chat', 'Ollama AI Assistant') }}
         </h2>
         <div class="flex flex-col gap-4">
-            <div id="chat-box" class="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 h-64 overflow-y-auto text-sm space-y-3 flex flex-col">
-                <div class="text-gray-400 text-center m-auto">{{ lang_dict.get('dash_ai_chat_empty', 'Ask a question to the local AI model...') }}</div>
+            <div id="chat-box" class="bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl p-4 h-64 overflow-y-auto text-sm space-y-3 flex flex-col">
+                <div class="text-gray-700 dark:text-gray-400 dark:text-gray-400 text-center m-auto">{{ lang_dict.get('dash_ai_chat_empty', 'Ask a question to the local AI model...') }}</div>
             </div>
             <form id="chat-form" class="flex gap-2">
-                <input type="text" id="chat-input" required placeholder="{{ lang_dict.get('dash_ai_chat_ph', 'Type your message...') }}" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                <input type="text" id="chat-input" required placeholder="{{ lang_dict.get('dash_ai_chat_ph', 'Type your message...') }}" class="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
                 <button type="submit" id="chat-submit" class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-all duration-200">
                     {{ lang_dict.get('dash_ai_chat_send', 'Send') }}
                 </button>
@@ -83,7 +83,7 @@
     </div>
 
     <!-- Region Chart -->
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_region_title', 'Customers by Region') }}</h2>
         <div style="position:relative; height:320px;">
             <canvas id="regionChart"></canvas>
@@ -152,11 +152,11 @@
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: { color: "#64748b", stepSize: 1, font: { family: "Inter" } },
-                    grid:  { color: "rgba(51,65,85,0.4)" },
+                    ticks: { color: document.documentElement.classList.contains("dark") ? "#64748b" : "#334155", stepSize: 1, font: { family: "Inter" } },
+                    grid:  { color: document.documentElement.classList.contains("dark") ? "rgba(51,65,85,0.4)" : "rgba(203,213,225,0.8)" },
                 },
                 x: {
-                    ticks: { color: "#94a3b8", font: { family: "Inter", weight: 500 } },
+                    ticks: { color: document.documentElement.classList.contains("dark") ? "#94a3b8" : "#475569", font: { family: "Inter", weight: 500 } },
                     grid:  { display: false },
                 }
             }
@@ -194,7 +194,7 @@
             plugins: {
                 legend: {
                     position: "bottom",
-                    labels: { color: "#94a3b8", font: { family: "Inter", size: 12 }, padding: 16 }
+                    labels: { color: document.documentElement.classList.contains("dark") ? "#94a3b8" : "#475569", font: { family: "Inter", size: 12 }, padding: 16 }
                 },
                 tooltip: {
                     backgroundColor: "rgba(15,23,42,0.95)",
@@ -266,11 +266,11 @@
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: { color: "#64748b", stepSize: 1, font: { family: "Inter" } },
-                    grid:  { color: "rgba(51,65,85,0.4)" },
+                    ticks: { color: document.documentElement.classList.contains("dark") ? "#64748b" : "#334155", stepSize: 1, font: { family: "Inter" } },
+                    grid:  { color: document.documentElement.classList.contains("dark") ? "rgba(51,65,85,0.4)" : "rgba(203,213,225,0.8)" },
                 },
                 x: {
-                    ticks: { color: "#94a3b8", font: { family: "Inter", weight: 500 } },
+                    ticks: { color: document.documentElement.classList.contains("dark") ? "#94a3b8" : "#475569", font: { family: "Inter", weight: 500 } },
                     grid:  { display: false },
                 }
             }
@@ -303,7 +303,7 @@
             chatInput.value = '';
             chatInput.disabled = true;
             chatSubmit.disabled = true;
-            chatSubmit.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            chatSubmit.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-900 dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
             try {
                 const res = await fetch('/api/chat', {
@@ -316,15 +316,15 @@
                 const aiDiv = document.createElement('div');
                 aiDiv.className = 'flex justify-start';
                 if(!res.ok || data.error) {
-                    aiDiv.innerHTML = `<div class="bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap">Error: ${data.error || 'Server returned an error'}</div>`;
+                    aiDiv.innerHTML = `<div class="bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap">Error: ${data.error || 'Server returned an error'}</div>`;
                 } else {
-                    aiDiv.innerHTML = `<div class="bg-gray-700 text-white border border-gray-600/50 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap leading-relaxed">${data.response}</div>`;
+                    aiDiv.innerHTML = `<div class="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-600/50 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap leading-relaxed">${data.response}</div>`;
                 }
                 chatBox.appendChild(aiDiv);
             } catch (err) {
                 const errDiv = document.createElement('div');
                 errDiv.className = 'flex justify-start';
-                errDiv.innerHTML = `<div class="bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg px-3 py-2 max-w-[80%]">Network Error: Could not reach the AI service.</div>`;
+                errDiv.innerHTML = `<div class="bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 rounded-lg px-3 py-2 max-w-[80%]">Network Error: Could not reach the AI service.</div>`;
                 chatBox.appendChild(errDiv);
             }
 
@@ -335,5 +335,30 @@
             chatInput.focus();
         });
     }
+    // Dynamic redraw on Theme switch
+    window.addEventListener('themeChanged', function() {
+        const isDark = document.documentElement.classList.contains("dark");
+        const tc1 = isDark ? "#94a3b8" : "#475569";
+        const tc2 = isDark ? "#64748b" : "#334155";
+        const gc  = isDark ? "rgba(51,65,85,0.4)" : "rgba(203,213,225,0.8)";
+        
+        if (typeof statusChart !== 'undefined') {
+            statusChart.options.scales.x.ticks.color = tc1;
+            statusChart.options.scales.y.ticks.color = tc2;
+            statusChart.options.scales.y.grid.color = gc;
+            statusChart.update();
+        }
+        if (typeof segmentChart !== 'undefined') {
+            segmentChart.options.plugins.legend.labels.color = tc1;
+            segmentChart.update();
+        }
+        if (typeof volumeChart !== 'undefined') {
+            volumeChart.options.scales.x.ticks.color = tc1;
+            volumeChart.options.scales.y.ticks.color = tc2;
+            volumeChart.options.scales.y.grid.color = gc;
+            volumeChart.update();
+        }
+    });
+
 </script>
 {% endblock %}

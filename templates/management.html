@@ -5,11 +5,11 @@
 <div class="space-y-8">
     <div>
         <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('mgmt_title', 'Customer Management') }}</h1>
-        <p class="text-gray-400 mt-1">{{ lang_dict.get('mgmt_subtitle', 'Add customers from the company database to your structured finance tracking') }}</p>
+        <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-1">{{ lang_dict.get('mgmt_subtitle', 'Add customers from the company database to your structured finance tracking') }}</p>
     </div>
 
     <!-- Add Customer -->
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('mgmt_add_title', 'Add Customer') }}</h2>
         <style>
             /* Hide number input spinners */
@@ -26,46 +26,62 @@
             <!-- Hidden field to submit Customerid -->
             <input type="hidden" name="Customerid" id="formCustomerid" value="">
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <!-- Account Number (active) -->
                 <div>
-                    <label for="accountNumber" class="block text-xs font-medium text-gray-400 mb-1">
+                    <label for="accountNumber" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
                         {{ lang_dict.get('mgmt_acc_label', 'Account Number *') }}
                         {% if session.get('env', 'test') != 'prod' %}<span class="text-amber-500 ml-1 text-[10px] uppercase font-bold">{{ lang_dict.get('mgmt_prod_only', '(PROD ONLY)') }}</span>{% endif %}
                     </label>
                     <div class="relative">
                         <input type="number" id="accountNumber" required {% if session.get('env', 'test') != 'prod' %}disabled{% endif %}
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Enter account number') }}">
                         <div class="absolute top-full left-0 mt-1 w-[200%] sm:w-[150%] z-10">
-                            <p id="lookup-error" class="text-xs text-red-400 hidden">{{ lang_dict.get('mgmt_err_notfound', 'Customer could not be found.') }}</p>
-                            <p id="lookup-already" class="text-xs text-amber-400 hidden leading-tight">{{ lang_dict.get('mgmt_err_tracked', 'Customer is already tracked in structured finance.') }}</p>
-                            <p id="lookup-success" class="text-xs text-emerald-400 hidden">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
+                            <p id="lookup-error" class="text-xs text-red-600 dark:text-red-400 hidden">{{ lang_dict.get('mgmt_err_notfound', 'Customer could not be found.') }}</p>
+                            <p id="lookup-already" class="text-xs text-amber-600 dark:text-amber-400 hidden leading-tight">{{ lang_dict.get('mgmt_err_tracked', 'Customer is already tracked in structured finance.') }}</p>
+                            <p id="lookup-success" class="text-xs text-emerald-600 dark:text-emerald-400 hidden">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Customer Name (disabled) -->
                 <div>
-                    <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_company_col', 'Company Name') }}</label>
+                    <label for="CustomerName" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_company_col', 'Company Name') }}</label>
                     <input type="text" id="CustomerName" disabled
-                        class="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed transition"
+                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
                         placeholder="—">
                 </div>
 
-                <!-- Sector (disabled) -->
+                <!-- Branch (disabled) -->
                 <div>
-                    <label for="sector" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_sector_col', 'Sector') }}</label>
-                    <input type="text" id="sector" disabled
-                        class="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed transition"
+                    <label for="branch" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_branch_col', 'Branch') }}</label>
+                    <input type="text" id="branch" disabled
+                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
+                        placeholder="—">
+                </div>
+
+                <!-- Region (disabled) -->
+                <div>
+                    <label for="region" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_region_col', 'Region') }}</label>
+                    <input type="text" id="region" disabled
+                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
+                        placeholder="—">
+                </div>
+
+                <!-- Value Segment (disabled) -->
+                <div>
+                    <label for="value_segment" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_segment_col', 'Value Segment') }}</label>
+                    <input type="text" id="value_segment" disabled
+                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
                         placeholder="—">
                 </div>
 
                 <!-- Portfolio Manager (disabled) -->
                 <div>
-                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }}</label>
+                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }}</label>
                     <input type="text" id="portfolio_manager" disabled
-                        class="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed transition"
+                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
                         placeholder="—">
                 </div>
             </div>
@@ -79,24 +95,22 @@
         </form>
     </div>
 
-    <!-- Existing Customers -->
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
             <h2 class="text-lg font-semibold">{{ lang_dict.get('mgmt_tbl_title', 'Tracked Customers') }}</h2>
-            <form action="/management/customer/update_all" method="POST" class="inline" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_sync', 'Sync all structured customers with SRVDNZ limit and details server?') }}');">
-                <button type="submit" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %}
-                    class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
-                    title="{% if session.get('env', 'test') != 'prod' %}Only available in PROD environment{% else %}Sync local customer details with remote DB{% endif %}"
-                >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    {{ lang_dict.get('mgmt_btn_sync', 'Update All') }}
-                </button>
-            </form>
+            <button type="button" onclick="startUpdateAll()"
+                class="bg-blue-600/20 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5"
+                title="{% if session.get('env', 'test') != 'prod' %}Demo mode — simulates sync animation{% else %}Sync local customer details with remote DB{% endif %}"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                {{ lang_dict.get('mgmt_btn_sync', 'Update All') }}
+                {% if session.get('env', 'test') != 'prod' %}<span class="ml-1 px-1 py-0.5 text-[9px] font-bold bg-amber-400/20 text-amber-600 dark:text-amber-400 rounded">DEMO</span>{% endif %}
+            </button>
         </div>
         <div class="overflow-x-auto">
             <table id="mgmt-table" class="w-full text-sm">
                 <thead>
-                    <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wider text-gray-500">
+                    <tr class="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-700 dark:text-gray-500">
                         <th class="px-6 py-3">{{ lang_dict.get('mgmt_tbl_acc', 'Account #') }}</th>
                         <th class="px-6 py-3">{{ lang_dict.get('mgmt_company_col', 'Company Name') }}</th>
                         <th class="px-6 py-3">{{ lang_dict.get('mgmt_sector_col', 'Sector') }}</th>
@@ -107,14 +121,14 @@
                 <tbody class="divide-y divide-gray-800/60">
                     {% for c in customers %}
                     <tr class="hover:bg-gray-800/40 transition-colors">
-                        <td class="px-6 py-3 font-mono text-gray-500">{{ c['Customerid'] }}</td>
-                        <td class="px-6 py-3 font-medium text-white">{{ c['CustomerName'] }}</td>
-                        <td class="px-6 py-3 text-gray-400">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
-                        <td class="px-6 py-3 text-gray-300">{{ c['portfolio_manager'] or '—' }}</td>
+                        <td class="px-6 py-3 font-mono text-gray-700 dark:text-gray-500">{{ c['Customerid'] }}</td>
+                        <td class="px-6 py-3 font-medium text-gray-900 dark:text-white">{{ c['CustomerName'] }}</td>
+                        <td class="px-6 py-3 text-gray-700 dark:text-gray-400 dark:text-gray-400">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
+                        <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c['portfolio_manager'] or '—' }}</td>
                         <td class="px-6 py-3 text-center whitespace-nowrap">
-                            <a href="/management/edit/{{ c['Customerid'] }}" class="text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">{{ lang_dict.get('mgmt_btn_edit', 'Edit Customer') }}</a>
+                            <a href="/management/edit/{{ c['Customerid'] }}" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">{{ lang_dict.get('mgmt_btn_edit', 'Edit Customer') }}</a>
                             <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" class="inline" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_remove', 'Remove {} from structured finance tracking?').format(c['CustomerName']) }}')">
-                                <button type="submit" class="text-red-400 hover:text-red-300 text-xs font-medium transition">{{ lang_dict.get('mgmt_btn_remove', 'Remove') }}</button>
+                                <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-300 text-xs font-medium transition">{{ lang_dict.get('mgmt_btn_remove', 'Remove') }}</button>
                             </form>
                         </td>
                     </tr>
@@ -123,15 +137,45 @@
             </table>
         </div>
         {% if not customers %}
-        <div class="text-center py-12 text-gray-500">{{ lang_dict.get('mgmt_empty', 'No customers tracked yet. Look up an account number above to add one.') }}</div>
+        <div class="text-center py-12 text-gray-700 dark:text-gray-500">{{ lang_dict.get('mgmt_empty', 'No customers tracked yet. Look up an account number above to add one.') }}</div>
         {% endif %}
+    </div>
+</div>
+
+<!-- Sync Progress Overlay -->
+<div id="sync-overlay" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-[100] hidden flex-col items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center">
+        <h3 id="sync-title" class="text-xl font-bold text-gray-900 dark:text-white mb-6">Synchronizing...</h3>
+        
+        <!-- Progress Bar container -->
+        <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3 mb-2 overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div id="sync-progress-bar" class="bg-brand-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div class="w-full flex justify-between text-xs font-semibold text-gray-700 dark:text-gray-500 mb-6">
+            <span id="sync-stats">0 / 0</span>
+            <span id="sync-percent">0%</span>
+        </div>
+        
+        <!-- Animation Box -->
+        <div class="w-full h-16 relative overflow-hidden bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-3 flex items-center justify-center">
+            <div id="sync-current-card" class="absolute inset-x-3 transition-all duration-500 flex items-center justify-between text-sm font-medium">
+                <span id="sync-customer-name" class="truncate text-gray-700 dark:text-gray-300"></span>
+                <span id="sync-status-icon" class="text-brand-600 dark:text-brand-400">
+                    <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </span>
+            </div>
+        </div>
+        
+        <button id="sync-close-btn" class="mt-6 w-full hidden bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium py-2 rounded-lg transition" onclick="window.location.reload()">Finish & Reload</button>
     </div>
 </div>
 
 <script>
 const accountInput = document.getElementById('accountNumber');
 const nameField = document.getElementById('CustomerName');
-const sectorField = document.getElementById('sector');
+const branchField = document.getElementById('branch');
+const regionField = document.getElementById('region');
+const vsField = document.getElementById('value_segment');
 const pmField = document.getElementById('portfolio_manager');
 const hiddenId = document.getElementById('formCustomerid');
 const btnAdd = document.getElementById('btn-add');
@@ -141,29 +185,32 @@ const successMsg = document.getElementById('lookup-success');
 
 function resetFields() {
     nameField.value = '';
-    sectorField.value = '';
+    branchField.value = '';
+    regionField.value = '';
+    vsField.value = '';
     pmField.value = '';
     hiddenId.value = '';
     btnAdd.disabled = true;
     errMsg.classList.add('hidden');
     alreadyMsg.classList.add('hidden');
     successMsg.classList.add('hidden');
-    nameField.classList.remove('text-white', 'bg-gray-800', 'border-gray-700');
-    nameField.classList.add('text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
-    sectorField.classList.remove('text-white', 'bg-gray-800', 'border-gray-700');
-    sectorField.classList.add('text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
-    pmField.classList.remove('text-white', 'bg-gray-800', 'border-gray-700');
-    pmField.classList.add('text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
+    
+    [nameField, branchField, regionField, vsField, pmField].forEach(f => {
+        f.classList.remove('text-white', 'bg-gray-800', 'border-gray-700');
+        f.classList.add('text-gray-700 dark:text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
+    });
 }
 
 function fillFields(data) {
     nameField.value = data.CustomerName;
-    sectorField.value = data.sector;
+    branchField.value = data.branch;
+    regionField.value = data.region;
+    vsField.value = data.value_segment;
     pmField.value = data.portfolio_manager;
     // Highlight filled fields
-    [nameField, sectorField, pmField].forEach(f => {
+    [nameField, branchField, regionField, vsField, pmField].forEach(f => {
         f.classList.add('text-white', 'bg-gray-800', 'border-gray-700');
-        f.classList.remove('text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
+        f.classList.remove('text-gray-700 dark:text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
     });
 }
 
@@ -195,6 +242,83 @@ async function lookupCustomer() {
         resetFields();
         errMsg.classList.remove('hidden');
     }
+}
+
+function showAddProgressLoader() {
+    document.getElementById('sync-overlay').classList.remove('hidden');
+    document.getElementById('sync-overlay').classList.add('flex');
+    document.getElementById('sync-title').innerText = 'Importing Customer...';
+    
+    document.getElementById('sync-progress-bar').classList.add('animate-pulse');
+    document.getElementById('sync-progress-bar').style.width = '100%';
+    document.getElementById('sync-stats').innerText = `Syncing from Real Server`;
+    document.getElementById('sync-percent').innerText = ``;
+    
+    document.getElementById('sync-customer-name').innerText = 'Waiting for BOADWH response...';
+}
+
+async function startUpdateAll() {
+    document.getElementById('sync-overlay').classList.remove('hidden');
+    document.getElementById('sync-overlay').classList.add('flex');
+    document.getElementById('sync-title').innerText = 'Initializing Sync Database...';
+    
+    let res = await fetch('/management/api/sync/queue');
+    let data = await res.json();
+    if (!data.success) {
+        alert(data.error);
+        window.location.reload();
+        return;
+    }
+    
+    let customers = data.customers;
+    let total = customers.length;
+    let current = 0;
+    
+    document.getElementById('sync-title').innerText = 'Syncing Customers';
+    
+    for (let c of customers) {
+        const card = document.getElementById('sync-current-card');
+        const nameLabel = document.getElementById('sync-customer-name');
+        const icon = document.getElementById('sync-status-icon');
+        
+        nameLabel.innerText = 'Syncing: ' + c.name;
+        card.classList.remove('-translate-y-full', 'translate-y-full', 'opacity-0');
+        nameLabel.classList.remove('text-emerald-500');
+        nameLabel.classList.add('text-gray-700', 'dark:text-gray-300');
+        icon.innerHTML = '<svg class="animate-spin h-5 w-5 text-brand-600 dark:text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+        
+        let sRes = await fetch(`/management/api/sync/${c.id}`, {method: 'POST'});
+        let sData = await sRes.json();
+        
+        current++;
+        let pct = Math.round((current / total) * 100);
+        document.getElementById('sync-progress-bar').style.width = pct + '%';
+        document.getElementById('sync-stats').innerText = `${current} / ${total}`;
+        document.getElementById('sync-percent').innerText = pct + '%';
+        
+        if (sData.success) {
+            nameLabel.innerText = 'Updated: ' + sData.name;
+        } else {
+            nameLabel.innerText = 'Failed: ' + c.name;
+        }
+        
+        icon.innerHTML = '<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+        nameLabel.classList.remove('text-gray-700', 'dark:text-gray-300');
+        nameLabel.classList.add('text-emerald-500');
+        
+        await new Promise(r => setTimeout(r, 450));
+        card.classList.add('-translate-y-full', 'opacity-0');
+        await new Promise(r => setTimeout(r, 300));
+        
+        card.classList.remove('-translate-y-full');
+        card.classList.add('translate-y-full');
+        await new Promise(r => setTimeout(r, 50));
+    }
+    
+    document.getElementById('sync-title').innerText = 'Sync Complete!';
+    document.getElementById('sync-current-card').innerHTML = '<span class="text-emerald-500 font-bold w-full text-center tracking-wide animate-pulse">All Customers Successfully Updated!</span>';
+    document.getElementById('sync-current-card').classList.remove('translate-y-full', 'opacity-0');
+    document.getElementById('sync-close-btn').classList.remove('hidden');
 }
 
 // Trigger on blur (click somewhere else) and on Enter

@@ -6,7 +6,7 @@
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('ov_title', 'Customer Overview') }}</h1>
-            <p class="text-gray-400 mt-1">{{ lang_dict.get('ov_subtitle', 'Select a customer to view their profile, active deals, and team memos') }}</p>
+            <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-1">{{ lang_dict.get('ov_subtitle', 'Select a customer to view their profile, active deals, and team memos') }}</p>
         </div>
         <button id="btn-refresh-all" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 shadow shadow-brand-600/20">
             {{ lang_dict.get('ov_refresh_all', 'Refresh All AI Analysis') }}
@@ -14,12 +14,12 @@
     </div>
 
     <!-- Progress Bar Section (Hidden) -->
-    <div id="progress-container" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-4">
+    <div id="progress-container" class="hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
         <div class="flex justify-between text-sm mb-2">
-            <span class="text-gray-300 font-medium">{{ lang_dict.get('ov_refreshing', 'Refreshing AI Analysis...') }}</span>
-            <span id="progress-text" class="text-brand-400 font-mono">0 / {{ customers|length }}</span>
+            <span class="text-gray-700 dark:text-gray-300 font-medium">{{ lang_dict.get('ov_refreshing', 'Refreshing AI Analysis...') }}</span>
+            <span id="progress-text" class="text-brand-600 dark:text-brand-400 font-mono">0 / {{ customers|length }}</span>
         </div>
-        <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
+        <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
             <div id="progress-bar" class="bg-brand-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
         </div>
     </div>
@@ -28,33 +28,31 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {% for c in customers %}
         <a href="/overview/{{ c['Customerid'] }}" id="customer-card-{{ c['Customerid'] }}"
-           class="group bg-gray-900 border border-gray-800 rounded-2xl p-5 flex gap-4 items-start
-                  hover:border-brand-600/50 hover:shadow-lg hover:shadow-brand-600/5
-                  transition-all duration-300 hover:-translate-y-0.5">
+           class="group bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex gap-4 items-start hover:border-brand-600/50 hover:shadow-lg hover:shadow-brand-600/5 transition-all duration-300 hover:-translate-y-0.5">
             <!-- Logo -->
-            <div class="flex-shrink-0 w-14 h-14 rounded-xl bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center">
+            <div class="flex-shrink-0 w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 overflow-hidden flex items-center justify-center">
                 {% if c['LogoFilename'] %}
                 <img src="{{ url_for('static', filename='logos/' + c['LogoFilename']) }}"
                      alt="{{ c['CustomerName'] }} logo" class="w-full h-full object-cover">
                 {% else %}
-                <span class="text-2xl font-bold text-gray-500">{{ c['CustomerName'][0] }}</span>
+                <span class="text-2xl font-bold text-gray-700 dark:text-gray-500">{{ c['CustomerName'][0] }}</span>
                 {% endif %}
             </div>
             <!-- Info -->
             <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-white group-hover:text-brand-400 transition-colors truncate">{{ c['CustomerName'] }}</h3>
-                <p class="text-xs text-gray-500 mt-0.5">{{ c['portfolio_manager'] or 'Unassigned' }}</p>
+                <h3 class="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 dark:text-brand-400 transition-colors truncate">{{ c['CustomerName'] }}</h3>
+                <p class="text-xs text-gray-700 dark:text-gray-500 mt-0.5">{{ c['portfolio_manager'] or 'Unassigned' }}</p>
                 <div class="flex items-center gap-2 mt-2">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-300">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                         {{ c['deal_count'] }} {{ lang_dict.get('ov_deals_title', 'Active Deals') }}
                     </span>
-                    <span class="text-xs text-gray-600">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '') }}</span>
+                    <span class="text-xs text-gray-700 dark:text-gray-400">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '') }}</span>
                 </div>
                 <!-- Aggregated Deal Size -->
-                <p class="text-sm font-mono text-emerald-400 mt-2">${{ "{:,.0f}".format(c['total_deal_size'] or 0) }}</p>
+                <p class="text-sm font-mono text-emerald-600 dark:text-emerald-400 mt-2">${{ "{:,.0f}".format(c['total_deal_size'] or 0) }}</p>
             </div>
             <!-- Arrow -->
-            <div class="flex-shrink-0 self-center text-gray-700 group-hover:text-brand-400 transition-colors">
+            <div class="flex-shrink-0 self-center text-gray-700 group-hover:text-brand-600 dark:text-brand-400 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                 </svg>
@@ -64,7 +62,7 @@
     </div>
 
     {% if not customers %}
-    <div class="text-center py-16 text-gray-500">{{ lang_dict.get('dash_empty_recent', 'No customers found.') }}</div>
+    <div class="text-center py-16 text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_empty_recent', 'No customers found.') }}</div>
     {% endif %}
     
     <!-- Toast Notice -->

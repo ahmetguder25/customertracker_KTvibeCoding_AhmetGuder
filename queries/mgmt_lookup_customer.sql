@@ -1,3 +1,3 @@
-SELECT Customerid, CustomerName, sector, portfolio_manager, IsStructured
+SELECT Customerid, CustomerName, sector, branch, region, value_segment, portfolio_manager, IsStructured
 FROM Customer
 WHERE Customerid = ?

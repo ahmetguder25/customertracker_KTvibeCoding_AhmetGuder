@@ -500,6 +500,9 @@ def lookup_customer(account_number):
                 "Customerid": customer["Customerid"],
                 "CustomerName": customer["CustomerName"],
                 "sector": "",
+                "branch": customer["BranchName"] or "",
+                "region": customer["ReginalOfficeName"] or "",
+                "value_segment": customer["ValueSegment"] or "",
                 "portfolio_manager": customer["PortfolioOwnerName"],
                 "IsStructured": 1 if already and already["IsStructured"] else 0
             })
@@ -517,6 +520,9 @@ def lookup_customer(account_number):
                 "Customerid":       customer["Customerid"],
                 "CustomerName":     customer["CustomerName"],
                 "sector":           sector_desc or "",
+                "branch":           customer["branch"] or "",
+                "region":           customer["region"] or "",
+                "value_segment":    customer["value_segment"] or "",
                 "portfolio_manager": customer["portfolio_manager"] or "",
                 "IsStructured":     customer["IsStructured"],
             })
@@ -536,18 +542,23 @@ def add_customer():
         if customer:
             conn_local = get_db()
             conn_local.execute("""
-                INSERT INTO Customer (Customerid, CustomerName, credit_limit, value_segment, branch, region, portfolio_manager, IsStructured)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                INSERT INTO Customer (Customerid, CustomerName, credit_limit, credit_limit_currency, foreign_trade_volume, memzuc_151_volume, memzuc_152_volume, value_segment, branch, region, portfolio_manager, IsStructured)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 ON CONFLICT(Customerid) DO UPDATE SET
                     CustomerName = excluded.CustomerName,
                     credit_limit = excluded.credit_limit,
+                    credit_limit_currency = excluded.credit_limit_currency,
+                    foreign_trade_volume = excluded.foreign_trade_volume,
+                    memzuc_151_volume = excluded.memzuc_151_volume,
+                    memzuc_152_volume = excluded.memzuc_152_volume,
                     value_segment = excluded.value_segment,
                     branch = excluded.branch,
                     region = excluded.region,
                     portfolio_manager = excluded.portfolio_manager,
                     IsStructured = 1
             """, (
-                customer["Customerid"], customer["CustomerName"], customer["TotalLimit"],
+                customer["Customerid"], customer["CustomerName"], customer["TotalLimit"], customer["credit_limit_currency"],
+                customer["foreign_trade_volume"], customer["memzuc_151_volume"], customer["memzuc_152_volume"],
                 customer["ValueSegment"], customer["BranchName"], customer["ReginalOfficeName"],
                 customer["PortfolioOwnerName"]
             ))
@@ -562,46 +573,62 @@ def add_customer():
     return redirect(url_for("management"))
 
 
-@app.route("/management/customer/update_all", methods=["POST"])
-def update_all_customers():
-    env = session.get("env", "test") if has_request_context() else "test"
-    if env != "prod":
-        flash("Update All is disabled in TEST environment.", "error")
-        return redirect(url_for("management"))
-
+@app.route("/management/api/sync/queue", methods=["GET"])
+def sync_queue():
+    # Available in both TEST (demo) and PROD
     conn_local = get_db()
-    customers = conn_local.execute("SELECT Customerid FROM Customer WHERE IsStructured = 1").fetchall()
-    
-    conn_real = get_customer_db()
-    
-    updated_count = 0
-    for row in customers:
-        cid = row["Customerid"]
-        customer = conn_real.execute(load_query("real_customer_sync"), (cid,)).fetchone()
-        if customer:
-            conn_local.execute("""
-                UPDATE Customer SET
-                    CustomerName = ?,
-                    credit_limit = ?,
-                    value_segment = ?,
-                    branch = ?,
-                    region = ?,
-                    portfolio_manager = ?
-                WHERE Customerid = ?
-            """, (
-                customer["CustomerName"], customer["TotalLimit"],
-                customer["ValueSegment"], customer["BranchName"],
-                customer["ReginalOfficeName"], customer["PortfolioOwnerName"],
-                cid
-            ))
-            updated_count += 1
-            
-    conn_local.commit()
-    conn_real.close()
+    customers = conn_local.execute("SELECT Customerid, CustomerName FROM Customer WHERE IsStructured = 1").fetchall()
     conn_local.close()
     
-    flash(f"Successfully synchronized {updated_count} customers.", "success")
-    return redirect(url_for("management"))
+    return jsonify({
+        "success": True,
+        "customers": [{"id": c["Customerid"], "name": c["CustomerName"]} for c in customers]
+    })
+
+@app.route("/management/api/sync/<int:cid>", methods=["POST"])
+def sync_single(cid):
+    import time
+    env = session.get("env", "test") if has_request_context() else "test"
+    
+    # TEST environment: simulate a short delay then return dummy success
+    if env != "prod":
+        time.sleep(0.4)  # simulate network round-trip
+        conn_local = get_db()
+        row = conn_local.execute("SELECT CustomerName FROM Customer WHERE Customerid = ?", (cid,)).fetchone()
+        conn_local.close()
+        name = row["CustomerName"] if row else f"Customer {cid}"
+        return jsonify({"success": True, "name": name, "demo": True})
+    
+    conn_real = get_customer_db()
+    customer = conn_real.execute(load_query("real_customer_sync"), (cid,)).fetchone()
+    conn_real.close()
+    
+    if customer:
+        conn_local = get_db()
+        conn_local.execute("""
+            UPDATE Customer SET
+                CustomerName = ?,
+                credit_limit = ?,
+                credit_limit_currency = ?,
+                foreign_trade_volume = ?,
+                memzuc_151_volume = ?,
+                memzuc_152_volume = ?,
+                value_segment = ?,
+                branch = ?,
+                region = ?,
+                portfolio_manager = ?
+            WHERE Customerid = ?
+        """, (
+            customer["CustomerName"], customer["TotalLimit"], customer["credit_limit_currency"],
+            customer["foreign_trade_volume"], customer["memzuc_151_volume"], customer["memzuc_152_volume"],
+            customer["ValueSegment"], customer["BranchName"],
+            customer["ReginalOfficeName"], customer["PortfolioOwnerName"],
+            cid
+        ))
+        conn_local.commit()
+        conn_local.close()
+        return jsonify({"success": True, "name": customer["CustomerName"]})
+    return jsonify({"success": False, "error": "Not found on remote."})
 
 
 @app.route("/management/edit/<int:customer_id>", methods=["GET", "POST"])
