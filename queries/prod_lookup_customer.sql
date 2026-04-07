@@ -1,12 +1,12 @@
 SELECT 
-    Customerid, 
-    CustomerName, 
-    Null as sector, 
-    BranchName as branch, 
-    ReginalOfficeName as region, 
-    ValueSegment as value_segment, 
-    PortfolioOwnerName as portfolio_manager, 
-    CustomerClassName,
-    1 as IsStructured
+    Customerid AS Customerid, 
+    CustomerName AS CustomerName, 
+    Null AS sector, 
+    BranchName AS branch, 
+    ReginalOfficeName AS region, 
+    ValueSegment AS value_segment, 
+    PortfolioOwnerName AS portfolio_manager, 
+    CustomerClassName AS CustomerClassName,
+    1 AS IsStructured
 FROM BOADWH.CUS.Customer
 WHERE Customerid = ?

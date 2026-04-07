@@ -136,6 +136,7 @@
                         <td class="px-6 py-3 text-gray-700 dark:text-gray-400 dark:text-gray-400">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
                         <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c['portfolio_manager'] or '—' }}</td>
                         <td class="px-6 py-3 text-center whitespace-nowrap">
+                            <button data-id="{{ c.Customerid }}" data-name="{{ c.CustomerName }}" onclick="updateSingle(this.dataset.id, this.dataset.name)" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">Update</button>
                             <a href="/management/edit/{{ c['Customerid'] }}" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">{{ lang_dict.get('mgmt_btn_edit', 'Edit Customer') }}</a>
                             <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" class="inline" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_remove', 'Remove {} from structured finance tracking?').format(c['CustomerName']) }}')">
                                 <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-300 text-xs font-medium transition">{{ lang_dict.get('mgmt_btn_remove', 'Remove') }}</button>
@@ -289,6 +290,58 @@ function cancelSync() {
         document.getElementById('btn-cancel-sync').classList.add('hidden');
         document.getElementById('sync-close-btn').classList.remove('hidden');
     }
+}
+
+async function updateSingle(id, name) {
+    document.getElementById('sync-overlay').classList.remove('hidden');
+    document.getElementById('sync-overlay').classList.add('flex');
+    document.getElementById('btn-cancel-sync').classList.remove('hidden');
+    document.getElementById('sync-close-btn').classList.add('hidden');
+    
+    document.getElementById('sync-title').innerText = 'Updating Customer...';
+    document.getElementById('sync-progress-bar').classList.add('animate-pulse');
+    document.getElementById('sync-progress-bar').style.width = '100%';
+    document.getElementById('sync-stats').innerText = `1 Customer`;
+    document.getElementById('sync-percent').innerText = '';
+    
+    const card = document.getElementById('sync-current-card');
+    const nameLabel = document.getElementById('sync-customer-name');
+    const icon = document.getElementById('sync-status-icon');
+    
+    nameLabel.innerText = `Updating: ${name}`;
+    nameLabel.classList.remove('text-emerald-500');
+    nameLabel.classList.add('text-gray-700', 'dark:text-gray-300');
+    icon.innerHTML = '<svg class="animate-spin h-5 w-5 text-brand-600 dark:text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+    
+    syncAbortController = new AbortController();
+    
+    try {
+        let sRes = await fetch('/management/api/sync/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customer_ids: [id] }),
+            signal: syncAbortController.signal
+        });
+        let sData = await sRes.json();
+        
+        document.getElementById('sync-progress-bar').classList.remove('animate-pulse');
+        document.getElementById('btn-cancel-sync').classList.add('hidden');
+        
+        if (sData.success) {
+            document.getElementById('sync-title').innerText = 'Update Complete!';
+            card.innerHTML = `<span class="text-emerald-500 font-bold w-full text-center tracking-wide animate-pulse">Successfully Updated ${name}!</span>`;
+        } else {
+            document.getElementById('sync-title').innerText = 'Update Failed!';
+            card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">${sData.error || 'Server error occurred'}</span>`;
+        }
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+        document.getElementById('sync-title').innerText = 'Network Error!';
+        card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">Failed to connect to server.</span>`;
+        document.getElementById('btn-cancel-sync').classList.add('hidden');
+    }
+    
+    document.getElementById('sync-close-btn').classList.remove('hidden');
 }
 
 async function startUpdateAll() {

@@ -525,9 +525,7 @@ def management():
 
 @app.route("/api/customer/lookup/<int:account_number>")
 def lookup_customer(account_number):
-    env = session.get("env", "test") if has_request_context() else "test"
-    
-    if env == "prod":
+    try:
         conn_real = get_customer_db()
         customer = conn_real.execute(load_query("prod_lookup_customer"), (account_number,)).fetchone()
         conn_real.close()
@@ -539,38 +537,20 @@ def lookup_customer(account_number):
             
             return jsonify({
                 "found": True,
-                "Customerid": customer["Customerid"],
-                "CustomerName": customer["CustomerName"],
-                "sector": "",
-                "branch": customer["branch"] or "",
-                "region": customer["region"] or "",
-                "value_segment": customer["value_segment"] or "",
-                "portfolio_manager": customer["portfolio_manager"],
-                "customer_class": customer["CustomerClassName"] or "",
+                "Customerid": customer.get("Customerid", customer.get("CustomerID", account_number)),
+                "CustomerName": customer.get("CustomerName", ""),
+                "sector": customer.get("sector", ""),
+                "branch": customer.get("branch", ""),
+                "region": customer.get("region", ""),
+                "value_segment": customer.get("value_segment", ""),
+                "portfolio_manager": customer.get("portfolio_manager", ""),
+                "customer_class": customer.get("CustomerClassName", ""),
                 "IsStructured": 1 if already and already["IsStructured"] else 0
             })
         return jsonify({"found": False})
-    
-    else:
-        conn     = get_db()
-        customer = conn.execute(load_query("mgmt_lookup_customer"), (account_number,)).fetchone()
-        conn.close()
-        if customer:
-            sector_map = get_param_map("Sector")
-            sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
-            return jsonify({
-                "found":            True,
-                "Customerid":       customer["Customerid"],
-                "CustomerName":     customer["CustomerName"],
-                "sector":           sector_desc or "",
-                "branch":           customer["branch"] or "",
-                "region":           customer["region"] or "",
-                "value_segment":    customer["value_segment"] or "",
-                "portfolio_manager": customer["portfolio_manager"] or "",
-                "customer_class":   customer["CustomerClassName"] or "",
-                "IsStructured":     customer["IsStructured"],
-            })
-        return jsonify({"found": False})
+    except Exception as e:
+        print(f"Error in lookup_customer: {e}")
+        return jsonify({"found": False, "error": str(e)})
 
 
 @app.route("/management/customer/add", methods=["POST"])
@@ -602,10 +582,10 @@ def add_customer():
                     CustomerClassName = excluded.CustomerClassName,
                     IsStructured = 1
             """, (
-                customer["Customerid"], customer["CustomerName"], customer["TotalLimit"], customer["credit_limit_currency"],
-                customer["foreign_trade_volume"], customer["memzuc_151_volume"], customer["memzuc_152_volume"],
-                customer["value_segment"], customer["branch"], customer["region"],
-                customer["portfolio_manager"], customer["CustomerClassName"]
+                customer.get("Customerid", customer_id), customer.get("CustomerName", ""), customer.get("TotalLimit", 0), customer.get("credit_limit_currency", "TRY"),
+                customer.get("foreign_trade_volume", 1), customer.get("memzuc_151_volume", 1), customer.get("memzuc_152_volume", 1),
+                customer.get("value_segment", ""), customer.get("branch", ""), customer.get("region", ""),
+                customer.get("portfolio_manager", ""), customer.get("CustomerClassName", "")
             ))
             conn_local.commit()
             conn_local.close()
@@ -674,12 +654,12 @@ def sync_batch():
                     sector = ?
                 WHERE Customerid = ?
             """, (
-                customer["CustomerName"], customer["TotalLimit"], customer["credit_limit_currency"],
-                customer["foreign_trade_volume"], customer["memzuc_151_volume"], customer["memzuc_152_volume"],
-                customer["value_segment"], customer["branch"],
-                customer["region"], customer["portfolio_manager"],
-                customer["CustomerClassName"], customer["sector"],
-                customer["Customerid"]
+                customer.get("CustomerName", ""), customer.get("TotalLimit", 0), customer.get("credit_limit_currency", "TRY"),
+                customer.get("foreign_trade_volume", 1), customer.get("memzuc_151_volume", 1), customer.get("memzuc_152_volume", 1),
+                customer.get("value_segment", ""), customer.get("branch", ""),
+                customer.get("region", ""), customer.get("portfolio_manager", ""),
+                customer.get("CustomerClassName", ""), customer.get("sector", ""),
+                customer.get("Customerid", customer.get("CustomerID", 0))
             ))
         conn_local.commit()
         conn_local.close()
