@@ -487,12 +487,12 @@ def lookup_customer(account_number):
     
     if env == "prod":
         conn_real = get_customer_db()
-        customer = conn_real.execute(load_query("customer_lookup_real"), (account_number,)).fetchone()
+        customer = conn_real.execute(load_query("real_customer_sync"), (account_number,)).fetchone()
         conn_real.close()
         
         if customer:
             conn_local = get_db()
-            already = conn_local.execute("SELECT 1 FROM CustomerDetail WHERE Customerid = ?", (account_number,)).fetchone()
+            already = conn_local.execute("SELECT IsStructured FROM Customer WHERE Customerid = ?", (account_number,)).fetchone()
             conn_local.close()
             
             return jsonify({
@@ -501,7 +501,7 @@ def lookup_customer(account_number):
                 "CustomerName": customer["CustomerName"],
                 "sector": "",
                 "portfolio_manager": customer["PortfolioOwnerName"],
-                "IsStructured": 1 if already else 0
+                "IsStructured": 1 if already and already["IsStructured"] else 0
             })
         return jsonify({"found": False})
     
@@ -530,30 +530,77 @@ def add_customer():
     
     if env == "prod":
         conn_real = get_customer_db()
-        customer = conn_real.execute(load_query("customer_lookup_real"), (customer_id,)).fetchone()
+        customer = conn_real.execute(load_query("real_customer_sync"), (customer_id,)).fetchone()
         conn_real.close()
         
         if customer:
             conn_local = get_db()
-            conn_local.execute(load_query("customer_upsert"), (
-                customer["Customerid"], customer["CustomerName"], customer["PortfolioOwnerName"],
-                customer["BranchName"], customer["ValueSegment"], customer["RegionalOfficeName"]
+            conn_local.execute("""
+                INSERT INTO Customer (Customerid, CustomerName, credit_limit, value_segment, branch, region, portfolio_manager, IsStructured)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                ON CONFLICT(Customerid) DO UPDATE SET
+                    CustomerName = excluded.CustomerName,
+                    credit_limit = excluded.credit_limit,
+                    value_segment = excluded.value_segment,
+                    branch = excluded.branch,
+                    region = excluded.region,
+                    portfolio_manager = excluded.portfolio_manager,
+                    IsStructured = 1
+            """, (
+                customer["Customerid"], customer["CustomerName"], customer["TotalLimit"],
+                customer["ValueSegment"], customer["BranchName"], customer["ReginalOfficeName"],
+                customer["PortfolioOwnerName"]
             ))
-            try:
-                conn_local.execute(load_query("customerdetail_insert"), (customer_id,))
-            except sqlite3.IntegrityError:
-                pass
             conn_local.commit()
             conn_local.close()
     else:
         conn = get_db()
-        try:
-            conn.execute(load_query("customerdetail_insert"), (customer_id,))
-            conn.commit()
-        except sqlite3.IntegrityError:
-            pass
+        conn.execute(load_query("mgmt_set_structured"), (customer_id,))
+        conn.commit()
         conn.close()
         
+    return redirect(url_for("management"))
+
+
+@app.route("/management/customer/update_all", methods=["POST"])
+def update_all_customers():
+    env = session.get("env", "test") if has_request_context() else "test"
+    if env != "prod":
+        flash("Update All is disabled in TEST environment.", "error")
+        return redirect(url_for("management"))
+
+    conn_local = get_db()
+    customers = conn_local.execute("SELECT Customerid FROM Customer WHERE IsStructured = 1").fetchall()
+    
+    conn_real = get_customer_db()
+    
+    updated_count = 0
+    for row in customers:
+        cid = row["Customerid"]
+        customer = conn_real.execute(load_query("real_customer_sync"), (cid,)).fetchone()
+        if customer:
+            conn_local.execute("""
+                UPDATE Customer SET
+                    CustomerName = ?,
+                    credit_limit = ?,
+                    value_segment = ?,
+                    branch = ?,
+                    region = ?,
+                    portfolio_manager = ?
+                WHERE Customerid = ?
+            """, (
+                customer["CustomerName"], customer["TotalLimit"],
+                customer["ValueSegment"], customer["BranchName"],
+                customer["ReginalOfficeName"], customer["PortfolioOwnerName"],
+                cid
+            ))
+            updated_count += 1
+            
+    conn_local.commit()
+    conn_real.close()
+    conn_local.close()
+    
+    flash(f"Successfully synchronized {updated_count} customers.", "success")
     return redirect(url_for("management"))
 
 
@@ -582,13 +629,17 @@ def edit_customer(customer_id):
 
         if logo_filename:
             conn.execute(load_query("mgmt_update_customer_logo"), (
+                request.form["CustomerName"],
                 request.form.get("sector", ""),
+                request.form.get("portfolio_manager", ""),
                 logo_filename,
                 customer_id,
             ))
         else:
             conn.execute(load_query("mgmt_update_customer"), (
+                request.form["CustomerName"],
                 request.form.get("sector", ""),
+                request.form.get("portfolio_manager", ""),
                 customer_id,
             ))
         conn.commit()

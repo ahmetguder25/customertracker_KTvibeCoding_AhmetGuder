@@ -1,6 +1,6 @@
-SELECT c.ValueSegment AS value_segment, COUNT(*) AS cnt
-FROM Customer c
-JOIN CustomerDetail cd ON c.Customerid = cd.Customerid
-WHERE c.ValueSegment IS NOT NULL
-  AND c.ValueSegment != ''
-GROUP BY c.ValueSegment
+SELECT value_segment, COUNT(*) AS cnt
+FROM Customer
+WHERE IsStructured = 1
+  AND value_segment IS NOT NULL
+  AND value_segment != ''
+GROUP BY value_segment

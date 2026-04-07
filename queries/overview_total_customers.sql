@@ -1,2 +1,2 @@
 SELECT COUNT(*) AS cnt
-FROM CustomerDetail
+FROM Customer

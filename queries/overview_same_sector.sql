@@ -1,3 +1,3 @@
 SELECT COUNT(*) AS cnt
-FROM CustomerDetail
+FROM Customer
 WHERE sector = ?

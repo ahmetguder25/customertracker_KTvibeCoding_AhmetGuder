@@ -29,10 +29,13 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <!-- Account Number (active) -->
                 <div>
-                    <label for="accountNumber" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_acc_label', 'Account Number *') }}</label>
+                    <label for="accountNumber" class="block text-xs font-medium text-gray-400 mb-1">
+                        {{ lang_dict.get('mgmt_acc_label', 'Account Number *') }}
+                        {% if session.get('env', 'test') != 'prod' %}<span class="text-amber-500 ml-1 text-[10px] uppercase font-bold">{{ lang_dict.get('mgmt_prod_only', '(PROD ONLY)') }}</span>{% endif %}
+                    </label>
                     <div class="relative">
-                        <input type="number" id="accountNumber" required
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition"
+                        <input type="number" id="accountNumber" required {% if session.get('env', 'test') != 'prod' %}disabled{% endif %}
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Enter account number') }}">
                         <div class="absolute top-full left-0 mt-1 w-[200%] sm:w-[150%] z-10">
                             <p id="lookup-error" class="text-xs text-red-400 hidden">{{ lang_dict.get('mgmt_err_notfound', 'Customer could not be found.') }}</p>
@@ -80,7 +83,15 @@
     <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
             <h2 class="text-lg font-semibold">{{ lang_dict.get('mgmt_tbl_title', 'Tracked Customers') }}</h2>
-            <span class="text-xs text-gray-400"></span>
+            <form action="/management/customer/update_all" method="POST" class="inline" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_sync', 'Sync all structured customers with SRVDNZ limit and details server?') }}');">
+                <button type="submit" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %}
+                    class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    title="{% if session.get('env', 'test') != 'prod' %}Only available in PROD environment{% else %}Sync local customer details with remote DB{% endif %}"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    {{ lang_dict.get('mgmt_btn_sync', 'Update All') }}
+                </button>
+            </form>
         </div>
         <div class="overflow-x-auto">
             <table id="mgmt-table" class="w-full text-sm">

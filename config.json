@@ -1,6 +1,6 @@
 {
     "PROD_SERVER": "SRVDNZ",
-    "PROD_DB_NAME": "BOA",
+    "PROD_DB_NAME": "BOADWH",
     "PROD_CUSTOMER_SCHEMA": "CUS",
     "PROD_CUSTOMER_TABLE": "Customer"
 }

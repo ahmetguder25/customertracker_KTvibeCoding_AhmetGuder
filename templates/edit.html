@@ -55,9 +55,9 @@
             <!-- Editable Fields: Name, Sector, PM -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_company_col', 'Company Name') }} *</label>
-                    <input type="text" name="CustomerName" id="CustomerName" required value="{{ customer['CustomerName'] }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                    <label for="CustomerName" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_company_col', 'Company Name') }} <span class="text-xs text-gray-500">(Synced)</span></label>
+                    <input type="text" name="CustomerName" id="CustomerName" required value="{{ customer['CustomerName'] }}" readonly title="Managed via SRVDNZ Update"
+                        class="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-400 cursor-not-allowed focus:outline-none transition">
                 </div>
                 <div>
                     <label for="sector" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_sector_col', 'Sector') }}</label>
@@ -70,9 +70,9 @@
                     </select>
                 </div>
                 <div>
-                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }}</label>
-                    <input type="text" name="portfolio_manager" id="portfolio_manager" value="{{ customer['portfolio_manager'] or '' }}"
-                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }} <span class="text-xs text-gray-500">(Synced)</span></label>
+                    <input type="text" name="portfolio_manager" id="portfolio_manager" value="{{ customer['portfolio_manager'] or '' }}" readonly title="Managed via SRVDNZ Update"
+                        class="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-400 cursor-not-allowed focus:outline-none transition">
                 </div>
             </div>
 
