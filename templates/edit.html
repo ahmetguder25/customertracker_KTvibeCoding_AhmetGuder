@@ -60,9 +60,9 @@
                         class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 cursor-not-allowed focus:outline-none transition">
                 </div>
                 <div>
-                    <label for="sector" class="block text-xs font-medium text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_sector_col', 'Sector') }}</label>
-                    <select name="sector" id="sector"
-                        class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition appearance-none">
+                    <label for="sector" class="block text-xs font-medium text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_sector_col', 'Sector') }} <span class="text-xs text-gray-700 dark:text-gray-500">(Synced)</span></label>
+                    <select name="sector" id="sector" disabled title="Managed via SRVDNZ Update"
+                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-400 cursor-not-allowed focus:outline-none transition appearance-none">
                         <option value="" class="text-gray-700 dark:text-gray-500">{{ lang_dict.get('list_filter_all', 'None') }}</option>
                         {% for s_code, s_info in sector_map.items()|sort %}
                         <option value="{{ s_code }}" {% if customer['sector']|string == s_code %}selected{% endif %}>{{ s_info['description'] }}</option>

@@ -26,19 +26,21 @@
             <!-- Hidden field to submit Customerid -->
             <input type="hidden" name="Customerid" id="formCustomerid" value="">
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <!-- Account Number (active) -->
                 <div>
                     <label for="accountNumber" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
                         {{ lang_dict.get('mgmt_acc_label', 'Account Number *') }}
                         {% if session.get('env', 'test') != 'prod' %}<span class="text-amber-500 ml-1 text-[10px] uppercase font-bold">{{ lang_dict.get('mgmt_prod_only', '(PROD ONLY)') }}</span>{% endif %}
                     </label>
-                    <div class="relative">
+                    <div class="relative flex items-center">
                         <input type="number" id="accountNumber" required {% if session.get('env', 'test') != 'prod' %}disabled{% endif %}
-                            class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 pr-20 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Enter account number') }}">
+                        <button type="button" id="btn-fetch" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="absolute right-1 px-3 py-1 bg-brand-600 hover:bg-brand-500 text-white rounded text-xs font-semibold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed">Fetch</button>
                         <div class="absolute top-full left-0 mt-1 w-[200%] sm:w-[150%] z-10">
-                            <p id="lookup-error" class="text-xs text-red-600 dark:text-red-400 hidden">{{ lang_dict.get('mgmt_err_notfound', 'Customer could not be found.') }}</p>
+                            <p id="lookup-empty" class="text-xs text-red-600 dark:text-red-400 hidden">Please enter an account number.</p>
+                            <p id="lookup-error" class="text-xs text-red-600 dark:text-red-400 hidden">{{ lang_dict.get('mgmt_err_notfound', 'Customer not found.') }}</p>
                             <p id="lookup-already" class="text-xs text-amber-600 dark:text-amber-400 hidden leading-tight">{{ lang_dict.get('mgmt_err_tracked', 'Customer is already tracked in structured finance.') }}</p>
                             <p id="lookup-success" class="text-xs text-emerald-600 dark:text-emerald-400 hidden">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
                         </div>
@@ -81,6 +83,14 @@
                 <div>
                     <label for="portfolio_manager" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }}</label>
                     <input type="text" id="portfolio_manager" disabled
+                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
+                        placeholder="—">
+                </div>
+
+                <!-- Customer Class Name (disabled) -->
+                <div>
+                    <label for="customer_class" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Customer Class</label>
+                    <input type="text" id="customer_class" disabled
                         class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
                         placeholder="—">
                 </div>
@@ -177,8 +187,11 @@ const branchField = document.getElementById('branch');
 const regionField = document.getElementById('region');
 const vsField = document.getElementById('value_segment');
 const pmField = document.getElementById('portfolio_manager');
+const ccField = document.getElementById('customer_class');
 const hiddenId = document.getElementById('formCustomerid');
 const btnAdd = document.getElementById('btn-add');
+const btnFetch = document.getElementById('btn-fetch');
+const msgEmpty = document.getElementById('lookup-empty');
 const errMsg = document.getElementById('lookup-error');
 const alreadyMsg = document.getElementById('lookup-already');
 const successMsg = document.getElementById('lookup-success');
@@ -189,13 +202,15 @@ function resetFields() {
     regionField.value = '';
     vsField.value = '';
     pmField.value = '';
+    ccField.value = '';
     hiddenId.value = '';
     btnAdd.disabled = true;
+    msgEmpty.classList.add('hidden');
     errMsg.classList.add('hidden');
     alreadyMsg.classList.add('hidden');
     successMsg.classList.add('hidden');
     
-    [nameField, branchField, regionField, vsField, pmField].forEach(f => {
+    [nameField, branchField, regionField, vsField, pmField, ccField].forEach(f => {
         f.classList.remove('text-white', 'bg-gray-800', 'border-gray-700');
         f.classList.add('text-gray-700 dark:text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
     });
@@ -207,8 +222,9 @@ function fillFields(data) {
     regionField.value = data.region;
     vsField.value = data.value_segment;
     pmField.value = data.portfolio_manager;
+    ccField.value = data.customer_class;
     // Highlight filled fields
-    [nameField, branchField, regionField, vsField, pmField].forEach(f => {
+    [nameField, branchField, regionField, vsField, pmField, ccField].forEach(f => {
         f.classList.add('text-white', 'bg-gray-800', 'border-gray-700');
         f.classList.remove('text-gray-700 dark:text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
     });
@@ -216,7 +232,11 @@ function fillFields(data) {
 
 async function lookupCustomer() {
     const val = accountInput.value.trim();
-    if (!val) { resetFields(); return; }
+    if (!val) { 
+        resetFields(); 
+        msgEmpty.classList.remove('hidden');
+        return; 
+    }
     
     try {
         const res = await fetch(`/api/customer/lookup/${encodeURIComponent(val)}`);
@@ -257,10 +277,26 @@ function showAddProgressLoader() {
     document.getElementById('sync-customer-name').innerText = 'Waiting for BOADWH response...';
 }
 
+let syncAbortController = null;
+
+function cancelSync() {
+    if (syncAbortController) {
+        syncAbortController.abort();
+        document.getElementById('sync-title').innerText = 'Sync Cancelled';
+        document.getElementById('sync-current-card').innerHTML = '<span class="text-amber-500 font-bold w-full text-center">Operation Cancelled by User</span>';
+        document.getElementById('sync-progress-bar').classList.remove('animate-pulse');
+        document.getElementById('sync-progress-bar').style.width = '0%';
+        document.getElementById('btn-cancel-sync').classList.add('hidden');
+        document.getElementById('sync-close-btn').classList.remove('hidden');
+    }
+}
+
 async function startUpdateAll() {
     document.getElementById('sync-overlay').classList.remove('hidden');
     document.getElementById('sync-overlay').classList.add('flex');
-    document.getElementById('sync-title').innerText = 'Initializing Sync Database...';
+    document.getElementById('sync-title').innerText = 'Gathering Customer List...';
+    document.getElementById('btn-cancel-sync').classList.remove('hidden');
+    document.getElementById('sync-close-btn').classList.add('hidden');
     
     let res = await fetch('/management/api/sync/queue');
     let data = await res.json();
@@ -271,58 +307,64 @@ async function startUpdateAll() {
     }
     
     let customers = data.customers;
-    let total = customers.length;
-    let current = 0;
-    
-    document.getElementById('sync-title').innerText = 'Syncing Customers';
-    
-    for (let c of customers) {
-        const card = document.getElementById('sync-current-card');
-        const nameLabel = document.getElementById('sync-customer-name');
-        const icon = document.getElementById('sync-status-icon');
-        
-        nameLabel.innerText = 'Syncing: ' + c.name;
-        card.classList.remove('-translate-y-full', 'translate-y-full', 'opacity-0');
-        nameLabel.classList.remove('text-emerald-500');
-        nameLabel.classList.add('text-gray-700', 'dark:text-gray-300');
-        icon.innerHTML = '<svg class="animate-spin h-5 w-5 text-brand-600 dark:text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
-        
-        let sRes = await fetch(`/management/api/sync/${c.id}`, {method: 'POST'});
-        let sData = await sRes.json();
-        
-        current++;
-        let pct = Math.round((current / total) * 100);
-        document.getElementById('sync-progress-bar').style.width = pct + '%';
-        document.getElementById('sync-stats').innerText = `${current} / ${total}`;
-        document.getElementById('sync-percent').innerText = pct + '%';
-        
-        if (sData.success) {
-            nameLabel.innerText = 'Updated: ' + sData.name;
-        } else {
-            nameLabel.innerText = 'Failed: ' + c.name;
-        }
-        
-        icon.innerHTML = '<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-        nameLabel.classList.remove('text-gray-700', 'dark:text-gray-300');
-        nameLabel.classList.add('text-emerald-500');
-        
-        await new Promise(r => setTimeout(r, 450));
-        card.classList.add('-translate-y-full', 'opacity-0');
-        await new Promise(r => setTimeout(r, 300));
-        
-        card.classList.remove('-translate-y-full');
-        card.classList.add('translate-y-full');
-        await new Promise(r => setTimeout(r, 50));
+    if (customers.length === 0) {
+        document.getElementById('sync-title').innerText = 'Sync Complete';
+        document.getElementById('sync-current-card').innerHTML = '<span class="text-emerald-500 font-bold w-full text-center">No customers to sync.</span>';
+        document.getElementById('btn-cancel-sync').classList.add('hidden');
+        document.getElementById('sync-close-btn').classList.remove('hidden');
+        return;
     }
     
-    document.getElementById('sync-title').innerText = 'Sync Complete!';
-    document.getElementById('sync-current-card').innerHTML = '<span class="text-emerald-500 font-bold w-full text-center tracking-wide animate-pulse">All Customers Successfully Updated!</span>';
-    document.getElementById('sync-current-card').classList.remove('translate-y-full', 'opacity-0');
+    const customerIds = customers.map(c => c.id);
+    document.getElementById('sync-title').innerText = 'Syncing Customers in Bulk...';
+    document.getElementById('sync-progress-bar').classList.add('animate-pulse');
+    document.getElementById('sync-progress-bar').style.width = '100%';
+    document.getElementById('sync-stats').innerText = `${customers.length} Customers`;
+    document.getElementById('sync-percent').innerText = '';
+    
+    const card = document.getElementById('sync-current-card');
+    const nameLabel = document.getElementById('sync-customer-name');
+    const icon = document.getElementById('sync-status-icon');
+    
+    nameLabel.innerText = 'Updating from Database...';
+    nameLabel.classList.remove('text-emerald-500');
+    nameLabel.classList.add('text-gray-700', 'dark:text-gray-300');
+    icon.innerHTML = '<svg class="animate-spin h-5 w-5 text-brand-600 dark:text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+    
+    syncAbortController = new AbortController();
+    
+    try {
+        let sRes = await fetch('/management/api/sync/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customer_ids: customerIds }),
+            signal: syncAbortController.signal
+        });
+        let sData = await sRes.json();
+        
+        document.getElementById('sync-progress-bar').classList.remove('animate-pulse');
+        document.getElementById('btn-cancel-sync').classList.add('hidden');
+        
+        if (sData.success) {
+            document.getElementById('sync-title').innerText = 'Sync Complete!';
+            card.innerHTML = `<span class="text-emerald-500 font-bold w-full text-center tracking-wide animate-pulse">Successfully Updated ${sData.count} Customers!</span>`;
+        } else {
+            document.getElementById('sync-title').innerText = 'Sync Failed!';
+            card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">${sData.error || 'Server error occurred'}</span>`;
+        }
+    } catch (e) {
+        if (e.name === 'AbortError') return; // Handled in cancel function
+        document.getElementById('sync-title').innerText = 'Network Error!';
+        card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">Failed to connect to server.</span>`;
+        document.getElementById('btn-cancel-sync').classList.add('hidden');
+    }
+    
     document.getElementById('sync-close-btn').classList.remove('hidden');
 }
 
-// Trigger on blur (click somewhere else) and on Enter
-accountInput.addEventListener('blur', lookupCustomer);
+if (btnFetch) {
+    btnFetch.addEventListener('click', lookupCustomer);
+}
 accountInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault();

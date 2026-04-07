@@ -94,7 +94,7 @@
         <textarea id="ai-text" readonly class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-300 resize-none focus:outline-none" rows="3">{% if analysis %}{{ analysis['analysis_text'] }}{% else %}{{ lang_dict.get('ov_ai_empty', 'Analysis not created, click button to create analysis.') }}{% endif %}</textarea>
     </div>
 
-    <!-- ════════════════ DEALS SECTION ════════════════ -->
+                <!-- DEALS SECTION -->
     <div>
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ lang_dict.get('dash_pipeline_title', 'Pipeline Deals') }}</h2>
         {% if deals %}
@@ -103,7 +103,7 @@
             {% set st = status_map.get(d['status']|string, {}) %}
             {% set dt = deal_type_map.get(d['dealtype']|string, {}) %}
             {% set cur = fec_map.get((d['currency'] or 0)|string, {}) %}
-            <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col lg:flex-row gap-6 items-start lg:items-center">
+            <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col lg:flex-row gap-6 items-start lg:items-center cursor-pointer hover:border-brand-300 dark:hover:border-brand-700 transition" onclick="window.location='/deals/edit/{{ d.id }}'" title="Click to edit deal">
                 <!-- Deal Header Info -->
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-3 mb-1">
@@ -124,7 +124,7 @@
                 </div>
                 
                 <!-- Timeline/Pipeline -->
-                <div class="lg:w-64 bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50">
+                <div class="lg:w-64 bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50" onclick="event.stopPropagation()">
                     <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-400 dark:text-gray-400 uppercase tracking-wider mb-2">{{ lang_dict.get('detail_timeline', 'Status Timeline') }}</h4>
                     <div class="space-y-2">
                         {% set reached = [true] %}
@@ -189,10 +189,15 @@
 
         <form action="/overview/{{ customer['Customerid'] }}/comment" method="POST" class="border-t border-gray-300/50 dark:border-gray-700/50 pt-5">
             <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ lang_dict.get('overview_memos_add', 'Add a Memo') }}</h3>
-            <div class="flex gap-3 mb-3">
-                <input type="text" name="author" required placeholder="{{ lang_dict.get('ov_comment_author', 'Your Name') }}" class="w-48 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white">
-            </div>
             <div class="flex gap-3">
+                <div class="relative">
+                    <input type="text" name="author" value="{{ session.get('username', '') }}" readonly class="w-48 bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 cursor-not-allowed">
+                    <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-3">
                 <textarea name="content" required rows="2" placeholder="{{ lang_dict.get('ov_comment_content', 'Add a comment or update...') }}" class="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white resize-none"></textarea>
                 <button type="submit" class="self-end bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium">{{ lang_dict.get('ov_comment_btn', 'Post Update') }}</button>
             </div>

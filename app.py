@@ -207,25 +207,63 @@ def inject_lang_dict():
     return dict(lang_dict=lang_dict, current_lang=lang_id)
 
 
+# ── User Guard ──────────────────────────────────────────────────────────
+
+@app.before_request
+def require_user_selection():
+    """Redirect to user-login if no user has been selected yet."""
+    if request.endpoint in ("user_login", "set_user", "static"):
+        return
+    if "user_id" not in session:
+        return redirect(url_for("user_login"))
+
 # ── Environment Guard ──────────────────────────────────────────────────────────
 
 @app.before_request
 def require_env_selection():
     """Redirect to env-login if no environment has been selected yet."""
-    if request.endpoint in ("env_login", "set_env", "static"):
+    if request.endpoint in ("user_login", "set_user", "env_login", "set_env", "disconnect", "static"):
         return
     if "env" not in session:
         return redirect(url_for("env_login"))
 
 
-# ── Environment Login / Selector ───────────────────────────────────────────────
+# ── Authentication Routes ───────────────────────────────────────────────
 
 @app.route("/")
 def index():
-    if "env" in session:
-        return redirect(url_for("dashboard"))
-    return redirect(url_for("env_login"))
+    if "user_id" not in session:
+        return redirect(url_for("user_login"))
+    if "env" not in session:
+        return redirect(url_for("env_login"))
+    return redirect(url_for("dashboard"))
 
+
+@app.route("/user-login")
+def user_login():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    users = conn.execute("SELECT * FROM User ORDER BY username").fetchall()
+    conn.close()
+    return render_template("user_login.html", users=users)
+
+
+@app.route("/set-user", methods=["POST"])
+def set_user():
+    user_id = request.form.get("user_id")
+    if not user_id:
+        return redirect(url_for("user_login"))
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    user = conn.execute("SELECT * FROM User WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+
+    if user:
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        return redirect(url_for("env_login"))
+    return redirect(url_for("user_login"))
 
 @app.route("/env-login")
 def env_login():
@@ -253,9 +291,13 @@ def set_env():
 
 @app.route("/disconnect")
 def disconnect():
-    """Return to env selection (clear env from session)."""
     session.pop("env", None)
-    return redirect(url_for("env_login"))
+    # Also pop user_id if we want complete reset or just env? 
+    # The requirement said User -> Env -> App. If changing env, user stays.
+    # We will log the user out as well for a full disconnect.
+    session.pop("user_id", None)
+    session.pop("username", None)
+    return redirect(url_for("user_login"))
 
 
 # ── Language ───────────────────────────────────────────────────────────────────
@@ -487,7 +529,7 @@ def lookup_customer(account_number):
     
     if env == "prod":
         conn_real = get_customer_db()
-        customer = conn_real.execute(load_query("real_customer_sync"), (account_number,)).fetchone()
+        customer = conn_real.execute(load_query("prod_lookup_customer"), (account_number,)).fetchone()
         conn_real.close()
         
         if customer:
@@ -500,10 +542,11 @@ def lookup_customer(account_number):
                 "Customerid": customer["Customerid"],
                 "CustomerName": customer["CustomerName"],
                 "sector": "",
-                "branch": customer["BranchName"] or "",
-                "region": customer["ReginalOfficeName"] or "",
-                "value_segment": customer["ValueSegment"] or "",
-                "portfolio_manager": customer["PortfolioOwnerName"],
+                "branch": customer["branch"] or "",
+                "region": customer["region"] or "",
+                "value_segment": customer["value_segment"] or "",
+                "portfolio_manager": customer["portfolio_manager"],
+                "customer_class": customer["CustomerClassName"] or "",
                 "IsStructured": 1 if already and already["IsStructured"] else 0
             })
         return jsonify({"found": False})
@@ -524,6 +567,7 @@ def lookup_customer(account_number):
                 "region":           customer["region"] or "",
                 "value_segment":    customer["value_segment"] or "",
                 "portfolio_manager": customer["portfolio_manager"] or "",
+                "customer_class":   customer["CustomerClassName"] or "",
                 "IsStructured":     customer["IsStructured"],
             })
         return jsonify({"found": False})
@@ -542,8 +586,8 @@ def add_customer():
         if customer:
             conn_local = get_db()
             conn_local.execute("""
-                INSERT INTO Customer (Customerid, CustomerName, credit_limit, credit_limit_currency, foreign_trade_volume, memzuc_151_volume, memzuc_152_volume, value_segment, branch, region, portfolio_manager, IsStructured)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                INSERT INTO Customer (Customerid, CustomerName, credit_limit, credit_limit_currency, foreign_trade_volume, memzuc_151_volume, memzuc_152_volume, value_segment, branch, region, portfolio_manager, CustomerClassName, IsStructured)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 ON CONFLICT(Customerid) DO UPDATE SET
                     CustomerName = excluded.CustomerName,
                     credit_limit = excluded.credit_limit,
@@ -555,12 +599,13 @@ def add_customer():
                     branch = excluded.branch,
                     region = excluded.region,
                     portfolio_manager = excluded.portfolio_manager,
+                    CustomerClassName = excluded.CustomerClassName,
                     IsStructured = 1
             """, (
                 customer["Customerid"], customer["CustomerName"], customer["TotalLimit"], customer["credit_limit_currency"],
                 customer["foreign_trade_volume"], customer["memzuc_151_volume"], customer["memzuc_152_volume"],
-                customer["ValueSegment"], customer["BranchName"], customer["ReginalOfficeName"],
-                customer["PortfolioOwnerName"]
+                customer["value_segment"], customer["branch"], customer["region"],
+                customer["portfolio_manager"], customer["CustomerClassName"]
             ))
             conn_local.commit()
             conn_local.close()
@@ -585,50 +630,61 @@ def sync_queue():
         "customers": [{"id": c["Customerid"], "name": c["CustomerName"]} for c in customers]
     })
 
-@app.route("/management/api/sync/<int:cid>", methods=["POST"])
-def sync_single(cid):
+@app.route("/management/api/sync/batch", methods=["POST"])
+def sync_batch():
     import time
     env = session.get("env", "test") if has_request_context() else "test"
+    data = request.get_json()
+    cids = data.get("customer_ids", [])
     
-    # TEST environment: simulate a short delay then return dummy success
+    if not cids:
+        return jsonify({"success": False, "error": "No customers to sync."})
+    
+    # TEST environment
     if env != "prod":
-        time.sleep(0.4)  # simulate network round-trip
-        conn_local = get_db()
-        row = conn_local.execute("SELECT CustomerName FROM Customer WHERE Customerid = ?", (cid,)).fetchone()
-        conn_local.close()
-        name = row["CustomerName"] if row else f"Customer {cid}"
-        return jsonify({"success": True, "name": name, "demo": True})
+        time.sleep(1.5)  # simulate bulk delay
+        return jsonify({"success": True, "count": len(cids), "demo": True})
+    
+    # Read the query text
+    query_text = load_query("real_batch_customer_sync")
+    placeholders = ",".join("?" for _ in cids)
+    query_text = query_text.replace("{ids}", placeholders)
     
     conn_real = get_customer_db()
-    customer = conn_real.execute(load_query("real_customer_sync"), (cid,)).fetchone()
+    results = conn_real.execute(query_text, tuple(cids)).fetchall()
     conn_real.close()
     
-    if customer:
+    if results:
         conn_local = get_db()
-        conn_local.execute("""
-            UPDATE Customer SET
-                CustomerName = ?,
-                credit_limit = ?,
-                credit_limit_currency = ?,
-                foreign_trade_volume = ?,
-                memzuc_151_volume = ?,
-                memzuc_152_volume = ?,
-                value_segment = ?,
-                branch = ?,
-                region = ?,
-                portfolio_manager = ?
-            WHERE Customerid = ?
-        """, (
-            customer["CustomerName"], customer["TotalLimit"], customer["credit_limit_currency"],
-            customer["foreign_trade_volume"], customer["memzuc_151_volume"], customer["memzuc_152_volume"],
-            customer["ValueSegment"], customer["BranchName"],
-            customer["ReginalOfficeName"], customer["PortfolioOwnerName"],
-            cid
-        ))
+        for customer in results:
+            # We also get Sector from AssetQuality now (which is 'sector' alias in sql)
+            conn_local.execute("""
+                UPDATE Customer SET
+                    CustomerName = ?,
+                    credit_limit = ?,
+                    credit_limit_currency = ?,
+                    foreign_trade_volume = ?,
+                    memzuc_151_volume = ?,
+                    memzuc_152_volume = ?,
+                    value_segment = ?,
+                    branch = ?,
+                    region = ?,
+                    portfolio_manager = ?,
+                    CustomerClassName = ?,
+                    sector = ?
+                WHERE Customerid = ?
+            """, (
+                customer["CustomerName"], customer["TotalLimit"], customer["credit_limit_currency"],
+                customer["foreign_trade_volume"], customer["memzuc_151_volume"], customer["memzuc_152_volume"],
+                customer["value_segment"], customer["branch"],
+                customer["region"], customer["portfolio_manager"],
+                customer["CustomerClassName"], customer["sector"],
+                customer["Customerid"]
+            ))
         conn_local.commit()
         conn_local.close()
-        return jsonify({"success": True, "name": customer["CustomerName"]})
-    return jsonify({"success": False, "error": "Not found on remote."})
+        return jsonify({"success": True, "count": len(results)})
+    return jsonify({"success": False, "error": "No matches found on remote."})
 
 
 @app.route("/management/edit/<int:customer_id>", methods=["GET", "POST"])
@@ -811,7 +867,7 @@ def api_chat():
 
 @app.route("/overview/<int:customer_id>/comment", methods=["POST"])
 def add_comment(customer_id):
-    author  = request.form.get("author",  "").strip()
+    author  = session.get("username", "System")
     content = request.form.get("content", "").strip()
     if author and content:
         conn = get_db()

@@ -24,4 +24,4 @@ SELECT
     1 AS memzuc_152_volume,
     1 AS IsStructured
 FROM BOADWH.CUS.Customer c
-WHERE c.Customerid = ?
+WHERE c.Customerid IN ({ids})

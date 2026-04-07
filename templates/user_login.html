@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}User Login — Customer Tracker{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center">
+    <div class="w-full max-w-md">
+        <!-- Logo / Brand -->
+        <div class="text-center mb-10">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 shadow-xl shadow-brand-600/30 mb-6">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">Welcome Back</h1>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Select your user profile to continue to Customer Tracker</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/50 dark:border-gray-800/50 rounded-3xl p-8 shadow-2xl">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-6 p-4 rounded-xl text-sm font-medium {% if category == 'error' %}bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50{% else %}bg-brand-50 text-brand-600 border border-brand-100 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-900/50{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="{{ url_for('set_user') }}" method="POST" class="space-y-6">
+                <!-- User Selection -->
+                <div class="space-y-4">
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">Identity</h2>
+                    
+                    <div class="space-y-3">
+                        {% for user in users %}
+                        <label class="group relative flex cursor-pointer rounded-2xl border bg-white dark:bg-gray-800 p-4 shadow-sm focus-within:ring-2 focus-within:ring-brand-600 hover:border-brand-300 dark:hover:border-brand-700 transition duration-200
+                                      has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-900/20 dark:border-gray-700">
+                            <input type="radio" name="user_id" value="{{ user.id }}" class="sr-only" required>
+                            <span class="flex flex-1">
+                                <span class="flex flex-col text-sm">
+                                    <span class="block text-base font-semibold text-gray-900 dark:text-white">
+                                        {{ user.username }}
+                                    </span>
+                                </span>
+                            </span>
+                            <svg class="h-6 w-6 text-brand-600 shrink-0 hidden group-has-[:checked]:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                            </svg>
+                        </label>
+                        {% endfor %}
+                        
+                        {% if not users %}
+                        <p class="text-sm text-amber-600 font-medium">No users found in database.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-600/30 transition duration-200">
+                        Continue to Environment Selection
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
