@@ -41,6 +41,9 @@
                         <div class="absolute top-full left-0 mt-1 w-[200%] sm:w-[150%] z-10">
                             <p id="lookup-empty" class="text-xs text-red-600 dark:text-red-400 hidden">Please enter an account number.</p>
                             <p id="lookup-error" class="text-xs text-red-600 dark:text-red-400 hidden">{{ lang_dict.get('mgmt_err_notfound', 'Customer not found.') }}</p>
+                            <p id="lookup-conn-error" class="text-xs text-red-600 dark:text-red-400 hidden">⚠ Could not connect to SRVDNZ. Check your network / VPN and ODBC driver.</p>
+                            <p id="lookup-query-error" class="text-xs text-orange-600 dark:text-orange-400 hidden">⚠ Query error on server. See details below.</p>
+                            <p id="lookup-error-detail" class="text-[10px] text-gray-500 dark:text-gray-600 hidden mt-0.5 break-all"></p>
                             <p id="lookup-already" class="text-xs text-amber-600 dark:text-amber-400 hidden leading-tight">{{ lang_dict.get('mgmt_err_tracked', 'Customer is already tracked in structured finance.') }}</p>
                             <p id="lookup-success" class="text-xs text-emerald-600 dark:text-emerald-400 hidden">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
                         </div>
@@ -108,13 +111,13 @@
     <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
             <h2 class="text-lg font-semibold">{{ lang_dict.get('mgmt_tbl_title', 'Tracked Customers') }}</h2>
-            <button type="button" onclick="startUpdateAll()"
-                class="bg-blue-600/20 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5"
-                title="{% if session.get('env', 'test') != 'prod' %}Demo mode — simulates sync animation{% else %}Sync local customer details with remote DB{% endif %}"
+            <button type="button"
+                {% if session.get('env', 'test') != 'prod' %}disabled title="Update All is only available in PROD environment"{% else %}onclick="startUpdateAll()" title="Sync local customer details with remote SRVDNZ DB"{% endif %}
+                class="bg-blue-600/20 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-600/20 disabled:hover:text-blue-400"
             >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 {{ lang_dict.get('mgmt_btn_sync', 'Update All') }}
-                {% if session.get('env', 'test') != 'prod' %}<span class="ml-1 px-1 py-0.5 text-[9px] font-bold bg-amber-400/20 text-amber-600 dark:text-amber-400 rounded">DEMO</span>{% endif %}
+                {% if session.get('env', 'test') != 'prod' %}<span class="ml-1 px-1 py-0.5 text-[9px] font-bold bg-amber-400/20 text-amber-600 dark:text-amber-400 rounded">PROD ONLY</span>{% endif %}
             </button>
         </div>
         <div class="overflow-x-auto">
@@ -136,7 +139,11 @@
                         <td class="px-6 py-3 text-gray-700 dark:text-gray-400 dark:text-gray-400">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
                         <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c['portfolio_manager'] or '—' }}</td>
                         <td class="px-6 py-3 text-center whitespace-nowrap">
+                            {% if session.get('env', 'test') == 'prod' %}
                             <button data-id="{{ c.Customerid }}" data-name="{{ c.CustomerName }}" onclick="updateSingle(this.dataset.id, this.dataset.name)" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">Update</button>
+                            {% else %}
+                            <span class="text-gray-500 dark:text-gray-600 text-xs font-medium mr-3 cursor-not-allowed" title="Update only available in PROD">Update</span>
+                            {% endif %}
                             <a href="/management/edit/{{ c['Customerid'] }}" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">{{ lang_dict.get('mgmt_btn_edit', 'Edit Customer') }}</a>
                             <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" class="inline" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_remove', 'Remove {} from structured finance tracking?').format(c['CustomerName']) }}')">
                                 <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-300 text-xs font-medium transition">{{ lang_dict.get('mgmt_btn_remove', 'Remove') }}</button>
@@ -177,7 +184,8 @@
             </div>
         </div>
         
-        <button id="sync-close-btn" class="mt-6 w-full hidden bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium py-2 rounded-lg transition" onclick="window.location.reload()">Finish & Reload</button>
+        <button id="btn-cancel-sync" class="mt-4 w-full hidden bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/30 font-medium py-2 rounded-lg transition text-sm" onclick="cancelSync()">Cancel</button>
+        <button id="sync-close-btn" class="mt-6 w-full hidden bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium py-2 rounded-lg transition" onclick="window.location.reload()">Finish &amp; Reload</button>
     </div>
 </div>
 
@@ -239,13 +247,35 @@ async function lookupCustomer() {
         return; 
     }
     
+    // Show a loading state
+    btnFetch.disabled = true;
+    btnFetch.textContent = '...';
+    
     try {
         const res = await fetch(`/api/customer/lookup/${encodeURIComponent(val)}`);
         const data = await res.json();
         
         resetFields();
         
-        if (data.found) {
+        if (data.env_error) {
+            // Fetch was called in TEST — should never happen since button is disabled, but safeguard
+            errMsg.textContent = '⚠ Fetch is only available in PROD environment.';
+            errMsg.classList.remove('hidden');
+        } else if (data.connection_error) {
+            // SRVDNZ is unreachable
+            const connErr = document.getElementById('lookup-conn-error');
+            const detail  = document.getElementById('lookup-error-detail');
+            connErr.classList.remove('hidden');
+            detail.textContent = data.error || '';
+            detail.classList.remove('hidden');
+        } else if (data.query_error) {
+            // SQL query failed
+            const qErr   = document.getElementById('lookup-query-error');
+            const detail = document.getElementById('lookup-error-detail');
+            qErr.classList.remove('hidden');
+            detail.textContent = data.error || '';
+            detail.classList.remove('hidden');
+        } else if (data.found) {
             fillFields(data);
             if (data.IsStructured === 1) {
                 alreadyMsg.classList.remove('hidden');
@@ -261,7 +291,14 @@ async function lookupCustomer() {
     } catch(e) {
         console.error('Lookup error:', e);
         resetFields();
-        errMsg.classList.remove('hidden');
+        const connErr = document.getElementById('lookup-conn-error');
+        connErr.classList.remove('hidden');
+        const detail = document.getElementById('lookup-error-detail');
+        detail.textContent = 'Network error: ' + e.message;
+        detail.classList.remove('hidden');
+    } finally {
+        btnFetch.disabled = false;
+        btnFetch.textContent = 'Fetch';
     }
 }
 
@@ -330,6 +367,13 @@ async function updateSingle(id, name) {
         if (sData.success) {
             document.getElementById('sync-title').innerText = 'Update Complete!';
             card.innerHTML = `<span class="text-emerald-500 font-bold w-full text-center tracking-wide animate-pulse">Successfully Updated ${name}!</span>`;
+        } else if (sData.connection_error) {
+            document.getElementById('sync-title').innerText = 'Connection Failed!';
+            card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">⚠ Cannot reach SRVDNZ. Check network/VPN.</span>`;
+            console.error('Connection error:', sData.error);
+        } else if (sData.env_error) {
+            document.getElementById('sync-title').innerText = 'PROD Only!';
+            card.innerHTML = `<span class="text-amber-500 font-bold w-full text-center tracking-wide">Switch to PROD environment to sync.</span>`;
         } else {
             document.getElementById('sync-title').innerText = 'Update Failed!';
             card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">${sData.error || 'Server error occurred'}</span>`;
@@ -401,6 +445,12 @@ async function startUpdateAll() {
         if (sData.success) {
             document.getElementById('sync-title').innerText = 'Sync Complete!';
             card.innerHTML = `<span class="text-emerald-500 font-bold w-full text-center tracking-wide animate-pulse">Successfully Updated ${sData.count} Customers!</span>`;
+        } else if (sData.connection_error) {
+            document.getElementById('sync-title').innerText = 'Connection Failed!';
+            card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">⚠ Cannot reach SRVDNZ. Check network/VPN.<br><small style="font-weight:normal">${sData.error || ''}</small></span>`;
+        } else if (sData.env_error) {
+            document.getElementById('sync-title').innerText = 'PROD Only!';
+            card.innerHTML = `<span class="text-amber-500 font-bold w-full text-center tracking-wide">Switch to PROD environment to sync real data.</span>`;
         } else {
             document.getElementById('sync-title').innerText = 'Sync Failed!';
             card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">${sData.error || 'Server error occurred'}</span>`;

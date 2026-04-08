@@ -525,16 +525,28 @@ def management():
 
 @app.route("/api/customer/lookup/<int:account_number>")
 def lookup_customer(account_number):
+    env = session.get("env", "test") if has_request_context() else "test"
+
+    # Fetch is only meaningful in PROD — block it clearly for TEST
+    if env != "prod":
+        return jsonify({
+            "found": False,
+            "env_error": True,
+            "error": "Fetch is only available in the PROD environment. Switch to PROD to look up real customers."
+        })
+
     try:
-        conn_real = get_customer_db()
+        conn_real = _get_db_prod()  # always use PROD connection for lookups
         customer = conn_real.execute(load_query("prod_lookup_customer"), (account_number,)).fetchone()
         conn_real.close()
-        
+
         if customer:
             conn_local = get_db()
-            already = conn_local.execute("SELECT IsStructured FROM Customer WHERE Customerid = ?", (account_number,)).fetchone()
+            already = conn_local.execute(
+                "SELECT IsStructured FROM Customer WHERE Customerid = ?", (account_number,)
+            ).fetchone()
             conn_local.close()
-            
+
             return jsonify({
                 "found": True,
                 "Customerid": customer.get("Customerid", customer.get("CustomerID", account_number)),
@@ -547,10 +559,18 @@ def lookup_customer(account_number):
                 "customer_class": customer.get("CustomerClassName", ""),
                 "IsStructured": 1 if already and already["IsStructured"] else 0
             })
+
         return jsonify({"found": False})
+
+    except RuntimeError as e:
+        # Connection failure (pyodbc not installed, driver missing, SRVDNZ unreachable)
+        msg = str(e)
+        print(f"[lookup_customer] connection error: {msg}")
+        return jsonify({"found": False, "connection_error": True, "error": msg})
     except Exception as e:
-        print(f"Error in lookup_customer: {e}")
-        return jsonify({"found": False, "error": str(e)})
+        msg = str(e)
+        print(f"[lookup_customer] query error: {msg}")
+        return jsonify({"found": False, "query_error": True, "error": msg})
 
 
 @app.route("/management/customer/add", methods=["POST"])
@@ -612,32 +632,38 @@ def sync_queue():
 
 @app.route("/management/api/sync/batch", methods=["POST"])
 def sync_batch():
-    import time
     env = session.get("env", "test") if has_request_context() else "test"
     data = request.get_json()
     cids = data.get("customer_ids", [])
-    
+
     if not cids:
         return jsonify({"success": False, "error": "No customers to sync."})
-    
-    # TEST environment
+
+    # TEST environment — clearly blocked, no fake data
     if env != "prod":
-        time.sleep(1.5)  # simulate bulk delay
-        return jsonify({"success": True, "count": len(cids), "demo": True})
-    
-    # Read the query text
-    query_text = load_query("real_batch_customer_sync")
-    placeholders = ",".join("?" for _ in cids)
-    query_text = query_text.replace("{ids}", placeholders)
-    
-    conn_real = get_customer_db()
-    results = conn_real.execute(query_text, tuple(cids)).fetchall()
-    conn_real.close()
-    
+        return jsonify({
+            "success": False,
+            "env_error": True,
+            "error": "Update is only available in PROD environment. Switch to PROD to sync real customer data."
+        })
+
+    # PROD: connect to SRVDNZ > BOA and run batch sync against BOADWH tables
+    try:
+        query_text = load_query("real_batch_customer_sync")
+        placeholders = ",".join("?" for _ in cids)
+        query_text = query_text.replace("{ids}", placeholders)
+
+        conn_real = _get_db_prod()
+        results = conn_real.execute(query_text, tuple(cids)).fetchall()
+        conn_real.close()
+    except RuntimeError as e:
+        return jsonify({"success": False, "connection_error": True, "error": str(e)})
+    except Exception as e:
+        return jsonify({"success": False, "query_error": True, "error": str(e)})
+
     if results:
         conn_local = get_db()
         for customer in results:
-            # We also get Sector from AssetQuality now (which is 'sector' alias in sql)
             conn_local.execute("""
                 UPDATE Customer SET
                     CustomerName = ?,
@@ -654,17 +680,25 @@ def sync_batch():
                     sector = ?
                 WHERE Customerid = ?
             """, (
-                customer.get("CustomerName", ""), customer.get("TotalLimit", 0), customer.get("credit_limit_currency", "TRY"),
-                customer.get("foreign_trade_volume", 1), customer.get("memzuc_151_volume", 1), customer.get("memzuc_152_volume", 1),
-                customer.get("value_segment", ""), customer.get("branch", ""),
-                customer.get("region", ""), customer.get("portfolio_manager", ""),
-                customer.get("CustomerClassName", ""), customer.get("sector", ""),
-                customer.get("Customerid", customer.get("CustomerID", 0))
+                customer.get("CustomerName", ""),
+                customer.get("TotalLimit", 0),
+                customer.get("credit_limit_currency", "TRY"),
+                customer.get("foreign_trade_volume", 1),
+                customer.get("memzuc_151_volume", 1),
+                customer.get("memzuc_152_volume", 1),
+                customer.get("value_segment", ""),
+                customer.get("branch", ""),
+                customer.get("region", ""),
+                customer.get("portfolio_manager", ""),
+                customer.get("CustomerClassName", ""),
+                customer.get("sector", ""),
+                customer.get("Customerid", customer.get("CustomerID", 0)),
             ))
         conn_local.commit()
         conn_local.close()
         return jsonify({"success": True, "count": len(results)})
-    return jsonify({"success": False, "error": "No matches found on remote."})
+
+    return jsonify({"success": False, "error": "No matching customers found on SRVDNZ (BOADWH). Verify account numbers are correct."})
 
 
 @app.route("/management/edit/<int:customer_id>", methods=["GET", "POST"])
