@@ -109,6 +109,17 @@ def _get_db_test() -> DbConnection:
 
 
 def _get_db_prod() -> DbConnection:
+    """PROD connection with autocommit=False (for regular reads/writes)."""
+    return _make_prod_conn(autocommit=False)
+
+
+def _get_db_prod_autocommit() -> DbConnection:
+    """PROD connection with autocommit=True (required for multi-statement batches with temp tables)."""
+    return _make_prod_conn(autocommit=True)
+
+
+def _make_prod_conn(autocommit: bool = False) -> DbConnection:
+    """Internal factory: build a pyodbc connection to SRVDNZ/BOA."""
     try:
         import pyodbc  # noqa: PLC0415 — optional dependency
     except ImportError as exc:
@@ -144,10 +155,10 @@ def _get_db_prod() -> DbConnection:
         + "Trusted_Connection=yes;"
     )
     try:
-        raw = pyodbc.connect(conn_str, autocommit=False, timeout=10)
+        raw = pyodbc.connect(conn_str, autocommit=autocommit, timeout=10)
         return DbConnection(raw, is_prod=True)
     except Exception as exc:
-        raise RuntimeError(f"PROD connection failed: {exc}") from exc
+        raise RuntimeError(f"PROD connection failed ({server}/{db_name}): {exc}") from exc
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -525,49 +536,45 @@ def management():
 
 @app.route("/api/customer/lookup/<int:account_number>")
 def lookup_customer(account_number):
-    env = session.get("env", "test") if has_request_context() else "test"
-
-    # Fetch is only meaningful in PROD — block it clearly for TEST
-    if env != "prod":
-        return jsonify({
-            "found": False,
-            "env_error": True,
-            "error": "Fetch is only available in the PROD environment. Switch to PROD to look up real customers."
-        })
-
+    """Fetch a customer from BOADWH.CUS.Customer on SRVDNZ and check local tracking status.
+    Always uses the PROD SQL Server connection (the Fetch button is disabled in TEST via HTML).
+    Returns distinct JSON flags so the frontend can show actionable error messages.
+    """
     try:
-        conn_real = _get_db_prod()  # always use PROD connection for lookups
+        conn_real = _get_db_prod()  # always hit PROD regardless of session env
         customer = conn_real.execute(load_query("prod_lookup_customer"), (account_number,)).fetchone()
         conn_real.close()
 
-        if customer:
-            conn_local = get_db()
-            already = conn_local.execute(
-                "SELECT IsStructured FROM Customer WHERE Customerid = ?", (account_number,)
-            ).fetchone()
-            conn_local.close()
+        if customer is None:
+            return jsonify({"found": False})
 
-            return jsonify({
-                "found": True,
-                "Customerid": customer.get("Customerid", customer.get("CustomerID", account_number)),
-                "CustomerName": customer.get("CustomerName", ""),
-                "sector": customer.get("sector", ""),
-                "branch": customer.get("branch", ""),
-                "region": customer.get("region", ""),
-                "value_segment": customer.get("value_segment", ""),
-                "portfolio_manager": customer.get("portfolio_manager", ""),
-                "customer_class": customer.get("CustomerClassName", ""),
-                "IsStructured": 1 if already and already["IsStructured"] else 0
-            })
+        # Check if already tracked in local SQLite
+        conn_local = get_db()
+        already = conn_local.execute(
+            "SELECT IsStructured FROM Customer WHERE Customerid = ?", (account_number,)
+        ).fetchone()
+        conn_local.close()
 
-        return jsonify({"found": False})
+        return jsonify({
+            "found": True,
+            "Customerid": customer.get("Customerid", account_number),
+            "CustomerName": customer.get("CustomerName", ""),
+            "sector": customer.get("sector", "") or "",
+            "branch": customer.get("branch", "") or "",
+            "region": customer.get("region", "") or "",
+            "value_segment": customer.get("value_segment", "") or "",
+            "portfolio_manager": customer.get("portfolio_manager", "") or "",
+            "customer_class": customer.get("CustomerClassName", "") or "",
+            "IsStructured": 1 if already and already["IsStructured"] else 0
+        })
 
     except RuntimeError as e:
-        # Connection failure (pyodbc not installed, driver missing, SRVDNZ unreachable)
+        # Connection problem: pyodbc missing, no ODBC driver, SRVDNZ unreachable
         msg = str(e)
         print(f"[lookup_customer] connection error: {msg}")
         return jsonify({"found": False, "connection_error": True, "error": msg})
     except Exception as e:
+        # SQL execution error (permissions, bad query, etc.)
         msg = str(e)
         print(f"[lookup_customer] query error: {msg}")
         return jsonify({"found": False, "query_error": True, "error": msg})
@@ -650,11 +657,17 @@ def sync_batch():
     # PROD: connect to SRVDNZ > BOA and run batch sync against BOADWH tables
     try:
         query_text = load_query("real_batch_customer_sync")
+        # Count how many times {ids} appears BEFORE replacing (each becomes N ?-marks)
+        ids_occurrences = query_text.count("{ids}")
         placeholders = ",".join("?" for _ in cids)
         query_text = query_text.replace("{ids}", placeholders)
 
-        conn_real = _get_db_prod()
-        results = conn_real.execute(query_text, tuple(cids)).fetchall()
+        # The batch query uses multi-statement (SET NOCOUNT ON + temp tables).
+        # It needs autocommit=True so temp table drops/creates don't conflict with a transaction.
+        conn_real = _get_db_prod_autocommit()
+        # Pass cids once per {ids} occurrence so param count equals marker count
+        params = tuple(cids) * ids_occurrences
+        results = conn_real.execute(query_text, params).fetchall()
         conn_real.close()
     except RuntimeError as e:
         return jsonify({"success": False, "connection_error": True, "error": str(e)})

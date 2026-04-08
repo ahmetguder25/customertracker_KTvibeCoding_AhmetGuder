@@ -190,38 +190,43 @@
 </div>
 
 <script>
-const accountInput = document.getElementById('accountNumber');
-const nameField = document.getElementById('CustomerName');
-const branchField = document.getElementById('branch');
-const regionField = document.getElementById('region');
-const vsField = document.getElementById('value_segment');
-const pmField = document.getElementById('portfolio_manager');
-const ccField = document.getElementById('customer_class');
-const hiddenId = document.getElementById('formCustomerid');
-const btnAdd = document.getElementById('btn-add');
-const btnFetch = document.getElementById('btn-fetch');
-const msgEmpty = document.getElementById('lookup-empty');
-const errMsg = document.getElementById('lookup-error');
-const alreadyMsg = document.getElementById('lookup-already');
-const successMsg = document.getElementById('lookup-success');
+const accountInput  = document.getElementById('accountNumber');
+const nameField     = document.getElementById('CustomerName');
+const branchField   = document.getElementById('branch');
+const regionField   = document.getElementById('region');
+const vsField       = document.getElementById('value_segment');
+const pmField       = document.getElementById('portfolio_manager');
+const ccField       = document.getElementById('customer_class');
+const hiddenId      = document.getElementById('formCustomerid');
+const btnAdd        = document.getElementById('btn-add');
+const btnFetch      = document.getElementById('btn-fetch');
+const msgEmpty      = document.getElementById('lookup-empty');
+const errMsg        = document.getElementById('lookup-error');
+const connErrMsg    = document.getElementById('lookup-conn-error');
+const queryErrMsg   = document.getElementById('lookup-query-error');
+const errDetail     = document.getElementById('lookup-error-detail');
+const alreadyMsg    = document.getElementById('lookup-already');
+const successMsg    = document.getElementById('lookup-success');
 
 function resetFields() {
-    nameField.value = '';
+    nameField.value  = '';
     branchField.value = '';
     regionField.value = '';
-    vsField.value = '';
-    pmField.value = '';
-    ccField.value = '';
-    hiddenId.value = '';
-    btnAdd.disabled = true;
-    msgEmpty.classList.add('hidden');
-    errMsg.classList.add('hidden');
-    alreadyMsg.classList.add('hidden');
-    successMsg.classList.add('hidden');
-    
+    vsField.value    = '';
+    pmField.value    = '';
+    ccField.value    = '';
+    hiddenId.value   = '';
+    btnAdd.disabled  = true;
+
+    // Hide ALL status messages including new error ones
+    [msgEmpty, errMsg, connErrMsg, queryErrMsg, alreadyMsg, successMsg].forEach(el => el.classList.add('hidden'));
+    errDetail.classList.add('hidden');
+    errDetail.textContent = '';
+    errMsg.textContent    = errMsg.dataset.original || errMsg.textContent; // restore original text
+
     [nameField, branchField, regionField, vsField, pmField, ccField].forEach(f => {
         f.classList.remove('text-white', 'bg-gray-800', 'border-gray-700');
-        f.classList.add('text-gray-700 dark:text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
+        f.classList.add('text-gray-700', 'dark:text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
     });
 }
 
@@ -247,37 +252,35 @@ async function lookupCustomer() {
         return; 
     }
     
-    // Show a loading state
-    btnFetch.disabled = true;
+    // Show a loading state on the button
+    btnFetch.disabled    = true;
     btnFetch.textContent = '...';
     
     try {
-        const res = await fetch(`/api/customer/lookup/${encodeURIComponent(val)}`);
+        const res  = await fetch(`/api/customer/lookup/${encodeURIComponent(val)}`);
         const data = await res.json();
         
-        resetFields();
+        resetFields();  // clear all previous messages & fields
         
-        if (data.env_error) {
-            // Fetch was called in TEST — should never happen since button is disabled, but safeguard
-            errMsg.textContent = '⚠ Fetch is only available in PROD environment.';
-            errMsg.classList.remove('hidden');
-        } else if (data.connection_error) {
-            // SRVDNZ is unreachable
-            const connErr = document.getElementById('lookup-conn-error');
-            const detail  = document.getElementById('lookup-error-detail');
-            connErr.classList.remove('hidden');
-            detail.textContent = data.error || '';
-            detail.classList.remove('hidden');
+        if (data.connection_error) {
+            // SRVDNZ is unreachable — show detailed error
+            connErrMsg.classList.remove('hidden');
+            if (data.error) {
+                errDetail.textContent = data.error;
+                errDetail.classList.remove('hidden');
+            }
         } else if (data.query_error) {
-            // SQL query failed
-            const qErr   = document.getElementById('lookup-query-error');
-            const detail = document.getElementById('lookup-error-detail');
-            qErr.classList.remove('hidden');
-            detail.textContent = data.error || '';
-            detail.classList.remove('hidden');
+            // SQL executed but failed (permissions, bad column, etc.)
+            queryErrMsg.classList.remove('hidden');
+            if (data.error) {
+                errDetail.textContent = data.error;
+                errDetail.classList.remove('hidden');
+            }
         } else if (data.found) {
+            // ✅ Customer found — fill the passive fields and enable Add
             fillFields(data);
             if (data.IsStructured === 1) {
+                // Already tracked in local DB
                 alreadyMsg.classList.remove('hidden');
                 btnAdd.disabled = true;
             } else {
@@ -286,18 +289,19 @@ async function lookupCustomer() {
                 btnAdd.disabled = false;
             }
         } else {
+            // Customer does not exist in BOADWH.CUS.Customer
             errMsg.classList.remove('hidden');
         }
-    } catch(e) {
-        console.error('Lookup error:', e);
+    } catch (e) {
+        // Network-level failure (fetch itself threw)
+        console.error('Lookup fetch error:', e);
         resetFields();
-        const connErr = document.getElementById('lookup-conn-error');
-        connErr.classList.remove('hidden');
-        const detail = document.getElementById('lookup-error-detail');
-        detail.textContent = 'Network error: ' + e.message;
-        detail.classList.remove('hidden');
+        connErrMsg.classList.remove('hidden');
+        errDetail.textContent = 'Network error: ' + e.message;
+        errDetail.classList.remove('hidden');
     } finally {
-        btnFetch.disabled = false;
+        // Always restore button state
+        btnFetch.disabled    = false;
         btnFetch.textContent = 'Fetch';
     }
 }
