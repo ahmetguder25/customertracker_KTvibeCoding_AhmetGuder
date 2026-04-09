@@ -9,7 +9,9 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    send_file, flash, jsonify, session, has_request_context)
 from werkzeug.utils import secure_filename
 import io
+from flask import stream_with_context, Response
 from ollama_config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
+from agent_orchestrator import AnalysisOrchestrator
 # ── App Setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = "customer-tracker-secret-key-2026"
@@ -871,36 +873,31 @@ def generate_analysis(customer_id):
 
     deals    = conn.execute(load_query("analysis_get_deals"), (customer_id,)).fetchall()
     lang_id  = session.get("lang", 0)
-    deal_info = ", ".join([f"${d['deal_size']} (Status ID {d['status']})" for d in deals])
-
-    prompt_file = "prompt_tr.txt" if lang_id == 1 else "prompt_en.txt"
-    prompt_path = os.path.join(BASE_DIR, prompt_file)
-    max_chars   = 100
-    try:
-        with open(prompt_path, "r", encoding="utf-8") as f:
-            prompt_template = f.read()
-    except Exception:
-        if lang_id == 1:
-            prompt_template = "'{sector}' sektöründeki '{customer_name}' müşterisini analiz et. Anlaşmalar: {deal_info}. En fazla {max_chars} karakterlik analiz yaz."
-        else:
-            prompt_template = "Analyze customer '{customer_name}' in sector '{sector}'. Deals: {deal_info}. Write a {max_chars} character max analysis."
-
     sector_map  = get_param_map("Sector", conn)
     sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
-    prompt = prompt_template.format(
-        customer_name=customer["CustomerName"],
-        sector=sector_desc, deal_info=deal_info, max_chars=max_chars,
-    )
+
+    same_sector_count = conn.execute(
+        "SELECT COUNT(*) as c FROM Customer WHERE sector = ?",
+        (customer["sector"],)
+    ).fetchone()["c"]
+
+    customer_data = {
+        "customer": dict(customer),
+        "deals": [dict(d) for d in deals],
+        "sector_desc": sector_desc,
+        "same_sector_count": same_sector_count
+    }
 
     try:
-        payload = {"model": OLLAMA_MODEL, "stream": False, "prompt": prompt}
-        resp = requests.post(OLLAMA_URL, json=payload, timeout=OLLAMA_TIMEOUT)
-        resp.raise_for_status()
-        analysis_text = resp.json().get("response", "Analysis completed but returned empty.")
+        from agent_orchestrator import AnalysisOrchestrator
+        target_lang = "Turkish" if lang_id == 1 else "English"
+        orchestrator = AnalysisOrchestrator(BASE_DIR, language=target_lang)
+        result = orchestrator.run(customer_data)
+        analysis_text = result.get("final", "ERROR: Multi-Agent generation failed.")
     except Exception as e:
         analysis_text = f"Ollama Error: {str(e)[:50]}"
 
-    analysis_text = analysis_text[:100]
+    analysis_text = analysis_text[:1000]
     conn.execute(load_query("analysis_insert"), (customer_id, analysis_text, lang_id))
     conn.commit()
     latest = conn.execute(load_query("analysis_latest"), (customer_id, lang_id)).fetchone()
@@ -908,7 +905,63 @@ def generate_analysis(customer_id):
     return {"status": "success", "analysis": latest["analysis_text"], "created_at": to_tr_time(latest["created_at"])}
 
 
-# ── Chat ───────────────────────────────────────────────────────────────────────
+# ── Multi-Agent Streaming Analysis ─────────────────────────────────────────────────────
+
+@app.route("/api/analyze/<int:customer_id>")
+def analyze_stream(customer_id):
+    """SSE endpoint: runs the 3-stage orchestrator and streams events to the browser."""
+    conn = get_db()
+    customer = conn.execute(load_query("mgmt_get_customer"), (customer_id,)).fetchone()
+    if not customer:
+        conn.close()
+        return jsonify({"error": "Customer not found"}), 404
+
+    deals      = conn.execute(load_query("analysis_get_deals"), (customer_id,)).fetchall()
+    lang_id    = session.get("lang", 0)
+    sector_map = get_param_map("Sector", conn)
+    sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
+    same_sector = conn.execute(load_query("overview_same_sector"), (customer["sector"],)).fetchone()["cnt"]
+
+    customer_data = {
+        "customer":         dict(customer),
+        "deals":            [dict(d) for d in deals],
+        "sector_desc":      sector_desc,
+        "same_sector_count": same_sector,
+    }
+    conn.close()
+
+    target_lang = "Turkish" if session.get("lang") == 1 else "English"
+    orchestrator = AnalysisOrchestrator(BASE_DIR, language=target_lang)
+
+    def generate():
+        nonlocal_holder = [None]   # list trick avoids nonlocal scoping issue
+        for event_str in orchestrator.run_stream(customer_data):
+            yield event_str
+            # Capture the final report from the done event
+            if event_str.startswith("event: done"):
+                import json as _json
+                data_line = [l for l in event_str.splitlines() if l.startswith("data: ")]
+                if data_line:
+                    payload = _json.loads(data_line[0][6:])
+                    nonlocal_holder[0] = payload.get("final", "")
+
+        # Persist to DB after streaming completes
+        final_text = nonlocal_holder[0]
+        if final_text:
+            with get_db() as save_conn:
+                save_conn.execute(load_query("analysis_insert"), (customer_id, final_text[:1000], lang_id))
+                save_conn.commit()
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control":  "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
@@ -917,7 +970,8 @@ def api_chat():
         return jsonify({"error": "No message provided"}), 400
     payload = {"model": OLLAMA_MODEL, "stream": False, "prompt": data["message"]}
     try:
-        resp = requests.post(OLLAMA_URL, json=payload, timeout=OLLAMA_TIMEOUT)
+        url = OLLAMA_URL if "api/generate" in OLLAMA_URL else f"{OLLAMA_URL.rstrip('/')}/api/generate"
+        resp = requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT)
         resp.raise_for_status()
         return jsonify({"response": resp.json().get("response", "")})
     except requests.exceptions.RequestException as e:

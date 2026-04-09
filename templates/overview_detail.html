@@ -72,26 +72,53 @@
         </div>
     </div>
 
-    <!-- ════════════════ AI ANALYSIS SECTION ════════════════ -->
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    <!-- ════════════════ MULTI-AGENT REASONING CONSOLE ════════════════ -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-800">
+            <h2 class="text-lg font-semibold text-emerald-400 flex items-center gap-3 font-mono">
+                <svg class="w-5 h-5 text-emerald-500 animate-pulse" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
-                {{ lang_dict.get('ov_ai_title', 'AI Profile Analysis') }}
+                {{ lang_dict.get('ov_multi_ai_title', 'Multi-Agent Reasoning Console') }}
             </h2>
             <div class="flex items-center gap-4">
-                <span id="ai-timestamp" class="text-xs text-gray-700 dark:text-gray-500">
-                    {% if analysis %}{{ lang_dict.get('ov_ai_last_updated', 'Last Updated:') }} {{ analysis['created_at'] | tr_time }}{% endif %}
+                <label class="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-200 transition-colors">
+                    <input type="checkbox" id="toggle-thought-stream" class="rounded border-gray-700 bg-gray-800 text-emerald-500 focus:ring-emerald-500">
+                    <span class="text-sm font-mono tracking-tight">{{ lang_dict.get('ov_thought_stream', 'Thought Stream') }}</span>
+                </label>
+                <div class="h-4 w-px bg-gray-800"></div>
+                <span id="ai-timestamp" class="text-xs text-gray-500 font-mono hidden">
+                    {% if analysis %}{{ analysis['created_at'] | tr_time }}{% endif %}
                 </span>
-                <button type="button" id="btn-refresh-ai" data-id="{{ customer['Customerid'] }}" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    {{ lang_dict.get('dash_ai_refresh', 'Refresh') }}
+                <button type="button" id="btn-refresh-ai" data-id="{{ customer['Customerid'] }}" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-sm font-mono transition-colors flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {{ lang_dict.get('ov_run_analysis', 'Run Analysis') }}
                 </button>
             </div>
         </div>
-        <textarea id="ai-text" readonly class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-300 resize-none focus:outline-none" rows="3">{% if analysis %}{{ analysis['analysis_text'] }}{% else %}{{ lang_dict.get('ov_ai_empty', 'Analysis not created, click button to create analysis.') }}{% endif %}</textarea>
+
+        <!-- Terminal Output Stream -->
+        <div id="ai-terminal" class="rounded bg-black/50 border border-gray-800/80 min-h-[160px] p-4 font-mono text-sm overflow-hidden mb-6 hidden">
+            <div id="ai-log-lines" class="space-y-1.5 text-gray-300">
+                <!-- SSE logs injected here -->
+            </div>
+            <!-- Blinking cursor -->
+            <div id="ai-cursor" class="w-2 h-4 bg-emerald-500 animate-pulse mt-2 hidden"></div>
+        </div>
+
+        <!-- Final Report Output -->
+        <div id="ai-final-report" class="hidden animate-fade-in">
+            <h3 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 font-sans">{{ lang_dict.get('ov_final_report', 'Final Report') }}</h3>
+            <div id="ai-final-content" class="text-gray-300 leading-relaxed text-sm format-markdown whitespace-pre-wrap"></div>
+        </div>
+        
+        <!-- Previous static output (if exists and hasn't been re-run yet) -->
+        {% if analysis %}
+        <div id="ai-legacy-report" class="text-gray-300 leading-relaxed text-sm format-markdown whitespace-pre-wrap">
+            {{ analysis['analysis_text'] }}
+        </div>
+        {% endif %}
     </div>
 
                 <!-- DEALS SECTION -->
@@ -206,33 +233,116 @@
 </div>
 
 <script>
-document.getElementById('btn-refresh-ai').addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    const id = btn.getAttribute('data-id');
-    const textEl = document.getElementById('ai-text');
-    const timeEl = document.getElementById('ai-timestamp');
+document.addEventListener('DOMContentLoaded', () => {
+    const btnRefresh = document.getElementById('btn-refresh-ai');
+    const toggleThoughtStream = document.getElementById('toggle-thought-stream');
     
-    btn.disabled = true;
-    btn.classList.add('opacity-50', 'cursor-not-allowed');
-    btn.innerHTML = '{{ lang_dict.get("ov_refreshing", "Refreshing...") }}';
+    const terminal = document.getElementById('ai-terminal');
+    const logLines = document.getElementById('ai-log-lines');
+    const cursor = document.getElementById('ai-cursor');
     
-    try {
-        const res = await fetch(`/api/analysis/generate/${parseInt(id, 10)}`, { method: 'POST' });
-        const data = await res.json();
-        if (data.status === 'success') {
-            textEl.value = data.analysis;
-            timeEl.textContent = `{{ lang_dict.get('ov_ai_last_updated', 'Last Updated:') }} ` + data.created_at.substring(0, 16);
-        } else {
-            alert('Failed to generate analysis. See console.');
+    const reportContainer = document.getElementById('ai-final-report');
+    const reportContent = document.getElementById('ai-final-content');
+    const legacyReport = document.getElementById('ai-legacy-report');
+    
+    let eventSource = null;
+
+    // Toggle Thought Stream logic
+    toggleThoughtStream.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            terminal.classList.remove('hidden');
+        } else if (!btnRefresh.disabled) {
+            // Only hide if we aren't currently running an analysis
+            terminal.classList.add('hidden');
         }
-    } catch(err) {
-        console.error(err);
-        alert('Error generating analysis');
-    } finally {
-        btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-        btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> {{ lang_dict.get('dash_ai_refresh', 'Refresh') }}`;
-    }
+    });
+
+    btnRefresh.addEventListener('click', () => {
+        const id = btnRefresh.getAttribute('data-id');
+        
+        // Reset UI
+        btnRefresh.disabled = true;
+        btnRefresh.classList.add('opacity-50', 'cursor-not-allowed', 'animate-pulse');
+        btnRefresh.innerHTML = '{{ lang_dict.get("ov_refreshing", "Running Agents...") }}';
+        
+        if (legacyReport) legacyReport.style.display = 'none';
+        reportContainer.classList.add('hidden');
+        reportContent.innerHTML = '';
+        logLines.innerHTML = '';
+        
+        // Show terminal automatically when running
+        terminal.classList.remove('hidden');
+        cursor.classList.remove('hidden');
+
+        // Append log helper
+        const addLog = (msg, color = "text-gray-300") => {
+            const el = document.createElement('div');
+            el.className = color;
+            el.innerHTML = `> ${msg}`;
+            logLines.appendChild(el);
+            terminal.scrollTop = terminal.scrollHeight;
+        };
+
+        // Start SSE
+        eventSource = new EventSource(`/api/analyze/${id}`);
+        
+        eventSource.addEventListener('start', (e) => {
+            const data = JSON.parse(e.data);
+            addLog(`[${data.time}] Analysis Orchestrator Initialised.`, "text-brand-400 font-bold");
+        });
+
+        eventSource.addEventListener('progress', (e) => {
+            const data = JSON.parse(e.data);
+            addLog(`[${data.time}] [${data.role}] ${data.message}`, "text-emerald-400");
+        });
+
+        eventSource.addEventListener('stage1_done', (e) => {
+            const data = JSON.parse(e.data);
+            if (toggleThoughtStream.checked) {
+                addLog(`<span class="text-gray-500 block pl-4 border-l-2 border-gray-700 my-2 whitespace-pre-wrap">${data.output.replace(/</g, "&lt;")}</span>`);
+            }
+        });
+
+        eventSource.addEventListener('stage2_done', (e) => {
+            const data = JSON.parse(e.data);
+            if (toggleThoughtStream.checked) {
+                addLog(`<span class="text-gray-500 block pl-4 border-l-2 border-gray-700 my-2 whitespace-pre-wrap">${data.output.replace(/</g, "&lt;")}</span>`);
+            }
+        });
+
+        eventSource.addEventListener('done', (e) => {
+            const data = JSON.parse(e.data);
+            addLog(`[${data.time}] Orchestrator cycle complete.`, "text-brand-400 font-bold");
+            
+            // Clean up
+            eventSource.close();
+            cursor.classList.add('hidden');
+            btnRefresh.disabled = false;
+            btnRefresh.classList.remove('opacity-50', 'cursor-not-allowed', 'animate-pulse');
+            btnRefresh.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> {{ lang_dict.get('dash_ai_refresh', 'Refresh Analysis') }}`;
+            
+            // Hide terminal if toggle is off
+            if (!toggleThoughtStream.checked) {
+                terminal.classList.add('hidden');
+            }
+
+            // Show final report
+            reportContent.innerHTML = data.final.replace(/</g, "&lt;");
+            reportContainer.classList.remove('hidden');
+            document.getElementById('ai-timestamp').classList.remove('hidden');
+            document.getElementById('ai-timestamp').textContent = `{{ lang_dict.get('ov_ai_last_updated', 'Last Updated:') }} ${data.time}`;
+        });
+
+        eventSource.onerror = (err) => {
+            console.error("SSE Error:", err);
+            addLog("[System] EventSource connection fractured.", "text-red-500");
+            eventSource.close();
+            cursor.classList.add('hidden');
+            btnRefresh.disabled = false;
+            btnRefresh.classList.remove('opacity-50', 'cursor-not-allowed', 'animate-pulse');
+            btnRefresh.innerHTML = "Retry Analysis";
+        };
+    });
 });
 </script>
 {% endblock %}
