@@ -841,9 +841,90 @@ def overview_detail(customer_id):
     deal_type_map = get_param_map("DealType", conn)
     fec_map       = get_param_map("FEC",      conn)
     sector_map    = get_param_map("Sector",   conn)
+    
+    # Financial items processing
+    fin_defs = conn.execute("SELECT * FROM FinancialItemDefinition").fetchall()
+    allotments = conn.execute("SELECT * FROM AllotmentFinancialItems WHERE AllotmentMainId = ? ORDER BY PeriodId", (customer_id,)).fetchall()
     conn.close()
 
     total_deal_size = sum((d["deal_size"] or 0) for d in deals)
+
+    # Build Financial Tree
+    fin_map = {}
+    for row in fin_defs:
+        d = dict(row)
+        # ParentId may be stored as the string 'NULL' instead of Python None — normalize it
+        pid = d["ParentId"]
+        if pid == 'NULL' or pid == '' or pid == 0:
+            d["ParentId"] = None
+        else:
+            try:
+                d["ParentId"] = int(pid)
+            except (TypeError, ValueError):
+                d["ParentId"] = None
+        fin_map[d["FinancialItemDefinitionId"]] = d
+
+    periods = sorted(list(set([a["PeriodId"] for a in allotments])))
+    
+    for f in fin_map.values():
+        f["children"] = []
+        f["amounts"] = {p: 0 for p in periods}
+        
+    for f in fin_map.values():
+        pid = f["ParentId"]
+        if pid and pid in fin_map:
+            fin_map[pid]["children"].append(f)
+            
+    for a in allotments:
+        fid = a["FinancialItemDefinitionId"]
+        if fid in fin_map:
+            fin_map[fid]["amounts"][a["PeriodId"]] += (a["OriginalValue"] or 0)
+
+    def compute_values(node):
+        for child in node["children"]:
+            compute_values(child)
+            for p in periods:
+                node["amounts"][p] += child["amounts"][p]
+
+    roots = [n for n in fin_map.values() if not n["ParentId"]]
+    for r in roots:
+        compute_values(r)
+        
+    ordered_fin_nodes = []
+    def traverse(node, depth):
+        # Determine total value to hide completely empty zeroed branches if necessary, but keep all for accuracy
+        node_copy = {
+            "id": node["FinancialItemDefinitionId"],
+            "code": node["Code"],
+            "parent_id": node["ParentId"],
+            "name": node["NameInEnglish"] or node["Name"],
+            "depth": depth,
+            "amounts": node["amounts"],
+            "has_children": len(node["children"]) > 0
+        }
+        ordered_fin_nodes.append(node_copy)
+        # Sort children safely by putting strings into comparable format, simple string comparison works for codes
+        for child in sorted(node["children"], key=lambda x: str(x["Code"])):
+            traverse(child, depth + 1)
+            
+    for r in sorted(roots, key=lambda x: str(x["Code"])):
+        traverse(r, 0)
+        
+    # Prepare Chart Data for Total Assets
+    # In Turkish CoA, Assets are 1 (Current) and 2 (Non-Current) or sum thereof
+    chart_periods = [f"Period {p}" for p in periods]
+    asset_data = []
+    # Try to find nodes '1' and '2' explicitly and sum them, or fallback to simple sum of all active leaves.
+    node_1 = next((n for n in fin_map.values() if str(n["Code"]) == "1"), None)
+    node_2 = next((n for n in fin_map.values() if str(n["Code"]) == "2"), None)
+    
+    for p in periods:
+        val = 0
+        if node_1: val += node_1["amounts"].get(p, 0)
+        if node_2: val += node_2["amounts"].get(p, 0)
+        if not node_1 and not node_2:
+            val = sum(n["amounts"][p] for n in fin_map.values() if n["IsLeaf"] and (str(n["Code"]).startswith("1") or str(n["Code"]).startswith("2")))
+        asset_data.append(val)
 
     return render_template(
         "overview_detail.html",
@@ -858,6 +939,10 @@ def overview_detail(customer_id):
         same_sector     = same_sector,
         total_deal_size = total_deal_size,
         analysis        = analysis_row,
+        fin_nodes       = ordered_fin_nodes,
+        periods         = periods,
+        chart_periods   = chart_periods,
+        chart_asset_data= asset_data
     )
 
 

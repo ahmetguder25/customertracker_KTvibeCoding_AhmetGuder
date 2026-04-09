@@ -72,6 +72,20 @@
         </div>
     </div>
 
+    <!-- ════════════════ TABS ════════════════ -->
+    <div class="border-b border-gray-200 dark:border-gray-800 mt-2">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button onclick="switchTab('overview')" id="btn-tab-overview" style="border-bottom: 2px solid; padding: 1rem 0.25rem; font-weight: 600; font-size: 0.875rem; white-space: nowrap; border-color: #10b981; color: #10b981; background: none; cursor: pointer; transition: color 0.2s;">
+                Overview
+            </button>
+            <button onclick="switchTab('credit')" id="btn-tab-credit" style="border-bottom: 2px solid transparent; padding: 1rem 0.25rem; font-weight: 600; font-size: 0.875rem; white-space: nowrap; color: #9ca3af; background: none; cursor: pointer; transition: color 0.2s;">
+                Credit Analysis
+            </button>
+        </nav>
+    </div>
+
+    <div id="tab-overview" class="space-y-6 block animate-fade-in">
+
     <!-- ════════════════ MULTI-AGENT REASONING CONSOLE ════════════════ -->
     <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
         <!-- Header -->
@@ -230,119 +244,267 @@
             </div>
         </form>
     </div>
+    </div> <!-- END TAB OVERVIEW -->
+
+    <!-- ════════════════ CREDIT ANALYSIS TAB ════════════════ -->
+    <div id="tab-credit" style="display: none;" class="space-y-6 animate-fade-in">
+        <!-- Chart Row -->
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Total Assets Over Time</h2>
+            <div class="relative h-64 w-full">
+                <canvas id="assetChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Balance Sheet Table -->
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 overflow-hidden shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Balance Sheet / Financial Items</h2>
+                <button onclick="toggleAllNodes()" id="btn-toggle-all" class="text-sm font-medium text-brand-600 hover:text-brand-500 dark:text-brand-400 border border-brand-200 dark:border-brand-800 rounded-lg px-3 py-1.5 transition-colors">Expand All</button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm text-left border-collapse">
+                    <thead>
+                        <tr class="border-b-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50">
+                            <th class="py-3 px-3 font-semibold rounded-tl-lg">Code</th>
+                            <th class="py-3 px-3 font-semibold">Item Name</th>
+                            {% for p in periods %}
+                            <th class="py-3 px-3 font-semibold text-right">Period {{ p }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800/50">
+                        {% for node in fin_nodes %}
+                        <tr class="fin-row hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors {{ 'cursor-pointer' if node.has_children else '' }}" 
+                            data-id="{{ node.id }}" 
+                            data-parent="{{ node.parent_id or '' }}" 
+                            data-depth="{{ node.depth }}"
+                            {% if node.has_children %}onclick="toggleChildren({{ node.id }})"{% endif %}
+                            {% if node.depth > 0 %}style="display: none;"{% endif %}>
+                            <td class="py-2.5 px-3 font-mono text-gray-500 dark:text-gray-400 whitespace-nowrap" style="padding-left: {{ (node.depth * 1.5) + 0.75 }}rem;">
+                                {% if node.has_children %}
+                                    <span class="inline-block transition-transform duration-200 w-4 text-center mr-1 text-xs select-none" id="icon-{{ node.id }}">▶</span>
+                                {% else %}
+                                    <span class="inline-block w-4 mr-1"></span>
+                                {% endif %}
+                                {{ node.code }}
+                            </td>
+                            <td class="py-2.5 px-3 {% if node.depth == 0 %}font-bold text-gray-900 dark:text-white{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                                {{ node.name }}
+                            </td>
+                            {% for p in periods %}
+                            <td class="py-2.5 px-3 text-right font-mono {% if node.amounts[p] < 0 %}text-red-500{% elif node.depth == 0 %}font-bold text-gray-900 dark:text-white{% else %}text-gray-600 dark:text-gray-400{% endif %}">
+                                {{ "{:,.2f}".format(node.amounts[p]) }}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const btnRefresh = document.getElementById('btn-refresh-ai');
-    const toggleThoughtStream = document.getElementById('toggle-thought-stream');
-    
-    const terminal = document.getElementById('ai-terminal');
-    const logLines = document.getElementById('ai-log-lines');
-    const cursor = document.getElementById('ai-cursor');
-    
-    const reportContainer = document.getElementById('ai-final-report');
-    const reportContent = document.getElementById('ai-final-content');
-    const legacyReport = document.getElementById('ai-legacy-report');
-    
-    let eventSource = null;
+// ── GLOBAL TAB FUNCTIONS (must be global for onclick= to work) ──
+function switchTab(tabName) {
+    var tabOverview = document.getElementById('tab-overview');
+    var tabCredit   = document.getElementById('tab-credit');
+    var btnOverview = document.getElementById('btn-tab-overview');
+    var btnCredit   = document.getElementById('btn-tab-credit');
+    if (!tabOverview || !tabCredit) return;
 
-    // Toggle Thought Stream logic
-    toggleThoughtStream.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            terminal.classList.remove('hidden');
-        } else if (!btnRefresh.disabled) {
-            // Only hide if we aren't currently running an analysis
-            terminal.classList.add('hidden');
+    if (tabName === 'overview') {
+        tabOverview.style.display = '';
+        tabCredit.style.display   = 'none';
+        btnOverview.style.borderColor = '#10b981';
+        btnOverview.style.color       = '#10b981';
+        btnCredit.style.borderColor   = 'transparent';
+        btnCredit.style.color         = '#9ca3af';
+    } else {
+        tabOverview.style.display = 'none';
+        tabCredit.style.display   = '';
+        btnCredit.style.borderColor   = '#10b981';
+        btnCredit.style.color         = '#10b981';
+        btnOverview.style.borderColor = 'transparent';
+        btnOverview.style.color       = '#9ca3af';
+    }
+}
+
+var allExpanded = false;
+function toggleChildren(parentId) {
+    var icon = document.getElementById('icon-' + parentId);
+    if (!icon) return;
+    var isExpanded = icon.textContent.trim() === '\u25bc';
+    icon.textContent = isExpanded ? '\u25b6' : '\u25bc';
+    var rows = document.querySelectorAll('.fin-row');
+    rows.forEach(function(row) {
+        if (row.getAttribute('data-parent') == parentId) {
+            row.style.display = isExpanded ? 'none' : 'table-row';
+            if (isExpanded) collapseDeep(row.getAttribute('data-id'));
         }
     });
+}
 
-    btnRefresh.addEventListener('click', () => {
-        const id = btnRefresh.getAttribute('data-id');
-        
-        // Reset UI
-        btnRefresh.disabled = true;
-        btnRefresh.classList.add('opacity-50', 'cursor-not-allowed', 'animate-pulse');
-        btnRefresh.innerHTML = '{{ lang_dict.get("ov_refreshing", "Running Agents...") }}';
-        
-        if (legacyReport) legacyReport.style.display = 'none';
-        reportContainer.classList.add('hidden');
-        reportContent.innerHTML = '';
-        logLines.innerHTML = '';
-        
-        // Show terminal automatically when running
-        terminal.classList.remove('hidden');
-        cursor.classList.remove('hidden');
+function collapseDeep(id) {
+    var icon = document.getElementById('icon-' + id);
+    if (icon) icon.textContent = '\u25b6';
+    var rows = document.querySelectorAll('.fin-row');
+    rows.forEach(function(row) {
+        if (row.getAttribute('data-parent') == id) {
+            row.style.display = 'none';
+            collapseDeep(row.getAttribute('data-id'));
+        }
+    });
+}
 
-        // Append log helper
-        const addLog = (msg, color = "text-gray-300") => {
-            const el = document.createElement('div');
-            el.className = color;
-            el.innerHTML = `> ${msg}`;
-            logLines.appendChild(el);
-            terminal.scrollTop = terminal.scrollHeight;
-        };
+function toggleAllNodes() {
+    allExpanded = !allExpanded;
+    var btn = document.getElementById('btn-toggle-all');
+    if (btn) btn.textContent = allExpanded ? 'Collapse All' : 'Expand All';
+    document.querySelectorAll('[id^=icon-]').forEach(function(icon) {
+        icon.textContent = allExpanded ? '\u25bc' : '\u25b6';
+    });
+    document.querySelectorAll('.fin-row').forEach(function(row) {
+        if (parseInt(row.getAttribute('data-depth')) > 0) {
+            row.style.display = allExpanded ? 'table-row' : 'none';
+        }
+    });
+}
 
-        // Start SSE
-        eventSource = new EventSource(`/api/analyze/${id}`);
-        
-        eventSource.addEventListener('start', (e) => {
-            const data = JSON.parse(e.data);
-            addLog(`[${data.time}] Analysis Orchestrator Initialised.`, "text-brand-400 font-bold");
-        });
+// ── DOM READY ──
+document.addEventListener('DOMContentLoaded', function() {
 
-        eventSource.addEventListener('progress', (e) => {
-            const data = JSON.parse(e.data);
-            addLog(`[${data.time}] [${data.role}] ${data.message}`, "text-emerald-400");
-        });
-
-        eventSource.addEventListener('stage1_done', (e) => {
-            const data = JSON.parse(e.data);
-            if (toggleThoughtStream.checked) {
-                addLog(`<span class="text-gray-500 block pl-4 border-l-2 border-gray-700 my-2 whitespace-pre-wrap">${data.output.replace(/</g, "&lt;")}</span>`);
+    // Chart.js - Total Assets
+    var ctx = document.getElementById('assetChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_periods | tojson }},
+                datasets: [{
+                    label: 'Total Assets',
+                    data: {{ chart_asset_data | tojson }},
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 2,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(156, 163, 175, 0.1)' },
+                        ticks: {
+                            callback: function(value) {
+                                return value >= 1000000 ? (value / 1000000).toFixed(1) + 'M' : value;
+                            }
+                        }
+                    },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
             }
         });
+    }
 
-        eventSource.addEventListener('stage2_done', (e) => {
-            const data = JSON.parse(e.data);
-            if (toggleThoughtStream.checked) {
-                addLog(`<span class="text-gray-500 block pl-4 border-l-2 border-gray-700 my-2 whitespace-pre-wrap">${data.output.replace(/</g, "&lt;")}</span>`);
-            }
-        });
+    // AI Console
+    var btnRefresh          = document.getElementById('btn-refresh-ai');
+    var toggleThoughtStream = document.getElementById('toggle-thought-stream');
+    var terminal            = document.getElementById('ai-terminal');
+    var logLines            = document.getElementById('ai-log-lines');
+    var cursor              = document.getElementById('ai-cursor');
+    var reportContainer     = document.getElementById('ai-final-report');
+    var reportContent       = document.getElementById('ai-final-content');
+    var legacyReport        = document.getElementById('ai-legacy-report');
+    var eventSource         = null;
 
-        eventSource.addEventListener('done', (e) => {
-            const data = JSON.parse(e.data);
-            addLog(`[${data.time}] Orchestrator cycle complete.`, "text-brand-400 font-bold");
-            
-            // Clean up
-            eventSource.close();
-            cursor.classList.add('hidden');
-            btnRefresh.disabled = false;
-            btnRefresh.classList.remove('opacity-50', 'cursor-not-allowed', 'animate-pulse');
-            btnRefresh.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> {{ lang_dict.get('dash_ai_refresh', 'Refresh Analysis') }}`;
-            
-            // Hide terminal if toggle is off
-            if (!toggleThoughtStream.checked) {
+    function addLog(msg, color) {
+        color = color || 'text-gray-300';
+        var el = document.createElement('div');
+        el.className = color;
+        el.textContent = '> ' + msg;
+        logLines.appendChild(el);
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    if (toggleThoughtStream) {
+        toggleThoughtStream.addEventListener('change', function(e) {
+            if (e.target.checked) {
+                terminal.classList.remove('hidden');
+            } else if (!btnRefresh.disabled) {
                 terminal.classList.add('hidden');
             }
-
-            // Show final report
-            reportContent.innerHTML = data.final.replace(/</g, "&lt;");
-            reportContainer.classList.remove('hidden');
-            document.getElementById('ai-timestamp').classList.remove('hidden');
-            document.getElementById('ai-timestamp').textContent = `{{ lang_dict.get('ov_ai_last_updated', 'Last Updated:') }} ${data.time}`;
         });
+    }
 
-        eventSource.onerror = (err) => {
-            console.error("SSE Error:", err);
-            addLog("[System] EventSource connection fractured.", "text-red-500");
-            eventSource.close();
-            cursor.classList.add('hidden');
-            btnRefresh.disabled = false;
-            btnRefresh.classList.remove('opacity-50', 'cursor-not-allowed', 'animate-pulse');
-            btnRefresh.innerHTML = "Retry Analysis";
-        };
-    });
+    if (btnRefresh) {
+        btnRefresh.addEventListener('click', function() {
+            var id = btnRefresh.getAttribute('data-id');
+            btnRefresh.disabled = true;
+            btnRefresh.classList.add('opacity-50', 'cursor-not-allowed', 'animate-pulse');
+            btnRefresh.textContent = '{{ lang_dict.get("ov_refreshing", "Running Agents...") }}';
+
+            if (legacyReport) legacyReport.style.display = 'none';
+            reportContainer.classList.add('hidden');
+            reportContent.innerHTML = '';
+            logLines.innerHTML = '';
+            terminal.classList.remove('hidden');
+            cursor.classList.remove('hidden');
+
+            eventSource = new EventSource('/api/analyze/' + id);
+
+            eventSource.addEventListener('start', function(e) {
+                var data = JSON.parse(e.data);
+                addLog('[' + data.time + '] Analysis Orchestrator Initialised.', 'text-brand-400 font-bold');
+            });
+            eventSource.addEventListener('progress', function(e) {
+                var data = JSON.parse(e.data);
+                addLog('[' + data.time + '] [' + data.role + '] ' + data.message, 'text-emerald-400');
+            });
+            eventSource.addEventListener('stage1_done', function(e) {
+                var data = JSON.parse(e.data);
+                if (toggleThoughtStream && toggleThoughtStream.checked) {
+                    addLog(data.output, 'text-gray-500');
+                }
+            });
+            eventSource.addEventListener('stage2_done', function(e) {
+                var data = JSON.parse(e.data);
+                if (toggleThoughtStream && toggleThoughtStream.checked) {
+                    addLog(data.output, 'text-gray-500');
+                }
+            });
+            eventSource.addEventListener('done', function(e) {
+                var data = JSON.parse(e.data);
+                addLog('[' + data.time + '] Orchestrator cycle complete.', 'text-brand-400 font-bold');
+                eventSource.close();
+                cursor.classList.add('hidden');
+                btnRefresh.disabled = false;
+                btnRefresh.classList.remove('opacity-50', 'cursor-not-allowed', 'animate-pulse');
+                btnRefresh.textContent = '{{ lang_dict.get("dash_ai_refresh", "Refresh Analysis") }}';
+                if (!toggleThoughtStream || !toggleThoughtStream.checked) {
+                    terminal.classList.add('hidden');
+                }
+                reportContent.textContent = data.final;
+                reportContainer.classList.remove('hidden');
+                var ts = document.getElementById('ai-timestamp');
+                if (ts) { ts.classList.remove('hidden'); ts.textContent = 'Last Updated: ' + data.time; }
+            });
+            eventSource.onerror = function() {
+                addLog('[System] EventSource connection fractured.', 'text-red-500');
+                eventSource.close();
+                cursor.classList.add('hidden');
+                btnRefresh.disabled = false;
+                btnRefresh.classList.remove('opacity-50', 'cursor-not-allowed', 'animate-pulse');
+                btnRefresh.textContent = 'Retry Analysis';
+            };
+        });
+    }
 });
 </script>
 {% endblock %}
