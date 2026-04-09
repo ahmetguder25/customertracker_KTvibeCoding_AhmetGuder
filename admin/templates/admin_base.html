@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Admin — Customer Tracker{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: {
+              50:  '#eef6ff', 100: '#d9eaff', 200: '#bcdbff',
+              300: '#8ec5ff', 400: '#59a4ff', 500: '#3381fc',
+              600: '#1d62f1', 700: '#154dde', 800: '#1840b4',
+              900: '#19398e', 950: '#142456',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg: #0a0d14; --surface: #111520; --surface2: #171c2e;
+      --border: rgba(255,255,255,0.07); --border-hi: rgba(255,255,255,0.14);
+      --text: #e2e8f0; --muted: #64748b;
+      --blue: #3b82f6; --blue-glow: rgba(59,130,246,0.20);
+      --red: #ef4444; --red-glow: rgba(239,68,68,0.15);
+      --green: #22c55e; --amber: #f59e0b;
+    }
+    html, body {
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg); color: var(--text);
+    }
+    /* animated mesh */
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 25%, rgba(59,130,246,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 85% 75%, rgba(99,102,241,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    body::after {
+      content: ''; position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px; opacity: 0.35; pointer-events: none;
+    }
+    .admin-layout { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Top header bar */
+    .admin-topbar {
+      background: rgba(17,21,32,0.85); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-hi);
+      padding: 0 2rem; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .admin-brand {
+      display: flex; align-items: center; gap: 0.75rem;
+      font-size: 0.95rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text);
+    }
+    .admin-badge {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: #fff; font-size: 0.65rem; font-weight: 700;
+      padding: 0.2rem 0.55rem; border-radius: 6px; letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.82rem; color: var(--muted); text-decoration: none;
+      padding: 0.4rem 0.85rem; border-radius: 8px;
+      border: 1px solid var(--border-hi);
+      transition: color .2s, border-color .2s, background .2s;
+    }
+    .back-link:hover { color: var(--text); border-color: rgba(59,130,246,0.4); background: var(--blue-glow); }
+
+    /* Main content wrapper */
+    .admin-content { flex: 1; padding: 2.5rem 2rem; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+    /* Flash messages */
+    .flash-success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #86efac; border-radius: 10px; padding: 0.75rem 1.1rem; font-size: 0.85rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.65rem; }
+    .flash-error   { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.3);  color: #fca5a5; border-radius: 10px; padding: 0.75rem 1.1rem; font-size: 0.85rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.65rem; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="admin-layout">
+
+  <!-- Top bar -->
+  <div class="admin-topbar">
+    <div class="admin-brand">
+      <span class="admin-badge">Admin</span>
+      Management Console
+    </div>
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      {% block topbar_actions %}
+      <a href="/admin" class="back-link">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        Console
+      </a>
+      {% endblock %}
+      <a href="/user-login" class="back-link">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7"/></svg>
+        Exit Admin
+      </a>
+    </div>
+  </div>
+
+  <!-- Page content -->
+  <div class="admin-content">
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="{{ 'flash-success' if category == 'success' else 'flash-error' }}">
+          {% if category == 'success' %}
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg>
+          {% else %}
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {% endif %}
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

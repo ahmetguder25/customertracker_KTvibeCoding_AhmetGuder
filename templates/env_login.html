@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Customer Tracker — Connect</title>
+  <title>{{ lang_dict.get('env_title', 'Customer Tracker — Connect') }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -217,7 +217,7 @@
         </svg>
       </div>
       <h1>Customer <span>Tracker</span></h1>
-      <p class="subtitle">Select the environment you want to connect to</p>
+      <p class="subtitle">{{ lang_dict.get('env_subtitle', 'Select the environment you want to connect to') }}</p>
     </div>
 
     <!-- Flash errors -->
@@ -250,9 +250,9 @@
               <polyline points="10 9 9 9 8 9"/>
             </svg>
           </div>
-          <div class="card-server">Local &nbsp;·&nbsp; SQLite</div>
-          <div class="card-title">TEST Environment</div>
-          <div class="card-desc">Connect to the local SQLite database with dummy data. Safe for development and feature testing — no real data is affected.</div>
+          <div class="card-server">{{ lang_dict.get('env_test_server', 'Local &nbsp;·&nbsp; SQLite') | safe }}</div>
+          <div class="card-title">{{ lang_dict.get('env_test_title', 'TEST Environment') }}</div>
+          <div class="card-desc">{{ lang_dict.get('env_test_desc', 'Connect to the local SQLite database with dummy data. Safe for development and feature testing — no real data is affected.') }}</div>
           <div class="card-badge"><span class="dot"></span>customer_tracker.db</div>
         </label>
 
@@ -270,10 +270,10 @@
               <line x1="6" y1="18" x2="6.01" y2="18"/>
             </svg>
           </div>
-          <div class="card-server">SRVDNZ &nbsp;·&nbsp; SQL Server</div>
-          <div class="card-title">PROD Environment</div>
-          <div class="card-desc">Connect to the production SQL Server using Windows Authentication. This contains <strong style="color:#fbbf24">live data</strong> — all changes are permanent.</div>
-          <div class="card-badge"><span class="dot"></span>Windows Auth · Trusted</div>
+          <div class="card-server">{{ lang_dict.get('env_prod_server', 'SRVDNZ &nbsp;·&nbsp; SQL Server') | safe }}</div>
+          <div class="card-title">{{ lang_dict.get('env_prod_title', 'PROD Environment') }}</div>
+          <div class="card-desc">{{ lang_dict.get('env_prod_desc', 'Connect to the production SQL Server using Windows Authentication. This contains <strong style=\"color:#fbbf24\">live data</strong> — all changes are permanent.') | safe }}</div>
+          <div class="card-badge"><span class="dot"></span>{{ lang_dict.get('env_prod_badge', 'Windows Auth · Trusted') }}</div>
         </label>
 
       </div>
@@ -284,19 +284,19 @@
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>
-        You are about to connect to <strong>&nbsp;production data&nbsp;</strong>. Any edits, deletions or additions will affect real records on SRVDNZ immediately.
+        {{ lang_dict.get('env_warning', 'You are about to connect to <strong>&nbsp;production data&nbsp;</strong>. Any edits, deletions or additions will affect real records on SRVDNZ immediately.') | safe }}
       </div>
 
       <!-- Connect button -->
       <div class="actions" style="margin-top:1.25rem;">
         <button type="submit" class="btn-connect" id="connectBtn">
-          Connect to TEST &rarr;
+          {{ lang_dict.get('env_connect_test', 'Connect to TEST &rarr;') | safe }}
         </button>
       </div>
     </form>
 
     <p class="footnote">
-      Customer Tracker &nbsp;·&nbsp; Internal Use Only
+      {{ lang_dict.get('env_footer', 'Customer Tracker &nbsp;·&nbsp; Internal Use Only') | safe }}
     </p>
   </div>
 
@@ -306,17 +306,20 @@
     const warning  = document.getElementById('prodWarning');
     const btn      = document.getElementById('connectBtn');
 
+    const textTest = "{{ lang_dict.get('env_connect_test', 'Connect to TEST &rarr;') | safe }}";
+    const textProd = "{{ lang_dict.get('env_connect_prod', 'Connect to PROD &rarr;') | safe }}";
+
     function update() {
       const val = document.querySelector('input[name="env"]:checked').value;
       cards.forEach(c => c.classList.remove('selected'));
       document.getElementById('card-' + val).classList.add('selected');
       if (val === 'prod') {
         warning.classList.add('visible');
-        btn.textContent = 'Connect to PROD →';
+        btn.innerHTML = textProd;
         btn.classList.add('prod-mode');
       } else {
         warning.classList.remove('visible');
-        btn.textContent = 'Connect to TEST →';
+        btn.innerHTML = textTest;
         btn.classList.remove('prod-mode');
       }
     }

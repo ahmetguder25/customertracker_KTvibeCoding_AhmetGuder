@@ -9,7 +9,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    send_file, flash, jsonify, session, has_request_context)
 from werkzeug.utils import secure_filename
 import io
-
+from ollama_config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
 # ── App Setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = "customer-tracker-secret-key-2026"
@@ -25,9 +25,12 @@ MAX_LOGO_SIZE      = 2 * 1024 * 1024  # 2 MB
 
 # ── SQL Query Loader ───────────────────────────────────────────────────────────
 
-def load_query(name: str) -> str:
-    """Load SQL from queries/<name>.sql.  No caching — edit files live."""
-    path = os.path.join(QUERY_DIR, name + ".sql")
+def load_query(name: str, query_dir: str = None) -> str:
+    """Load SQL from <query_dir>/<name>.sql.  Defaults to the main queries/ dir.
+    Pass an explicit query_dir (e.g. admin/queries/) to load module-specific SQL.
+    No caching — edit files live."""
+    directory = query_dir if query_dir is not None else QUERY_DIR
+    path = os.path.join(directory, name + ".sql")
     with open(path, "r", encoding="utf-8") as f:
         return f.read().strip()
 
@@ -208,13 +211,16 @@ def get_param_map(param_type, conn=None):
 @app.context_processor
 def inject_lang_dict():
     """Inject lang_dict + current_lang into all templates."""
-    if not has_request_context() or "env" not in session:
+    if not has_request_context():
         return dict(lang_dict={}, current_lang=0)
     lang_id = session.get("lang", 0)
-    conn = get_db()
-    rows = conn.execute(load_query("get_dictionary"), (lang_id,)).fetchall()
-    conn.close()
-    lang_dict = {row["Id"]: row["Description"] for row in rows}
+    try:
+        conn = get_db()
+        rows = conn.execute(load_query("get_dictionary"), (lang_id,)).fetchall()
+        conn.close()
+        lang_dict = {row["Id"]: row["Description"] for row in rows}
+    except Exception:
+        lang_dict = {}
     return dict(lang_dict=lang_dict, current_lang=lang_id)
 
 
@@ -223,7 +229,7 @@ def inject_lang_dict():
 @app.before_request
 def require_user_selection():
     """Redirect to user-login if no user has been selected yet."""
-    if request.endpoint in ("user_login", "set_user", "static"):
+    if not request.endpoint or request.endpoint in ("user_login", "set_user", "static") or request.endpoint.startswith("admin."):
         return
     if "user_id" not in session:
         return redirect(url_for("user_login"))
@@ -233,7 +239,7 @@ def require_user_selection():
 @app.before_request
 def require_env_selection():
     """Redirect to env-login if no environment has been selected yet."""
-    if request.endpoint in ("user_login", "set_user", "env_login", "set_env", "disconnect", "static"):
+    if not request.endpoint or request.endpoint in ("user_login", "set_user", "env_login", "set_env", "disconnect", "static") or request.endpoint.startswith("admin."):
         return
     if "env" not in session:
         return redirect(url_for("env_login"))
@@ -273,6 +279,16 @@ def set_user():
     if user:
         session["user_id"] = user["id"]
         session["username"] = user["username"]
+        try:
+            session["surname"] = user["surname"] or ""
+            session["lang"] = user["default_language"] if user["default_language"] is not None else 0
+            session["theme"] = user["default_theme"] or "dark" # Use DB default
+        except Exception:
+            # Fallback if columns don't exist during transition
+            session["surname"] = ""
+            session["lang"] = 0
+            session["theme"] = "dark"
+            
         return redirect(url_for("env_login"))
     return redirect(url_for("user_login"))
 
@@ -303,11 +319,11 @@ def set_env():
 @app.route("/disconnect")
 def disconnect():
     session.pop("env", None)
-    # Also pop user_id if we want complete reset or just env? 
-    # The requirement said User -> Env -> App. If changing env, user stays.
-    # We will log the user out as well for a full disconnect.
     session.pop("user_id", None)
     session.pop("username", None)
+    session.pop("surname", None)
+    session.pop("lang", None)
+    session.pop("theme", None)
     return redirect(url_for("user_login"))
 
 
@@ -317,6 +333,24 @@ def disconnect():
 def set_language(lang_id):
     if lang_id in (0, 1):
         session["lang"] = lang_id
+        user_id = session.get("user_id")
+        if user_id:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("UPDATE User SET default_language = ? WHERE id = ?", (lang_id, user_id))
+            conn.commit()
+            conn.close()
+    return redirect(request.referrer or url_for("dashboard"))
+
+@app.route("/set_theme/<theme>")
+def set_theme(theme):
+    if theme in ("light", "dark"):
+        session["theme"] = theme
+        user_id = session.get("user_id")
+        if user_id:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("UPDATE User SET default_theme = ? WHERE id = ?", (theme, user_id))
+            conn.commit()
+            conn.close()
     return redirect(request.referrer or url_for("dashboard"))
 
 
@@ -859,8 +893,8 @@ def generate_analysis(customer_id):
     )
 
     try:
-        payload = {"model": "qwen3-coder:30b", "stream": False, "prompt": prompt}
-        resp = requests.post("http://localhost:11434/api/generate", json=payload, timeout=60)
+        payload = {"model": OLLAMA_MODEL, "stream": False, "prompt": prompt}
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=OLLAMA_TIMEOUT)
         resp.raise_for_status()
         analysis_text = resp.json().get("response", "Analysis completed but returned empty.")
     except Exception as e:
@@ -881,9 +915,9 @@ def api_chat():
     data = request.get_json()
     if not data or "message" not in data:
         return jsonify({"error": "No message provided"}), 400
-    payload = {"model": "qwen3-coder:30b", "stream": False, "prompt": data["message"]}
+    payload = {"model": OLLAMA_MODEL, "stream": False, "prompt": data["message"]}
     try:
-        resp = requests.post("http://localhost:11434/api/generate", json=payload, timeout=60)
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=OLLAMA_TIMEOUT)
         resp.raise_for_status()
         return jsonify({"response": resp.json().get("response", "")})
     except requests.exceptions.RequestException as e:
@@ -903,6 +937,10 @@ def add_comment(customer_id):
         conn.close()
     return redirect(url_for("overview_detail", customer_id=customer_id))
 
+
+# ── Blueprint Registration ───────────────────────────────────────────────────────────
+from admin.admin_bp import admin_bp  # noqa: E402
+app.register_blueprint(admin_bp)
 
 # ── Entry Point ────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,159 @@
+{% extends "admin_base.html" %}
+{% block title %}Language Editor — Admin{% endblock %}
+
+{% block topbar_actions %}
+  <button id="addKeyBtn" class="btn-primary" style="margin-right: 0.5rem; background: var(--surface); color: var(--text); border: 1px solid var(--border);" onclick="addNewRow()">+ Add New Key</button>
+  <button id="saveBtn" class="btn-primary" onclick="saveChanges()" {% if not is_test %}disabled{% endif %} style="min-width: 130px;">
+    Save Changes
+  </button>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width:1200px;">
+  <div class="table-container">
+    <div class="table-header">
+      <h2 style="font-size:1.15rem; font-weight:700;">Dictionary Translations</h2>
+      <div style="font-size:0.8rem; color:var(--muted);">Edit terms directly in the grid. Edited rows will visibly light up.</div>
+    </div>
+    
+    <table class="admin-table dic-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Key ID (System)</th>
+          <th style="width: 37.5%;">English Version (Lang 0)</th>
+          <th style="width: 37.5%;">Turkish Version (Lang 1)</th>
+        </tr>
+      </thead>
+      <tbody id="dictBody">
+        {% for row in rows %}
+        <tr class="dict-row" data-id="{{ row.Id }}">
+          <td>
+            <input type="text" class="dict-input key-input" value="{{ row.Id }}" {% if not is_test %}readonly{% endif %} oninput="markDirty(this)">
+          </td>
+          <td>
+            <input type="text" class="dict-input en-input" value="{{ row.lang_en or '' }}" {% if not is_test %}readonly{% endif %} oninput="markDirty(this)">
+          </td>
+          <td>
+            <input type="text" class="dict-input tr-input" value="{{ row.lang_tr or '' }}" {% if not is_test %}readonly{% endif %} oninput="markDirty(this)">
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+.dict-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.5rem;
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+.dict-input:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+}
+.key-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.8rem;
+  color: #60a5fa;
+  font-weight: 500;
+}
+/* "Light the row" when it becomes dirty */
+.dict-row.dirty {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  box-shadow: inset 2px 0 0 #10b981;
+}
+.dict-row.dirty .dict-input {
+  color: #10b981;
+}
+.dict-row.dirty .key-input {
+  color: #34d399; /* slightly brighter for mono font */
+}
+</style>
+
+<script>
+function markDirty(input) {
+  const tr = input.closest('tr');
+  if (!tr.classList.contains('dirty')) {
+    tr.classList.add('dirty');
+  }
+}
+
+function addNewRow() {
+  {% if not is_test %}
+  alert("Must be in TEST environment to add rows.");
+  return;
+  {% endif %}
+  
+  const tbody = document.getElementById('dictBody');
+  const tr = document.createElement('tr');
+  tr.className = 'dict-row dirty'; // New rows are dirty by default
+  tr.innerHTML = `
+    <td><input type="text" class="dict-input key-input" placeholder="new_key_id" oninput="markDirty(this)"></td>
+    <td><input type="text" class="dict-input en-input" placeholder="English text" oninput="markDirty(this)"></td>
+    <td><input type="text" class="dict-input tr-input" placeholder="Turkish text" oninput="markDirty(this)"></td>
+  `;
+  tbody.insertBefore(tr, tbody.firstChild);
+  tr.querySelector('input').focus();
+}
+
+async function saveChanges() {
+  const btn = document.getElementById('saveBtn');
+  const dirtyRows = document.querySelectorAll('.dict-row.dirty');
+  
+  if (dirtyRows.length === 0) {
+    alert("No changes to save.");
+    return;
+  }
+  
+  const payload = [];
+  dirtyRows.forEach(row => {
+    // A fresh row might not have data-id, we fall back to input value
+    const keyInput = row.querySelector('.key-input').value.trim();
+    if (!keyInput) return; // ignore incomplete
+    
+    payload.push({
+      id: keyInput,
+      en: row.querySelector('.en-input').value,
+      tr: row.querySelector('.tr-input').value
+    });
+  });
+  
+  if (payload.length === 0) return;
+  
+  btn.textContent = "Saving...";
+  btn.disabled = true;
+  
+  try {
+    const res = await fetch('/admin/dictionary-editor/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await res.json();
+    if (data.status === 'success') {
+      // alert("Successfully saved " + payload.length + " translation strings.");
+      dirtyRows.forEach(row => row.classList.remove('dirty'));
+    } else {
+      alert("Error: " + data.message);
+    }
+  } catch (e) {
+    alert("Network error occurred.");
+    console.error(e);
+  } finally {
+    btn.textContent = "Save Changes";
+    btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

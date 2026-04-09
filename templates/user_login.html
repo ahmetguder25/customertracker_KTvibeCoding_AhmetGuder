@@ -1,8 +1,11 @@
 {% extends "base.html" %}
-{% block title %}User Login — Customer Tracker{% endblock %}
+{% block title %}{{ lang_dict.get('login_title', 'User Login — Customer Tracker') }}{% endblock %}
 
 {% block content %}
-<div class="min-h-[80vh] flex items-center justify-center">
+<!-- Dynamic Background Canvas -->
+<canvas id="bg-canvas" class="fixed inset-0 w-full h-full z-0 pointer-events-none"></canvas>
+
+<div class="relative z-10 min-h-[80vh] flex items-center justify-center">
     <div class="w-full max-w-md">
         <!-- Logo / Brand -->
         <div class="text-center mb-10">
@@ -11,8 +14,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
                 </svg>
             </div>
-            <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">Welcome Back</h1>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Select your user profile to continue to Customer Tracker</p>
+            <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">{{ lang_dict.get('login_welcome', 'Welcome Back') }}</h1>
+            <p class="text-sm text-gray-600 dark:text-gray-400">{{ lang_dict.get('login_subtitle', 'Select your user profile to continue to Customer Tracker') }}</p>
         </div>
 
         <!-- Login Card -->
@@ -30,7 +33,7 @@
             <form action="{{ url_for('set_user') }}" method="POST" class="space-y-6">
                 <!-- User Selection -->
                 <div class="space-y-4">
-                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">Identity</h2>
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">{{ lang_dict.get('login_identity', 'Identity') }}</h2>
                     
                     <div class="space-y-3">
                         {% for user in users %}
@@ -51,19 +54,148 @@
                         {% endfor %}
                         
                         {% if not users %}
-                        <p class="text-sm text-amber-600 font-medium">No users found in database.</p>
+                        <p class="text-sm text-amber-600 font-medium">{{ lang_dict.get('login_no_users', 'No users found in database.') }}</p>
                         {% endif %}
                     </div>
                 </div>
 
                 <div class="pt-2">
                     <button type="submit" class="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-600/30 transition duration-200">
-                        Continue to Environment Selection
+                        {{ lang_dict.get('login_continue', 'Continue to Environment Selection') }}
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </button>
                 </div>
             </form>
+
+            <!-- Admin Login separator -->
+            <div class="relative mt-6">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-200 dark:border-gray-800"></div>
+                </div>
+                <div class="relative flex justify-center text-xs">
+                    <span class="bg-white/80 dark:bg-gray-900/80 px-3 text-gray-400">{{ lang_dict.get('login_or', 'or') }}</span>
+                </div>
+            </div>
+            <a href="/admin"
+               class="mt-4 w-full flex items-center justify-center gap-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500 font-medium py-3 px-4 rounded-xl transition duration-200 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                {{ lang_dict.get('login_admin', 'Admin Login') }}
+            </a>
         </div>
     </div>
 </div>
+
+<script>
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    
+    const mouse = { x: width / 2, y: height / 2 };
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+    });
+    
+    const particles = [];
+    const numParticles = Math.min(Math.floor(window.innerWidth / 15), 100);
+    
+    // Check if dark mode is active to choose color
+    const isDark = document.documentElement.classList.contains('dark');
+    const baseColor = isDark ? '255, 255, 255' : '59, 130, 246'; 
+
+    for (let i = 0; i < numParticles; i++) {
+        particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: (Math.random() - 0.5) * 1.5,
+            size: Math.random() * 2 + 0.5,
+            baseX: Math.random() * width,
+            baseY: Math.random() * height
+        });
+    }
+    
+    function animate() {
+        ctx.clearRect(0, 0, width, height);
+        
+        // Dynamic color based on theme
+        const isDark = document.documentElement.classList.contains('dark');
+        const colorPrefix = isDark ? 'rgba(59, 130, 246' : 'rgba(29, 78, 216';
+        
+        particles.forEach(p => {
+            // Flow towards mouse if within range, else flow back to base
+            const dx = mouse.x - p.x;
+            const dy = mouse.y - p.y;
+            const dist = Math.hypot(dx, dy);
+            
+            if (dist < 350) {
+                // Attract to mouse
+                const force = (350 - dist) / 350;
+                p.vx += (dx / dist) * force * 0.15;
+                p.vy += (dy / dist) * force * 0.15;
+            } else {
+                // Wander
+                p.vx += (Math.random() - 0.5) * 0.35;
+                p.vy += (Math.random() - 0.5) * 0.35;
+                
+                // Extremely gentle pull back to base origin to keep them somewhat spread
+                const bdx = p.baseX - p.x;
+                const bdy = p.baseY - p.y;
+                p.vx += (bdx / Math.hypot(bdx, bdy)) * 0.015;
+                p.vy += (bdy / Math.hypot(bdx, bdy)) * 0.015;
+            }
+            
+            // Apply friction & speed limit
+            p.vx *= 0.97;
+            p.vy *= 0.97;
+            
+            p.x += p.vx;
+            p.y += p.vy;
+            
+            // Wrap around edges
+            if(p.x < 0) p.x = width;
+            if(p.x > width) p.x = 0;
+            if(p.y < 0) p.y = height;
+            if(p.y > height) p.y = 0;
+            
+            // Draw particle
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = `${colorPrefix}, ${isDark ? 0.6 : 0.3})`;
+            ctx.fill();
+        });
+        
+        // Draw connecting lines
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const p1 = particles[i];
+                const p2 = particles[j];
+                const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                
+                if (dist < 120) {
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.strokeStyle = `${colorPrefix}, ${(120 - dist) / 120 * (isDark ? 0.2 : 0.15)})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        requestAnimationFrame(animate);
+    }
+    
+    animate();
+</script>
 {% endblock %}

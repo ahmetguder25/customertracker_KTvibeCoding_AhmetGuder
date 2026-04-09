@@ -1,0 +1,123 @@
+{% extends "admin_base.html" %}
+{% block title %}Management Console — Admin{% endblock %}
+
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<div style="max-width:1080px; margin: 3rem auto 0; padding: 0 1.5rem;">
+
+  <!-- Header -->
+  <div style="text-align:center; margin-bottom:3rem;">
+    <div style="display:inline-flex;align-items:center;justify-content:center;
+                width:72px;height:72px;border-radius:20px;
+                background:linear-gradient(135deg,#1e3a8a,#2563eb);
+                box-shadow:0 0 0 1px rgba(59,130,246,0.4), 0 8px 32px rgba(59,130,246,0.3);
+                margin-bottom:1.25rem;">
+      <svg width="36" height="36" fill="none" stroke="#fff" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+    </div>
+    <h1 style="font-size:2rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 0.5rem;">Management Console</h1>
+    <p style="color:var(--muted);font-size:0.9rem;">Select a table to inspect and edit. Write operations are restricted to the <strong style="color:#93c5fd;">TEST</strong> environment.</p>
+  </div>
+
+  <!-- Table selection cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:1.25rem;">
+
+    <!-- Parameter Table -->
+    <a href="/admin/edit/Parameter" style="text-decoration:none;" id="card-parameter">
+      <div class="console-card" style="
+            background:var(--surface); border:1.5px solid var(--border);
+            border-radius:20px; padding:2rem 1.75rem; cursor:pointer;
+            transition:border-color .25s, transform .2s, box-shadow .2s;
+            display:flex; flex-direction:column; gap:1rem;"
+           onmouseenter="this.style.borderColor='rgba(59,130,246,0.5)';this.style.transform='translateY(-3px)';this.style.boxShadow='0 0 0 4px rgba(59,130,246,0.08),0 12px 40px rgba(0,0,0,0.4)';"
+           onmouseleave="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow='';">
+        <div style="display:inline-flex;align-items:center;justify-content:center;
+                    width:52px;height:52px;border-radius:14px;
+                    background:linear-gradient(135deg,#1e3a8a,#2563eb);
+                    box-shadow:0 4px 16px rgba(59,130,246,0.35);">
+          <svg width="26" height="26" fill="none" stroke="#fff" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:1.1rem;font-weight:700;margin-bottom:.35rem;">Parameter Table</div>
+          <div style="font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#60a5fa;margin-bottom:.65rem;">Status · DealType · FEC · Sector</div>
+          <div style="font-size:.82rem;color:var(--muted);line-height:1.6;">Edit lookup values, display labels, badge colours, and logo paths for all parameterised fields across the app.</div>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .75rem;border-radius:99px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);color:#93c5fd;font-size:.75rem;font-weight:600;align-self:flex-start;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>
+          Parameter
+        </div>
+      </div>
+    </a>
+
+    <!-- Dictionary / Language Table -->
+    <a href="/admin/dictionary-editor" style="text-decoration:none;" id="card-dictionary">
+      <div class="console-card" style="
+            background:var(--surface); border:1.5px solid var(--border);
+            border-radius:20px; padding:2rem 1.75rem; cursor:pointer;
+            transition:border-color .25s, transform .2s, box-shadow .2s;
+            display:flex; flex-direction:column; gap:1rem;"
+           onmouseenter="this.style.borderColor='rgba(99,102,241,0.5)';this.style.transform='translateY(-3px)';this.style.boxShadow='0 0 0 4px rgba(99,102,241,0.08),0 12px 40px rgba(0,0,0,0.4)';"
+           onmouseleave="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow='';">
+        <div style="display:inline-flex;align-items:center;justify-content:center;
+                    width:52px;height:52px;border-radius:14px;
+                    background:linear-gradient(135deg,#312e81,#6366f1);
+                    box-shadow:0 4px 16px rgba(99,102,241,0.35);">
+          <svg width="26" height="26" fill="none" stroke="#fff" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:1.1rem;font-weight:700;margin-bottom:.35rem;">Language Table</div>
+          <div style="font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#a5b4fc;margin-bottom:.65rem;">EN · TR · i18n Dictionary</div>
+          <div style="font-size:.82rem;color:var(--muted);line-height:1.6;">Edit UI text labels, navigation strings, and button copy for both supported languages (English and Turkish).</div>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .75rem;border-radius:99px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);color:#a5b4fc;font-size:.75rem;font-weight:600;align-self:flex-start;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#6366f1;display:inline-block;"></span>
+          Dictionary
+        </div>
+      </div>
+    </a>
+
+    <!-- User Table -->
+    <a href="/admin/edit/User" style="text-decoration:none;" id="card-user">
+      <div class="console-card" style="
+            background:var(--surface); border:1.5px solid var(--border);
+            border-radius:20px; padding:2rem 1.75rem; cursor:pointer;
+            transition:border-color .25s, transform .2s, box-shadow .2s;
+            display:flex; flex-direction:column; gap:1rem;"
+           onmouseenter="this.style.borderColor='rgba(16,185,129,0.5)';this.style.transform='translateY(-3px)';this.style.boxShadow='0 0 0 4px rgba(16,185,129,0.08),0 12px 40px rgba(0,0,0,0.4)';"
+           onmouseleave="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow='';">
+        <div style="display:inline-flex;align-items:center;justify-content:center;
+                    width:52px;height:52px;border-radius:14px;
+                    background:linear-gradient(135deg,#065f46,#10b981);
+                    box-shadow:0 4px 16px rgba(16,185,129,0.35);">
+          <svg width="26" height="26" fill="none" stroke="#fff" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:1.1rem;font-weight:700;margin-bottom:.35rem;">User Management</div>
+          <div style="font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#34d399;margin-bottom:.65rem;">Users · Preferences</div>
+          <div style="font-size:.82rem;color:var(--muted);line-height:1.6;">Manage user profiles, authenticate users, and set their default language and theme preferences.</div>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .75rem;border-radius:99px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);color:#6ee7b7;font-size:.75rem;font-weight:600;align-self:flex-start;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span>
+          User
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Info footer -->
+  <div style="margin-top:2.5rem;text-align:center;color:var(--muted);font-size:.78rem;">
+    Admin Console &nbsp;·&nbsp; Internal use only &nbsp;·&nbsp; TEST environment writes only
+  </div>
+
+</div>
+{% endblock %}
