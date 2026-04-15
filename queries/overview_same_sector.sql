@@ -1,3 +1,3 @@
 SELECT COUNT(*) AS cnt
-FROM Customer
+FROM BOA.ZZZ.Customer
 WHERE sector = ?

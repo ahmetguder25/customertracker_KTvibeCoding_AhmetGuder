@@ -1,6 +1,5 @@
-"""Admin Blueprint — Management Console for local SQLite tables (TEST env only)."""
+"""Admin Blueprint — Management Console for local SQL Server tables (LOCAL env only)."""
 import os
-import sqlite3
 from typing import Optional
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
@@ -15,40 +14,45 @@ admin_bp = Blueprint(
     template_folder="templates",
 )
 
-BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH    = os.path.join(BASE_DIR, "customer_tracker.db")
-
-# Only these tables are editable through the admin module (whitelist)
-ALLOWED_TABLES = {"Parameter", "Dictionary", "User"}
+# Only these tables are editable through the admin module (whitelist).
+# Value = primary key column name used for update/delete operations.
+ALLOWED_TABLES: dict[str, str] = {
+    "Parameter": "RowId",
+    "Dictionary": "RowId",
+    "User": "id",
+}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def get_db():
-    """Always use local SQLite — admin is TEST-only."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Use the main app's local SQL Server connection — admin is LOCAL-only."""
+    from app import get_db as _app_get_db
+    return _app_get_db()
 
 
-def is_test_env() -> bool:
-    return session.get("env", "test") == "test"
+def is_local_env() -> bool:
+    """True when not in PROD — write operations are allowed."""
+    return session.get("env", "local") != "prod"
 
 
-def get_table_columns(table_name: str) -> list:
-    """Return list of column info dicts via PRAGMA table_info."""
+def get_pk_column(table_name: str) -> str:
+    """Return the primary key column name for the given allowed table."""
+    return ALLOWED_TABLES.get(table_name, "id")
+
+
+def get_table_columns(table_name: str) -> list[str]:
+    """Return editable column names (excluding the PK) via INFORMATION_SCHEMA."""
+    pk_col = get_pk_column(table_name)
     conn = get_db()
-    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    rows = conn.execute(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+        "WHERE TABLE_SCHEMA = 'ZZZ' AND TABLE_NAME = ? "
+        "ORDER BY ORDINAL_POSITION",
+        (table_name,)
+    ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
-
-
-def get_pk_column(columns: list) -> Optional[str]:
-    """Find the primary key column name; fallback to rowid."""
-    for col in columns:
-        if col["pk"]:
-            return col["name"]
-    return None
+    return [r["COLUMN_NAME"] for r in rows if r["COLUMN_NAME"] != pk_col]
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -66,20 +70,18 @@ def admin_edit(table_name):
         flash(f'Table "{table_name}" is not accessible via the Admin module.', "error")
         return redirect(url_for("admin.admin_index"))
 
-    columns = get_table_columns(table_name)
-    col_names = [c["name"] for c in columns]
+    pk_col   = get_pk_column(table_name)
+    col_names = get_table_columns(table_name)
 
-    # Always include rowid for stable row identification
     conn = get_db()
     rows = conn.execute(
-        f"SELECT rowid, * FROM {table_name} ORDER BY rowid"
+        f"SELECT t.*, t.[{pk_col}] AS rowid FROM BOA.ZZZ.[{table_name}] t ORDER BY t.[{pk_col}]"
     ).fetchall()
-    rows = [dict(r) for r in rows]
     conn.close()
 
     # Filter args
-    filter_col  = request.args.get("filter_col", "")
-    filter_val  = request.args.get("filter_val", "")
+    filter_col = request.args.get("filter_col", "")
+    filter_val = request.args.get("filter_val", "")
     if filter_col and filter_col in col_names and filter_val:
         rows = [r for r in rows if str(r.get(filter_col, "")) == filter_val]
 
@@ -96,7 +98,7 @@ def admin_edit(table_name):
         table_name=table_name,
         columns=col_names,
         rows=rows,
-        is_test=is_test_env(),
+        is_test=is_local_env(),
         filter_col=filter_col,
         filter_val=filter_val,
         filter_options=filter_options,
@@ -110,20 +112,18 @@ def admin_add_row(table_name):
         flash("Access denied.", "error")
         return redirect(url_for("admin.admin_index"))
 
-    if not is_test_env():
-        flash("Write operations are only permitted in the TEST environment.", "error")
+    if not is_local_env():
+        flash("Write operations are only permitted in the LOCAL environment.", "error")
         return redirect(url_for("admin.admin_edit", table_name=table_name))
 
-    columns = get_table_columns(table_name)
-    col_names = [c["name"] for c in columns]
-
+    col_names = get_table_columns(table_name)
     values = [request.form.get(col, "") or None for col in col_names]
     placeholders = ", ".join("?" for _ in col_names)
-    col_list = ", ".join(col_names)
+    col_list = ", ".join(f"[{c}]" for c in col_names)
 
     try:
         conn = get_db()
-        conn.execute(f"INSERT INTO {table_name} ({col_list}) VALUES ({placeholders})", values)
+        conn.execute(f"INSERT INTO BOA.ZZZ.[{table_name}] ({col_list}) VALUES ({placeholders})", values)
         conn.commit()
         conn.close()
         flash(f"Row added to {table_name} successfully.", "success")
@@ -135,25 +135,25 @@ def admin_add_row(table_name):
 
 @admin_bp.route("/edit/<table_name>/update/<int:rowid>", methods=["POST"])
 def admin_update_row(table_name, rowid):
-    """Update an existing row identified by its SQLite rowid."""
+    """Update an existing row identified by its primary key value."""
     if table_name not in ALLOWED_TABLES:
         flash("Access denied.", "error")
         return redirect(url_for("admin.admin_index"))
 
-    if not is_test_env():
-        flash("Write operations are only permitted in the TEST environment.", "error")
+    if not is_local_env():
+        flash("Write operations are only permitted in the LOCAL environment.", "error")
         return redirect(url_for("admin.admin_edit", table_name=table_name))
 
-    columns = get_table_columns(table_name)
-    col_names = [c["name"] for c in columns]
+    pk_col    = get_pk_column(table_name)
+    col_names = get_table_columns(table_name)
 
-    set_clause = ", ".join(f"{col} = ?" for col in col_names)
+    set_clause = ", ".join(f"[{col}] = ?" for col in col_names)
     values = [request.form.get(col, "") or None for col in col_names]
     values.append(rowid)
 
     try:
         conn = get_db()
-        conn.execute(f"UPDATE {table_name} SET {set_clause} WHERE rowid = ?", values)
+        conn.execute(f"UPDATE BOA.ZZZ.[{table_name}] SET {set_clause} WHERE [{pk_col}] = ?", values)
         conn.commit()
         conn.close()
         flash(f"Row {rowid} updated successfully.", "success")
@@ -165,18 +165,20 @@ def admin_update_row(table_name, rowid):
 
 @admin_bp.route("/edit/<table_name>/delete/<int:rowid>", methods=["POST"])
 def admin_delete_row(table_name, rowid):
-    """Delete a row by its rowid."""
+    """Delete a row by its primary key value."""
     if table_name not in ALLOWED_TABLES:
         flash("Access denied.", "error")
         return redirect(url_for("admin.admin_index"))
 
-    if not is_test_env():
-        flash("Write operations are only permitted in the TEST environment.", "error")
+    if not is_local_env():
+        flash("Write operations are only permitted in the LOCAL environment.", "error")
         return redirect(url_for("admin.admin_edit", table_name=table_name))
+
+    pk_col = get_pk_column(table_name)
 
     try:
         conn = get_db()
-        conn.execute(f"DELETE FROM {table_name} WHERE rowid = ?", (rowid,))
+        conn.execute(f"DELETE FROM BOA.ZZZ.[{table_name}] WHERE [{pk_col}] = ?", (rowid,))
         conn.commit()
         conn.close()
         flash(f"Row {rowid} deleted from {table_name}.", "success")
@@ -191,39 +193,39 @@ def admin_delete_row(table_name, rowid):
 @admin_bp.route("/dictionary-editor")
 def admin_dictionary_editor():
     """Custom comparative UI for managing translations."""
-    if not is_test_env():
-        flash("Admin console operations restrict write, but read is ok. (Test env required for edit)", "info")
-        
+    if not is_local_env():
+        flash("Admin console operations restrict write, but read is ok. (Local env required for edit)", "info")
+
     conn = get_db()
     query = """
-    SELECT 
+    SELECT
         Id,
-        MAX(CASE WHEN LanguageId = 0 THEN Description END) as lang_en,
-        MAX(CASE WHEN LanguageId = 1 THEN Description END) as lang_tr
-    FROM Dictionary
+        MAX(CASE WHEN LanguageId = 0 THEN Description END) AS lang_en,
+        MAX(CASE WHEN LanguageId = 1 THEN Description END) AS lang_tr
+    FROM BOA.ZZZ.Dictionary
     GROUP BY Id
-    ORDER BY Id COLLATE NOCASE
+    ORDER BY Id
     """
     rows = conn.execute(query).fetchall()
     conn.close()
-    
+
     return render_template(
         "admin_dictionary.html",
         rows=rows,
-        is_test=is_test_env()
+        is_test=is_local_env()
     )
 
 
 @admin_bp.route("/dictionary-editor/save", methods=["POST"])
 def admin_dictionary_save():
     """Bulk save dictionary changes via JSON."""
-    if not is_test_env():
-        return jsonify({"status": "error", "message": "Modifications are only permitted in the TEST environment"}), 403
-        
+    if not is_local_env():
+        return jsonify({"status": "error", "message": "Modifications are only permitted in the LOCAL environment"}), 403
+
     data = request.json
     if not data or not isinstance(data, list):
         return jsonify({"status": "error", "message": "Invalid JSON payload format"}), 400
-        
+
     try:
         conn = get_db()
         for item in data:
@@ -232,11 +234,21 @@ def admin_dictionary_save():
             tr_val = item.get("tr", "")
             if not key_id:
                 continue
-            
-            # Using INSERT OR REPLACE to upsert records into the Dictionary table.
-            conn.execute("INSERT OR REPLACE INTO Dictionary (Id, LanguageId, Description) VALUES (?, ?, ?)", (key_id, 0, en_val))
-            conn.execute("INSERT OR REPLACE INTO Dictionary (Id, LanguageId, Description) VALUES (?, ?, ?)", (key_id, 1, tr_val))
-            
+
+            # T-SQL MERGE: upsert each language variant of the Dictionary entry.
+            upsert_sql = """
+                MERGE INTO BOA.ZZZ.Dictionary AS target
+                USING (SELECT ? AS Id, ? AS LanguageId, ? AS Description) AS source
+                    ON target.Id = source.Id AND target.LanguageId = source.LanguageId
+                WHEN MATCHED THEN
+                    UPDATE SET Description = source.Description
+                WHEN NOT MATCHED THEN
+                    INSERT (Id, LanguageId, Description)
+                    VALUES (source.Id, source.LanguageId, source.Description);
+            """
+            conn.execute(upsert_sql, (key_id, 0, en_val))
+            conn.execute(upsert_sql, (key_id, 1, tr_val))
+
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "message": "Saved successfully!"})

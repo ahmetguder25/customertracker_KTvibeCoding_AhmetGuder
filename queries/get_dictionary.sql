@@ -1,3 +1,3 @@
 SELECT Id, Description
-FROM Dictionary
+FROM BOA.ZZZ.Dictionary
 WHERE LanguageId = ?

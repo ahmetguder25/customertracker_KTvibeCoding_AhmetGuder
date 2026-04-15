@@ -1,2 +1,2 @@
-DELETE FROM CustomerDeals
+DELETE FROM BOA.ZZZ.CustomerDeals
 WHERE id = ?

@@ -1,4 +1,4 @@
 SELECT Customerid, CustomerName
-FROM Customer
+FROM BOA.ZZZ.Customer
 WHERE IsStructured = 1
 ORDER BY CustomerName

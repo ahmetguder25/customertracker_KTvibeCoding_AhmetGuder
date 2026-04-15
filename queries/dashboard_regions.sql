@@ -1,5 +1,5 @@
 SELECT region, COUNT(*) AS cnt
-FROM Customer
+FROM BOA.ZZZ.Customer
 WHERE IsStructured = 1
   AND region IS NOT NULL
   AND region != ''

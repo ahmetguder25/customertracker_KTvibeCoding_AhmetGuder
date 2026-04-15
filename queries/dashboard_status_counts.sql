@@ -1,3 +1,3 @@
 SELECT status, COUNT(*) AS cnt
-FROM CustomerDeals
+FROM BOA.ZZZ.CustomerDeals
 GROUP BY status

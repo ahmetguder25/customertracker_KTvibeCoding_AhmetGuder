@@ -1,9 +1,8 @@
 """Flask application for Customer Tracking System."""
-import sqlite3
 import os
+import platform
 import json
 import requests
-import re
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, redirect, url_for,
                    send_file, flash, jsonify, session, has_request_context)
@@ -17,7 +16,6 @@ app = Flask(__name__)
 app.secret_key = "customer-tracker-secret-key-2026"
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-DB_PATH    = os.path.join(BASE_DIR, "customer_tracker.db")
 QUERY_DIR  = os.path.join(BASE_DIR, "queries")
 
 UPLOAD_FOLDER     = os.path.join(BASE_DIR, "static", "logos")
@@ -62,24 +60,18 @@ class _ProdCursorWrapper:
 
 
 class DbConnection:
-    """Unified connection wrapper for SQLite (TEST) and pyodbc SQL Server (PROD).
+    """pyodbc connection wrapper for LOCAL and PROD SQL Server.
 
-    Both engines use '?' as parameter placeholder, so no substitution needed.
-    pyodbc rows are wrapped to support dict-style col access like sqlite3.Row.
+    Both environments use pyodbc; rows are returned as dicts via _ProdCursorWrapper.
     """
 
-    def __init__(self, raw_conn, is_prod: bool = False):
-        self._conn   = raw_conn
-        self.is_prod = is_prod
-        if not is_prod:
-            self._conn.row_factory = sqlite3.Row
+    def __init__(self, raw_conn):
+        self._conn = raw_conn
 
     def execute(self, sql: str, params=()):
-        if self.is_prod:
-            cur = self._conn.cursor()
-            cur.execute(sql, params)
-            return _ProdCursorWrapper(cur)
-        return self._conn.execute(sql, params)
+        cur = self._conn.cursor()
+        cur.execute(sql, params)
+        return _ProdCursorWrapper(cur)
 
     def commit(self):
         self._conn.commit()
@@ -95,22 +87,36 @@ class DbConnection:
         self.close()
 
 
+class _PymssqlDbConnection(DbConnection):
+    """pymssql-backed connection wrapper.
+
+    pymssql uses %s placeholders; this subclass converts ? → %s transparently
+    so all caller code stays identical to the pyodbc path.
+    """
+
+    def execute(self, sql: str, params=()):
+        sql_converted = sql.replace("?", "%s")
+        cur = self._conn.cursor()
+        cur.execute(sql_converted, params if params else ())
+        return _ProdCursorWrapper(cur)
+
+
 def get_db() -> DbConnection:
-    """Return the local database connection (which has Deals, CustomerDetail, and the cached Customer)."""
-    return _get_db_test()
+    """Return the local SQL Server connection (Deals, CustomerDetail, cached Customer)."""
+    return _get_db_local()
 
 
 def get_customer_db() -> DbConnection:
-    """Return connection to SRVDNZ BOA database if PROD, else local SQLite."""
-    env = session.get("env", "test") if has_request_context() else "test"
+    """Return connection to SRVDNZ BOA database if PROD, else local SQL Server."""
+    env = session.get("env", "local") if has_request_context() else "local"
     if env == "prod":
         return _get_db_prod()
-    return _get_db_test()
+    return _get_db_local()
 
 
-def _get_db_test() -> DbConnection:
-    conn = sqlite3.connect(DB_PATH)
-    return DbConnection(conn, is_prod=False)
+def _get_db_local() -> DbConnection:
+    """LOCAL connection — autocommit=False."""
+    return _make_local_conn(autocommit=False)
 
 
 def _get_db_prod() -> DbConnection:
@@ -121,6 +127,78 @@ def _get_db_prod() -> DbConnection:
 def _get_db_prod_autocommit() -> DbConnection:
     """PROD connection with autocommit=True (required for multi-statement batches with temp tables)."""
     return _make_prod_conn(autocommit=True)
+
+
+def _make_local_conn(autocommit: bool = False) -> DbConnection:
+    """OS-aware factory: connection to the local SQL Server instance.
+
+    - macOS / Linux  → Docker container, pymssql + SQL Auth (sa + config.json)
+                       No system ODBC library required — pymssql bundles FreeTDS.
+    - Windows        → Installed SQL Server Express/Developer, pyodbc + Windows Auth
+    """
+    config_path = os.path.join(BASE_DIR, "config.json")
+    config: dict = {}
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except Exception as exc:
+            print(f"Warning: Failed to load config.json: {exc}")
+
+    db_name = config.get("LOCAL_DB_NAME", "BOA")
+    os_name = platform.system()
+
+    if os_name == "Windows":
+        # Windows: pyodbc + Windows Auth (ODBC built into every Windows install)
+        try:
+            import pyodbc  # noqa: PLC0415
+        except ImportError as exc:
+            raise RuntimeError("pyodbc is not installed. Run: pip install pyodbc") from exc
+
+        server = config.get("LOCAL_WIN_SERVER", r".\SQLEXPRESS")
+        drivers = [d for d in pyodbc.drivers() if "SQL Server" in d]
+        if not drivers:
+            raise RuntimeError(
+                "No SQL Server ODBC driver found. "
+                "Install 'ODBC Driver 17/18 for SQL Server' from Microsoft."
+            )
+        driver = next((d for d in drivers if "18" in d), None) or drivers[0]
+        conn_str = (
+            f"DRIVER={{{driver}}};"
+            f"SERVER={server};"
+            f"DATABASE={db_name};"
+            "Trusted_Connection=yes;"
+        )
+        try:
+            raw = pyodbc.connect(conn_str, autocommit=autocommit, timeout=10)
+            return DbConnection(raw)
+        except Exception as exc:
+            raise RuntimeError(f"LOCAL connection failed ({server}/{db_name}): {exc}") from exc
+
+    else:
+        # macOS / Linux: pymssql — no system ODBC library required
+        try:
+            import pymssql  # noqa: PLC0415
+        except ImportError as exc:
+            raise RuntimeError("pymssql is not installed. Run: pip3 install pymssql") from exc
+
+        server_full = config.get("LOCAL_SERVER", "localhost,1433")
+        server_addr = server_full.replace(",", ":")  # pymssql uses 'host:port'
+        sa_user = config.get("LOCAL_SA_USER", "sa")
+        sa_pass = config.get("LOCAL_SA_PASSWORD", "")
+        try:
+            raw = pymssql.connect(
+                server=server_addr,
+                user=sa_user,
+                password=sa_pass,
+                database=db_name,
+                login_timeout=10,
+            )
+            if autocommit:
+                raw.autocommit(True)
+            return _PymssqlDbConnection(raw)
+        except Exception as exc:
+            raise RuntimeError(f"LOCAL connection failed ({server_full}/{db_name}): {exc}") from exc
 
 
 def _make_prod_conn(autocommit: bool = False) -> DbConnection:
@@ -161,7 +239,7 @@ def _make_prod_conn(autocommit: bool = False) -> DbConnection:
     )
     try:
         raw = pyodbc.connect(conn_str, autocommit=autocommit, timeout=10)
-        return DbConnection(raw, is_prod=True)
+        return DbConnection(raw)
     except Exception as exc:
         raise RuntimeError(f"PROD connection failed ({server}/{db_name}): {exc}") from exc
 
@@ -181,6 +259,20 @@ def to_tr_time(t_str):
 
 
 app.jinja_env.filters["tr_time"] = to_tr_time
+
+
+def _fmt_dt(v, chars):
+    """Format a date/datetime value (datetime obj or string) to a fixed-length string.
+    Works with both pymssql datetime objects and plain strings."""
+    if not v:
+        return ""
+    try:
+        return str(v)[:chars]
+    except Exception:
+        return ""
+
+app.jinja_env.filters["fmtdate"]     = lambda v: _fmt_dt(v, 10)   # → YYYY-MM-DD
+app.jinja_env.filters["fmtdatetime"] = lambda v: _fmt_dt(v, 16)   # → YYYY-MM-DD HH:MM
 
 
 def allowed_file(filename):
@@ -260,10 +352,13 @@ def index():
 
 @app.route("/user-login")
 def user_login():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    users = conn.execute("SELECT * FROM User ORDER BY username").fetchall()
-    conn.close()
+    try:
+        conn = get_db()
+        users = conn.execute("SELECT * FROM BOA.ZZZ.[User] ORDER BY username").fetchall()
+        conn.close()
+    except RuntimeError as exc:
+        flash(str(exc), "error")
+        users = []
     return render_template("user_login.html", users=users)
 
 
@@ -273,10 +368,12 @@ def set_user():
     if not user_id:
         return redirect(url_for("user_login"))
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    user = conn.execute("SELECT * FROM User WHERE id = ?", (user_id,)).fetchone()
-    conn.close()
+    try:
+        conn = get_db()
+        user = conn.execute("SELECT * FROM BOA.ZZZ.[User] WHERE id = ?", (user_id,)).fetchone()
+        conn.close()
+    except RuntimeError:
+        return redirect(url_for("user_login"))
 
     if user:
         session["user_id"] = user["id"]
@@ -301,14 +398,22 @@ def env_login():
 
 @app.route("/set-env", methods=["POST"])
 def set_env():
-    env = request.form.get("env", "test")
-    if env not in ("test", "prod"):
-        env = "test"
+    env = request.form.get("env", "local")
+    if env not in ("local", "prod"):
+        env = "local"
 
     if env == "prod":
         # Try the connection before committing to PROD to surface errors early
         try:
             conn = _get_db_prod()
+            conn.close()
+        except RuntimeError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("env_login"))
+    else:
+        # Validate LOCAL connection on selection too
+        try:
+            conn = _get_db_local()
             conn.close()
         except RuntimeError as exc:
             flash(str(exc), "error")
@@ -337,8 +442,8 @@ def set_language(lang_id):
         session["lang"] = lang_id
         user_id = session.get("user_id")
         if user_id:
-            conn = sqlite3.connect(DB_PATH)
-            conn.execute("UPDATE User SET default_language = ? WHERE id = ?", (lang_id, user_id))
+            conn = get_db()
+            conn.execute("UPDATE BOA.ZZZ.[User] SET default_language = ? WHERE id = ?", (lang_id, user_id))
             conn.commit()
             conn.close()
     return redirect(request.referrer or url_for("dashboard"))
@@ -349,8 +454,8 @@ def set_theme(theme):
         session["theme"] = theme
         user_id = session.get("user_id")
         if user_id:
-            conn = sqlite3.connect(DB_PATH)
-            conn.execute("UPDATE User SET default_theme = ? WHERE id = ?", (theme, user_id))
+            conn = get_db()
+            conn.execute("UPDATE BOA.ZZZ.[User] SET default_theme = ? WHERE id = ?", (theme, user_id))
             conn.commit()
             conn.close()
     return redirect(request.referrer or url_for("dashboard"))
@@ -393,7 +498,7 @@ def dashboard():
         },
         segment_data = json.dumps(segment_data),
         region_data  = json.dumps(region_data),
-        active_env   = session.get("env", "test"),
+        active_env   = session.get("env", "local"),
     )
 
 
@@ -587,7 +692,7 @@ def lookup_customer(account_number):
         # Check if already tracked in local SQLite
         conn_local = get_db()
         already = conn_local.execute(
-            "SELECT IsStructured FROM Customer WHERE Customerid = ?", (account_number,)
+            "SELECT IsStructured FROM BOA.ZZZ.Customer WHERE Customerid = ?", (account_number,)
         ).fetchone()
         conn_local.close()
 
@@ -619,7 +724,7 @@ def lookup_customer(account_number):
 @app.route("/management/customer/add", methods=["POST"])
 def add_customer():
     customer_id = int(request.form["Customerid"])
-    env = session.get("env", "test") if has_request_context() else "test"
+    env = session.get("env", "local") if has_request_context() else "local"
     
     if env == "prod":
         conn_real = get_customer_db()
@@ -628,27 +733,19 @@ def add_customer():
         
         if customer:
             conn_local = get_db()
-            conn_local.execute("""
-                INSERT INTO Customer (Customerid, CustomerName, credit_limit, credit_limit_currency, foreign_trade_volume, memzuc_151_volume, memzuc_152_volume, value_segment, branch, region, portfolio_manager, CustomerClassName, IsStructured)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-                ON CONFLICT(Customerid) DO UPDATE SET
-                    CustomerName = excluded.CustomerName,
-                    credit_limit = excluded.credit_limit,
-                    credit_limit_currency = excluded.credit_limit_currency,
-                    foreign_trade_volume = excluded.foreign_trade_volume,
-                    memzuc_151_volume = excluded.memzuc_151_volume,
-                    memzuc_152_volume = excluded.memzuc_152_volume,
-                    value_segment = excluded.value_segment,
-                    branch = excluded.branch,
-                    region = excluded.region,
-                    portfolio_manager = excluded.portfolio_manager,
-                    CustomerClassName = excluded.CustomerClassName,
-                    IsStructured = 1
-            """, (
-                customer.get("Customerid", customer_id), customer.get("CustomerName", ""), customer.get("TotalLimit", 0), customer.get("credit_limit_currency", "TRY"),
-                customer.get("foreign_trade_volume", 1), customer.get("memzuc_151_volume", 1), customer.get("memzuc_152_volume", 1),
-                customer.get("value_segment", ""), customer.get("branch", ""), customer.get("region", ""),
-                customer.get("portfolio_manager", ""), customer.get("CustomerClassName", "")
+            conn_local.execute(load_query("customer_upsert"), (
+                customer.get("Customerid", customer_id),
+                customer.get("CustomerName", ""),
+                customer.get("TotalLimit", 0),
+                customer.get("credit_limit_currency", "TRY"),
+                customer.get("foreign_trade_volume", 1),
+                customer.get("memzuc_151_volume", 1),
+                customer.get("memzuc_152_volume", 1),
+                customer.get("value_segment", ""),
+                customer.get("branch", ""),
+                customer.get("region", ""),
+                customer.get("portfolio_manager", ""),
+                customer.get("CustomerClassName", "")
             ))
             conn_local.commit()
             conn_local.close()
@@ -665,7 +762,7 @@ def add_customer():
 def sync_queue():
     # Available in both TEST (demo) and PROD
     conn_local = get_db()
-    customers = conn_local.execute("SELECT Customerid, CustomerName FROM Customer WHERE IsStructured = 1").fetchall()
+    customers = conn_local.execute("SELECT Customerid, CustomerName FROM BOA.ZZZ.Customer WHERE IsStructured = 1").fetchall()
     conn_local.close()
     
     return jsonify({
@@ -675,7 +772,7 @@ def sync_queue():
 
 @app.route("/management/api/sync/batch", methods=["POST"])
 def sync_batch():
-    env = session.get("env", "test") if has_request_context() else "test"
+    env = session.get("env", "local") if has_request_context() else "local"
     data = request.get_json()
     cids = data.get("customer_ids", [])
 
@@ -843,8 +940,8 @@ def overview_detail(customer_id):
     sector_map    = get_param_map("Sector",   conn)
     
     # Financial items processing
-    fin_defs = conn.execute("SELECT * FROM FinancialItemDefinition").fetchall()
-    allotments = conn.execute("SELECT * FROM AllotmentFinancialItems WHERE AllotmentMainId = ? ORDER BY PeriodId", (customer_id,)).fetchall()
+    fin_defs = conn.execute("SELECT * FROM BOA.ZZZ.FinancialItemDefinition").fetchall()
+    allotments = conn.execute("SELECT * FROM BOA.ZZZ.AllotmentFinancialItems WHERE AllotmentMainId = ? ORDER BY PeriodId", (customer_id,)).fetchall()
     conn.close()
 
     total_deal_size = sum((d["deal_size"] or 0) for d in deals)

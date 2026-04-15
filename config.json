@@ -2,5 +2,11 @@
     "PROD_SERVER": "SRVDNZ",
     "PROD_DB_NAME": "BOA",
     "PROD_CUSTOMER_SCHEMA": "CUS",
-    "PROD_CUSTOMER_TABLE": "Customer"
+    "PROD_CUSTOMER_TABLE": "Customer",
+
+    "LOCAL_SERVER": "localhost,1433",
+    "LOCAL_DB_NAME": "BOA",
+    "LOCAL_WIN_SERVER": ".\\SQLEXPRESS",
+    "LOCAL_SA_USER": "sa",
+    "LOCAL_SA_PASSWORD": "YourStrong!Passw0rd"
 }

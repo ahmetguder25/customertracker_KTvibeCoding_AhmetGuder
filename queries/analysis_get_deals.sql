@@ -1,3 +1,3 @@
 SELECT *
-FROM CustomerDeals
+FROM BOA.ZZZ.CustomerDeals
 WHERE customerid = ?

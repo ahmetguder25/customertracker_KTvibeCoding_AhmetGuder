@@ -1,0 +1,28 @@
+# CustomerTracker — Local SQL Server (Docker)
+# Platform: linux/amd64 is required on Apple Silicon (M-series) via Rosetta 2
+#
+# Usage:
+#   docker compose up -d          # start in background
+#   docker compose down           # stop (data persists in volume)
+#   docker compose down -v        # stop AND delete all data
+#
+# After first start, run schema_local.sql to create the BOA database and tables:
+#   docker exec -it customertracker_sqlserver \
+#     /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa \
+#       -P "$(python -c "import json;c=json.load(open('config.json'));print(c['LOCAL_SA_PASSWORD'])")" \
+#       -C -i /dev/stdin < schema_local.sql
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    container_name: customertracker_sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${LOCAL_SA_PASSWORD:-YourStrong!Passw0rd}"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - ./data/sqlserver:/var/opt/mssql

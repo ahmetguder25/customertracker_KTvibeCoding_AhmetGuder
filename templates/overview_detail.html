@@ -154,7 +154,7 @@
                             {% if st.get('logo') %}{{ st.get('logo') }} {% endif %}{{ st.get('description', d['status']) }}
                         </span>
                     </div>
-                    <p class="text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-2">{{ lang_dict.get('list_contact', 'Contact Name') }}: <span class="text-gray-700 dark:text-gray-300">{{ d['contact_name'] or 'None' }}</span> &middot; {{ d['created_at'][:10] }}</p>
+                    <p class="text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-2">{{ lang_dict.get('list_contact', 'Contact Name') }}: <span class="text-gray-700 dark:text-gray-300">{{ d['contact_name'] or 'None' }}</span> &middot; {{ d['created_at'] | fmtdate }}</p>
                     <div class="flex items-center gap-4">
                         <p class="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{{ "{:,.0f}".format(d['deal_size']) }} {{ cur.get('bg', 'TRY') }}</p>
                         {% if d['expected_pricing_pa'] %}
@@ -216,7 +216,7 @@
                             </div>
                             <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ comment['author'] }}</span>
                         </div>
-                        <span class="text-xs text-gray-700 dark:text-gray-400">{{ comment['created_at'][:16] if comment['created_at'] else '' }}</span>
+                        <span class="text-xs text-gray-700 dark:text-gray-400">{{ comment['created_at'] | fmtdatetime if comment['created_at'] else '' }}</span>
                     </div>
                     <p class="text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 leading-relaxed pl-9">{{ comment['content'] }}</p>
                 </div>
