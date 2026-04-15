@@ -10,6 +10,10 @@ from werkzeug.utils import secure_filename
 import io
 from flask import stream_with_context, Response
 from ollama_config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
+from data_agent_orchestrator import (
+    extract_intents, resolve_entities, read_context,
+    check_required_fields, execute_action, build_action_card,
+)
 from agent_orchestrator import AnalysisOrchestrator
 # ── App Setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
@@ -1145,19 +1149,331 @@ def analyze_stream(customer_id):
 
 
 
-@app.route("/api/chat", methods=["POST"])
-def api_chat():
-    data = request.get_json()
-    if not data or "message" not in data:
-        return jsonify({"error": "No message provided"}), 400
-    payload = {"model": OLLAMA_MODEL, "stream": False, "prompt": data["message"]}
-    try:
-        url = OLLAMA_URL if "api/generate" in OLLAMA_URL else f"{OLLAMA_URL.rstrip('/')}/api/generate"
-        resp = requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT)
-        resp.raise_for_status()
-        return jsonify({"response": resp.json().get("response", "")})
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Ollama API error: {str(e)}"}), 500
+@app.route("/api/agent/chat", methods=["POST"])
+def api_agent_chat():
+    """
+    Multi-turn Data Agent endpoint.
+
+    Request body (JSON):
+      { "message": "...",       # new free-form text — starts a fresh turn
+        "action":  null         # or "confirm" | "skip" | "answer"
+        "answer":  "..."        # used when action="answer" (clarification reply)
+        "option_id": "..."      # used when action="answer" and options were shown
+      }
+
+    Response (JSON):
+      { "phase":          "extracting"|"clarifying"|"confirming"|"done"|"error",
+        "message":        "...",       # assistant message to display
+        "current_action": {...},       # action card for confirming phase
+        "action_index":   N,
+        "total_actions":  N,
+        "options":        [...],       # button chips for clarification options
+        "results":        [...]        # final result summaries
+      }
+    """
+    body          = request.get_json(silent=True) or {}
+    incoming_msg  = (body.get("message") or "").strip()
+    action        = body.get("action")        # None | "confirm" | "skip" | "answer"
+    answer        = (body.get("answer") or "").strip()
+    option_id     = body.get("option_id")     # id of chosen option chip
+    author        = session.get("username", "Agent")
+    base_dir      = BASE_DIR
+
+    # ── Start a fresh turn when user sends new text ─────────────────
+    if incoming_msg:
+        session.pop("agent_state", None)
+
+        # Phase 1 — extract intents via LLM
+        try:
+            parsed = extract_intents(incoming_msg, base_dir)
+        except Exception as e:
+            return jsonify({"phase": "error", "message": f"LLM error: {e}"})
+
+        if parsed.get("error") and not parsed.get("actions"):
+            return jsonify({"phase": "error", "message": f"Could not parse intent: {parsed['error']}"})
+
+        if not parsed.get("actions"):
+            return jsonify({"phase": "error",
+                            "message": "I couldn't identify any actions in your message. "
+                                       "Try mentioning a customer name and what happened."})
+
+        language = parsed.get("language", "en")
+
+        # Phase 2 — entity resolution
+        conn = get_db()
+        resolved, entity_clarifs = resolve_entities(parsed["actions"], conn)
+
+        # Phase 3 — context reading (attach recent deals/comments)
+        resolved = read_context(resolved, conn)
+
+        # Phase 4 — field checking (only for fully resolved actions)
+        # conn must still be open here — update_deal needs to query existing deals
+        field_clarifs = check_required_fields(resolved, conn)
+        conn.close()
+
+        # Merge clarification queues (entity first, then field)
+        clarif_queue = entity_clarifs + field_clarifs
+
+        state = {
+            "actions":       resolved,
+            "clarif_queue":  clarif_queue,
+            "clarif_index":  0,
+            "confirm_index": 0,
+            "results":       [],
+            "language":      language,
+            "phase":         "clarifying" if clarif_queue else "confirming",
+        }
+        session["agent_state"] = state
+        session.modified = True
+
+        if clarif_queue:
+            return _ask_clarification(state)
+        else:
+            return _ask_confirmation(state)
+
+    # ── Continuing an existing conversation ─────────────────────────
+    state = session.get("agent_state")
+    if not state:
+        return jsonify({"phase": "error",
+                        "message": "No active session. Please type a message to start."})
+
+    phase = state.get("phase")
+
+    # ── Handle clarification answer ─────────────────────────────────
+    if phase == "clarifying" and action == "answer":
+        clarif_queue = state["clarif_queue"]
+        ci           = state["clarif_index"]
+        if ci >= len(clarif_queue):
+            state["phase"] = "confirming"
+            session.modified = True
+            return _ask_confirmation(state)
+
+        current_clarif = clarif_queue[ci]
+        action_idx     = current_clarif["action_index"]
+        field          = current_clarif["field"]
+
+        # Apply answered value
+        if field == "customer_name":
+            # User picked/typed a customer
+            if option_id:
+                # option_id is the Customerid as string
+                conn = get_db()
+                row = conn.execute(
+                    "SELECT Customerid, CustomerName FROM BOA.ZZZ.Customer WHERE Customerid = ?",
+                    (int(option_id),)
+                ).fetchone()
+                conn.close()
+                if row:
+                    state["actions"][action_idx]["customer_id"]   = row["Customerid"]
+                    state["actions"][action_idx]["customer_name"] = row["CustomerName"]
+            elif answer:
+                # Free text — re-resolve
+                conn = get_db()
+                rows = conn.execute(
+                    "SELECT Customerid, CustomerName FROM BOA.ZZZ.Customer "
+                    "WHERE IsStructured=1 AND LOWER(CustomerName) LIKE LOWER(?)",
+                    (f"%{answer}%",)
+                ).fetchall()
+                conn.close()
+                if len(rows) == 1:
+                    state["actions"][action_idx]["customer_id"]   = rows[0]["Customerid"]
+                    state["actions"][action_idx]["customer_name"] = rows[0]["CustomerName"]
+                elif len(rows) > 1:
+                    # Still ambiguous — re-ask with options
+                    opts = [{"id": r["Customerid"], "label": r["CustomerName"]} for r in rows[:6]]
+                    clarif_queue[ci]["question"] = f'Multiple matches for "{answer}". Which one?'
+                    clarif_queue[ci]["options"]  = opts
+                    session.modified = True
+                    return _ask_clarification(state)
+                # If 0 matches → leave customer_id None, skip this action later
+
+        elif field == "deal_id":
+            if option_id:
+                state["actions"][action_idx]["deal_id"] = int(option_id)
+            elif answer:
+                try:
+                    state["actions"][action_idx]["deal_id"] = int(answer)
+                except ValueError:
+                    pass
+            # Fetch and cache current DB values for from→to display in the card
+            resolved_id = state["actions"][action_idx].get("deal_id")
+            if resolved_id:
+                from data_agent_orchestrator import _cache_current
+                _conn = get_db()
+                row = _conn.execute(
+                    "SELECT id, contact_name, deal_size, currency, status, dealtype, notes "
+                    "FROM BOA.ZZZ.CustomerDeals WHERE id = ?",
+                    (resolved_id,)
+                ).fetchone()
+                _conn.close()
+                if row:
+                    _cache_current(state["actions"][action_idx], row)
+
+        elif field == "contact_name":
+            state["actions"][action_idx]["contact_name"] = answer
+
+        elif field == "deal_size":
+            # Parse human-friendly inputs like "1m", "500k", "1,500,000"
+            try:
+                raw_ds = answer.lower().replace(",", "").replace(" ", "").strip()
+                if raw_ds.endswith("m"):
+                    state["actions"][action_idx]["deal_size"] = float(raw_ds[:-1]) * 1_000_000
+                elif raw_ds.endswith("k"):
+                    state["actions"][action_idx]["deal_size"] = float(raw_ds[:-1]) * 1_000
+                else:
+                    state["actions"][action_idx]["deal_size"] = float(raw_ds)
+            except ValueError:
+                pass  # leave as None; DB will raise a clear error
+
+        elif field == "currency":
+            if option_id is not None:
+                # option_id is the int currency code sent as a string e.g. "0", "1", "19"
+                from data_agent_orchestrator import CURRENCY_LABELS
+                label = CURRENCY_LABELS.get(int(option_id), answer)
+                state["actions"][action_idx]["currency"] = label
+            elif answer:
+                state["actions"][action_idx]["currency"] = answer
+
+        elif field == "status_hint":
+            if option_id:
+                from data_agent_orchestrator import STATUS_LABELS
+                label = STATUS_LABELS.get(int(option_id), answer)
+                state["actions"][action_idx]["status_hint"] = label
+            elif answer:
+                state["actions"][action_idx]["status_hint"] = answer
+
+        # Advance clarification index
+        state["clarif_index"] = ci + 1
+        if state["clarif_index"] >= len(clarif_queue):
+            # Re-run field check now that entities are resolved
+            _recheck_conn = get_db()
+            extra_clarifs = check_required_fields(state["actions"], _recheck_conn)
+            _recheck_conn.close()
+            still_needed  = [c for c in extra_clarifs
+                             if not any(e["action_index"] == c["action_index"]
+                                        and e["field"] == c["field"]
+                                        for e in clarif_queue)]
+            if still_needed:
+                state["clarif_queue"] += still_needed
+                session.modified = True
+                return _ask_clarification(state)
+
+            state["phase"] = "confirming"
+            session.modified = True
+            return _ask_confirmation(state)
+
+        session.modified = True
+        return _ask_clarification(state)
+
+    # ── Handle confirmation ─────────────────────────────────────────
+    if phase == "confirming":
+        idx     = state["confirm_index"]
+        actions = state["actions"]
+
+        if idx < len(actions):
+            current = actions[idx]
+            card    = build_action_card(current)
+
+            # query_deals auto-executes without asking the user
+            if not card.get("requires_confirmation", True):
+                if current.get("customer_id") is not None:
+                    conn   = get_db()
+                    result = execute_action(current, conn, author=author)
+                    conn.close()
+                else:
+                    result = {"success": None, "message": "Customer not resolved."}
+                state["results"].append({"action": card, "result": result})
+                state["confirm_index"] = idx + 1
+                session.modified = True
+                if state["confirm_index"] >= len(state["actions"]):
+                    state["phase"] = "done"
+                    return _done_response(state)
+                return _ask_confirmation(state)
+
+            if action == "confirm":
+                if current.get("customer_id") is not None:
+                    conn = get_db()
+                    result = execute_action(current, conn, author=author)
+                    conn.close()
+                else:
+                    result = {"success": False,
+                              "message": f'Skipped — customer not resolved for {current.get("customer_name","?")}'}
+                state["results"].append({"action": build_action_card(current), "result": result})
+
+            elif action == "skip":
+                state["results"].append({
+                    "action": build_action_card(current),
+                    "result": {"success": None, "message": "Skipped by user."},
+                })
+
+            state["confirm_index"] = idx + 1
+            session.modified = True
+
+        # Check if more actions remain
+        if state["confirm_index"] >= len(state["actions"]):
+            state["phase"] = "done"
+            session.modified = True
+            return _done_response(state)
+
+        return _ask_confirmation(state)
+
+    if phase == "done":
+        return _done_response(state)
+
+    return jsonify({"phase": "error", "message": "Unexpected state. Please type a message to start over."})
+
+
+# ── Agent helper response builders ──────────────────────────────────────────
+
+def _ask_clarification(state: dict):
+    queue = state["clarif_queue"]
+    ci    = state["clarif_index"]
+    if ci >= len(queue):
+        state["phase"] = "confirming"
+        return _ask_confirmation(state)
+
+    clarif = queue[ci]
+    return jsonify({
+        "phase":         "clarifying",
+        "message":       clarif["question"],
+        "options":       clarif.get("options", []),
+        "action_index":  state["confirm_index"],
+        "total_actions": len(state["actions"]),
+    })
+
+
+def _ask_confirmation(state: dict):
+    idx     = state["confirm_index"]
+    actions = state["actions"]
+    if idx >= len(actions):
+        state["phase"] = "done"
+        return _done_response(state)
+
+    all_cards = [build_action_card(a) for a in actions]
+    card = all_cards[idx]
+    return jsonify({
+        "phase":          "confirming",
+        "current_action": card,
+        "action_index":   idx,
+        "total_actions":  len(actions),
+        "all_cards":      all_cards,
+        "message":        None,
+    })
+
+
+def _done_response(state: dict):
+    return jsonify({
+        "phase":   "done",
+        "results": state.get("results", []),
+    })
+
+
+@app.route("/api/agent/reset", methods=["POST"])
+def api_agent_reset():
+    """Reset the agent conversation state."""
+    session.pop("agent_state", None)
+    return jsonify({"status": "ok"})
+
 
 
 # ── Comments ───────────────────────────────────────────────────────────────────

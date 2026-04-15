@@ -25,3 +25,11 @@ AGENT_NAMES = ["Arthur", "Sarah", "Michael", "Elena", "James", "Priya", "Omar", 
 
 # Knowledge base directory (relative to app root)
 KNOWLEDGE_BASE_DIR = "knowledge_base"
+
+# ── Data Agent Configuration ───────────────────────────────────────────────────
+
+# Model used by the natural language Data Agent (intent parsing + entity resolution)
+DATA_AGENT_MODEL = "qwen2.5:14b"
+
+# Timeout per Data Agent LLM call
+DATA_AGENT_TIMEOUT = 120

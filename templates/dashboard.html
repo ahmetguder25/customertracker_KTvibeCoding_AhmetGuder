@@ -63,23 +63,40 @@
         </div>
     </div>
     
-    <!-- AI Chat Assistant -->
+    <!-- Data Agent Chat -->
     <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-            <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            {{ lang_dict.get('dash_ai_chat', 'Ollama AI Assistant') }}
-        </h2>
-        <div class="flex flex-col gap-4">
-            <div id="chat-box" class="bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl p-4 h-64 overflow-y-auto text-sm space-y-3 flex flex-col">
-                <div class="text-gray-700 dark:text-gray-400 dark:text-gray-400 text-center m-auto">{{ lang_dict.get('dash_ai_chat_empty', 'Ask a question to the local AI model...') }}</div>
-            </div>
-            <form id="chat-form" class="flex gap-2">
-                <input type="text" id="chat-input" required placeholder="{{ lang_dict.get('dash_ai_chat_ph', 'Type your message...') }}" class="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-                <button type="submit" id="chat-submit" class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-all duration-200">
-                    {{ lang_dict.get('dash_ai_chat_send', 'Send') }}
-                </button>
-            </form>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+                <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                Data Agent
+            </h2>
+            <button id="agent-reset-btn" onclick="agentReset()" class="text-xs text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition px-2 py-1 rounded border border-gray-200 dark:border-gray-700 hover:border-red-300">
+                Start Over
+            </button>
         </div>
+
+        <!-- Message log -->
+        <div id="agent-log" class="bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl p-4 min-h-[160px] max-h-96 overflow-y-auto text-sm space-y-3 mb-4">
+            <p id="agent-placeholder" class="text-gray-500 dark:text-gray-400 text-center pt-8">
+                Describe a customer interaction, deal, or note in natural language...
+            </p>
+        </div>
+
+        <!-- Option chips (clarification) -->
+        <div id="agent-options" class="hidden flex flex-wrap gap-2 mb-3"></div>
+
+        <!-- Review panel (confirmation phase — all actions visible at once) -->
+        <div id="agent-review-panel" class="hidden mb-3"></div>
+
+        <!-- Input form -->
+        <form id="agent-form" class="flex gap-2">
+            <input type="text" id="agent-input" placeholder="Type your message..." autocomplete="off"
+                class="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
+            <button type="submit" id="agent-submit"
+                class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-all duration-200">
+                Send
+            </button>
+        </form>
     </div>
 
     <!-- Region Chart -->
@@ -277,63 +294,294 @@
         }
     });
 
-    // ── AI Chat Assistant ──────────────────────────────────────────
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-    const chatBox = document.getElementById('chat-box');
-    const chatSubmit = document.getElementById('chat-submit');
+    // ── Data Agent ─────────────────────────────────────────────────
+    const agentForm       = document.getElementById('agent-form');
+    const agentInput      = document.getElementById('agent-input');
+    const agentLog        = document.getElementById('agent-log');
+    const agentSubmit     = document.getElementById('agent-submit');
+    const agentOptions    = document.getElementById('agent-options');
+    const agentReviewPanel = document.getElementById('agent-review-panel');
+    let   agentPhase       = 'idle';
 
-    if (chatForm) {
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = chatInput.value.trim();
-            if(!message) return;
+    // Review panel state
+    let reviewCards      = null;   // all confirmable cards (set on first confirming response)
+    let reviewDone       = [];     // array of booleans: true=confirmed, false=skipped
+    let reviewLastAction = null;   // 'confirm' or 'skip' — set just before each API call
 
-            // Remove placeholder text if present
-            const placeholder = chatBox.querySelector('.text-center');
-            if(placeholder) placeholder.remove();
+    const SPINNER = `<svg class="animate-spin h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
-            // Add user message to UI
-            const userDiv = document.createElement('div');
-            userDiv.className = 'flex justify-end';
-            userDiv.innerHTML = `<div class="bg-brand-600 text-white rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap">${message}</div>`;
-            chatBox.appendChild(userDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+    function agentLog_append(html) {
+        const ph = document.getElementById('agent-placeholder');
+        if (ph) ph.remove();
+        const d = document.createElement('div');
+        d.innerHTML = html;
+        agentLog.appendChild(d);
+        agentLog.scrollTop = agentLog.scrollHeight;
+    }
 
-            chatInput.value = '';
-            chatInput.disabled = true;
-            chatSubmit.disabled = true;
-            chatSubmit.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-900 dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+    function agentSetLoading(loading) {
+        agentInput.disabled  = loading;
+        agentSubmit.disabled = loading;
+        agentSubmit.innerHTML = loading ? SPINNER : 'Send';
+        // Also freeze review panel buttons while waiting
+        const rc = document.getElementById('review-confirm-btn');
+        const rs = document.getElementById('review-skip-btn');
+        if (rc) { rc.disabled = loading; rc.classList.toggle('opacity-50', loading); rc.classList.toggle('cursor-not-allowed', loading); }
+        if (rs) { rs.disabled = loading; rs.classList.toggle('opacity-50', loading); rs.classList.toggle('cursor-not-allowed', loading); }
+    }
 
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
-                });
-                const data = await res.json();
-                
-                const aiDiv = document.createElement('div');
-                aiDiv.className = 'flex justify-start';
-                if(!res.ok || data.error) {
-                    aiDiv.innerHTML = `<div class="bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap">Error: ${data.error || 'Server returned an error'}</div>`;
-                } else {
-                    aiDiv.innerHTML = `<div class="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-600/50 rounded-lg px-3 py-2 max-w-[80%] whitespace-pre-wrap leading-relaxed">${data.response}</div>`;
-                }
-                chatBox.appendChild(aiDiv);
-            } catch (err) {
-                const errDiv = document.createElement('div');
-                errDiv.className = 'flex justify-start';
-                errDiv.innerHTML = `<div class="bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 rounded-lg px-3 py-2 max-w-[80%]">Network Error: Could not reach the AI service.</div>`;
-                chatBox.appendChild(errDiv);
-            }
-
-            chatInput.disabled = false;
-            chatSubmit.disabled = false;
-            chatSubmit.innerHTML = "{{ lang_dict.get('dash_ai_chat_send', 'Send') }}";
-            chatBox.scrollTop = chatBox.scrollHeight;
-            chatInput.focus();
+    function agentShowOptions(options) {
+        agentOptions.innerHTML = '';
+        if (!options || !options.length) { agentOptions.classList.add('hidden'); return; }
+        agentOptions.classList.remove('hidden');
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'px-3 py-1.5 text-xs font-medium rounded-lg border border-brand-400 text-brand-600 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/30 transition';
+            btn.textContent = opt.label;
+            btn.onclick = () => agentSendAnswer(opt.label, opt.id);
+            agentOptions.appendChild(btn);
         });
+    }
+
+    function agentHideAll() {
+        agentOptions.classList.add('hidden');
+        agentOptions.innerHTML = '';
+        // NOTE: agentReviewPanel is NOT hidden here — it persists across confirming steps
+    }
+
+    function renderReviewPanel() {
+        if (!reviewCards || !reviewCards.length) return;
+        agentReviewPanel.classList.remove('hidden');
+
+        const doneCount = reviewDone.length;
+        const total     = reviewCards.length;
+
+        let html = `<div class="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/50 rounded-xl overflow-hidden">`;
+
+        // Header bar
+        html += `<div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700/50 bg-gray-100/60 dark:bg-gray-800">
+            <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">&#9889; Review Actions</span>
+            <span class="text-xs text-gray-400 dark:text-gray-500">${doneCount} / ${total} done</span>
+        </div>`;
+
+        reviewCards.forEach((card, i) => {
+            const iconHTML   = card.icon === 'deal' ? '&#128200;' : '&#128172;';
+            const sep        = i > 0 ? 'border-t border-gray-200 dark:border-gray-700/40' : '';
+
+            if (i < doneCount) {
+                // Already confirmed or skipped
+                const wasConfirmed = reviewDone[i];
+                html += `<div class="flex items-center justify-between px-4 py-2.5 ${sep} opacity-60">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">${iconHTML} ${card.title}</span>
+                    <span class="text-xs font-medium ${wasConfirmed ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400'}">${wasConfirmed ? '&#10003; Confirmed' : '&#8594; Skipped'}</span>
+                </div>`;
+
+            } else if (i === doneCount) {
+                // Active — current action waiting for user response
+                const detailsHtml = (card.details || []).map(d => `<li class="text-xs text-gray-600 dark:text-gray-300">${d}</li>`).join('');
+                html += `<div class="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 ${sep}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-blue-800 dark:text-blue-200">${iconHTML} ${card.title}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">${i + 1} of ${total}</span>
+                    </div>
+                    <ul class="list-disc list-inside space-y-0.5 mb-3">${detailsHtml}</ul>
+                    <div class="flex gap-2">
+                        <button id="review-confirm-btn" onclick="agentAnswer('confirm')"
+                            class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition">
+                            &#10003; Confirm
+                        </button>
+                        <button id="review-skip-btn" onclick="agentAnswer('skip')"
+                            class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold py-1.5 px-3 rounded-lg text-xs transition">
+                            &#8594; Skip
+                        </button>
+                    </div>
+                </div>`;
+
+            } else {
+                // Upcoming — visible but dimmed, no buttons yet
+                html += `<div class="flex items-center gap-2.5 px-4 py-2.5 opacity-40 ${sep}">
+                    <span class="w-5 h-5 flex-shrink-0 rounded-full border border-gray-400 dark:border-gray-600 text-xs flex items-center justify-center text-gray-400 font-medium">${i + 1}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">${iconHTML} ${card.title}</span>
+                </div>`;
+            }
+        });
+
+        html += `</div>`;
+        agentReviewPanel.innerHTML = html;
+    }
+
+    function agentResetReviewPanel() {
+        reviewCards      = null;
+        reviewDone       = [];
+        reviewLastAction = null;
+        agentReviewPanel.classList.add('hidden');
+        agentReviewPanel.innerHTML = '';
+    }
+
+    async function agentCall(body) {
+        const res  = await fetch('/api/agent/chat', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+        });
+        return res.json();
+    }
+
+    function agentHandleResponse(data) {
+        agentPhase = data.phase;
+        agentHideAll();
+
+        if (data.phase === 'error') {
+            agentLog_append(`<div class="flex justify-start"><div class="bg-red-500/15 text-red-600 dark:text-red-400 border border-red-400/30 rounded-xl px-4 py-3 max-w-[90%] text-sm">&#9888; ${data.message}</div></div>`);
+            return;
+        }
+
+        if (data.phase === 'clarifying') {
+            agentLog_append(`<div class="flex justify-start"><div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-amber-900 dark:text-amber-200 rounded-xl px-4 py-3 max-w-[90%] text-sm font-medium">&#10067; ${data.message}</div></div>`);
+            agentShowOptions(data.options || []);
+            agentInput.placeholder = 'Type your answer or pick an option above...';
+            return;
+        }
+
+        if (data.phase === 'confirming') {
+            // If we just sent a confirm/skip, record it before updating the panel
+            if (reviewCards !== null && reviewLastAction !== null) {
+                reviewDone.push(reviewLastAction === 'confirm');
+                reviewLastAction = null;
+            }
+            // Initialise on the very first confirming response
+            if (reviewCards === null) {
+                // Only show cards that need user confirmation (auto-execute ones like query_deals are skipped)
+                reviewCards = (data.all_cards || [data.current_action]).filter(c => c.requires_confirmation !== false);
+                reviewDone  = [];
+            }
+            renderReviewPanel();
+            agentInput.placeholder = 'Confirm or skip each action above...';
+            return;
+        }
+
+        if (data.phase === 'done') {
+            // If there was a pending review action, finalise it
+            if (reviewCards !== null && reviewLastAction !== null) {
+                reviewDone.push(reviewLastAction === 'confirm');
+                reviewLastAction = null;
+                renderReviewPanel(); // show the final checked state briefly
+            }
+            // Collapse panel — summary replaces it
+            agentResetReviewPanel();
+
+            const results = data.results || [];
+            let html = '';
+            results.forEach(r => {
+                const ok   = r.result.success === true;
+                const skip = r.result.success === null;
+                const icon  = ok ? '&#9989;' : (skip ? '&#8594;' : '&#10060;');
+                const color = ok ? 'text-emerald-700 dark:text-emerald-300' : (skip ? 'text-gray-500 dark:text-gray-400' : 'text-red-600 dark:text-red-400');
+                html += `<li class="${color} text-xs">${icon} ${r.result.message}</li>`;
+
+                // Render deal table for query_deals results
+                if (r.action && r.action.type === 'query_deals' && r.result.deals && r.result.deals.length) {
+                    const rows = r.result.deals.map(d =>
+                        `<tr class="border-t border-gray-200 dark:border-gray-700">
+                            <td class="py-1 pr-3 text-gray-400 dark:text-gray-500 text-xs">#${d.id}</td>
+                            <td class="py-1 pr-3 text-xs">${d.contact}</td>
+                            <td class="py-1 pr-3 text-xs font-mono">${d.size}</td>
+                            <td class="py-1 pr-3 text-xs">${d.type}</td>
+                            <td class="py-1 pr-3 text-xs">${d.status}</td>
+                            <td class="py-1 text-xs text-gray-500 dark:text-gray-400 max-w-[160px] truncate">${d.notes}</td>
+                        </tr>`
+                    ).join('');
+                    html += `<li class="mt-2 overflow-x-auto">
+                        <table class="text-left w-full">
+                            <thead><tr class="text-gray-400 dark:text-gray-500 text-xs">
+                                <th class="pr-3 pb-1">#</th>
+                                <th class="pr-3 pb-1">Contact</th>
+                                <th class="pr-3 pb-1">Size</th>
+                                <th class="pr-3 pb-1">Type</th>
+                                <th class="pr-3 pb-1">Status</th>
+                                <th class="pb-1">Notes</th>
+                            </tr></thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </li>`;
+                }
+            });
+            agentLog_append(`
+                <div class="flex justify-start">
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-xl px-4 py-3 w-full max-w-[90%]">
+                        <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200 mb-1">&#10024; Done</p>
+                        <ul class="space-y-1">${html || '<li class="text-xs text-gray-500">No actions taken.</li>'}</ul>
+                    </div>
+                </div>`);
+            agentInput.placeholder = 'Type a new message...';
+            agentPhase = 'idle';
+        }
+    }
+
+    agentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = agentInput.value.trim();
+        if (!msg) return;
+        agentHideAll();
+        agentLog_append(`<div class="flex justify-end"><div class="bg-brand-600 text-white rounded-xl px-4 py-2 max-w-[80%] text-sm whitespace-pre-wrap">${msg}</div></div>`);
+        agentInput.value = '';
+        agentSetLoading(true);
+        try {
+            let body;
+            // If we're mid-clarification, treat typed input as an answer, not a new message.
+            // This handles the case where the user types instead of picking a chip.
+            if (agentPhase === 'clarifying') {
+                body = { action: 'answer', answer: msg };
+            } else {
+                agentLog_append(`<div id="agent-thinking" class="flex justify-start"><div class="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${SPINNER} Agent is reading your message...</div></div>`);
+                body = { message: msg };
+            }
+            const data = await agentCall(body);
+            const thinking = document.getElementById('agent-thinking');
+            if (thinking) thinking.remove();
+            agentHandleResponse(data);
+        } catch(err) {
+            const thinking = document.getElementById('agent-thinking');
+            if (thinking) thinking.remove();
+            agentLog_append(`<div class="flex justify-start"><div class="bg-red-500/15 text-red-600 dark:text-red-400 border border-red-400/30 rounded-xl px-4 py-2 text-sm">Network error: ${err.message}</div></div>`);
+        }
+        agentSetLoading(false);
+    });
+
+    async function agentAnswer(action) {
+        reviewLastAction = action;  // record before the API roundtrip
+        agentHideAll();
+        agentSetLoading(true);
+        try {
+            const data = await agentCall({ action });
+            agentHandleResponse(data);
+        } catch(err) {
+            agentLog_append(`<div class="text-red-500 text-xs">Network error: ${err.message}</div>`);
+        }
+        agentSetLoading(false);
+    }
+
+    async function agentSendAnswer(text, optionId) {
+        agentHideAll();
+        agentLog_append(`<div class="flex justify-end"><div class="bg-brand-600 text-white rounded-xl px-3 py-1.5 text-sm">${text}</div></div>`);
+        agentSetLoading(true);
+        try {
+            const data = await agentCall({ action: 'answer', answer: text, option_id: optionId });
+            agentHandleResponse(data);
+        } catch(err) {
+            agentLog_append(`<div class="text-red-500 text-xs">Network error: ${err.message}</div>`);
+        }
+        agentSetLoading(false);
+    }
+
+    async function agentReset() {
+        await fetch('/api/agent/reset', { method: 'POST' });
+        agentLog.innerHTML = '<p id="agent-placeholder" class="text-gray-500 dark:text-gray-400 text-center pt-8">Describe a customer interaction, deal, or note in natural language...</p>';
+        agentHideAll();
+        agentResetReviewPanel();
+        agentPhase = 'idle';
+        agentInput.placeholder = 'Type your message...';
     }
     // Dynamic redraw on Theme switch
     window.addEventListener('themeChanged', function() {
