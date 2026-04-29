@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Backlog — Customer Tracker{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Global Backlog</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">All open work items across deals and projects</p>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap justify-end">
+      <select id="filter-type" onchange="filterItems()" class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white">
+        <option value="">All types</option>
+        <option value="project">Projects</option>
+        <option value="deal">Deals</option>
+      </select>
+      <select id="filter-status" onchange="filterItems()" class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white">
+        <option value="">All statuses</option>
+        <option value="not_started">Not Started</option>
+        <option value="in_progress">In Progress</option>
+        <option value="blocked">Blocked</option>
+      </select>
+      <select id="filter-assignee" onchange="filterItems()" class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white max-w-[150px]">
+        <option value="">All assignees</option>
+        {% for st in stakeholders %}
+        <option value="{{ st.StakeholderID }}">{{ st.FullName }}</option>
+        {% endfor %}
+      </select>
+      <select id="filter-deadline" onchange="filterItems()" class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white">
+        <option value="">Any deadline</option>
+        <option value="overdue">Overdue</option>
+        <option value="today">Due Today</option>
+        <option value="week">Due This Week</option>
+        <option value="none">No Deadline</option>
+      </select>
+    </div>
+  </div>
+
+  {% if items %}
+  <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm" id="backlog-table">
+      <thead class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-800">
+        <tr>
+          <th class="px-5 py-3 text-left">Work Item</th>
+          <th class="px-4 py-3 text-left">Parent</th>
+          <th class="px-4 py-3 text-center">Type</th>
+          <th class="px-4 py-3 text-center">Status</th>
+          <th class="px-4 py-3 text-center">Deadline</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50 dark:divide-gray-800/60">
+        {% for item in items %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition backlog-row"
+            data-type="{{ item.ParentType }}" data-status="{{ item.Status }}"
+            data-assignees="{{ item.AssigneeIDs or '' }}" data-deadline="{{ item.Deadline or '' }}">
+          <td class="px-5 py-3">
+            <p class="font-medium text-gray-900 dark:text-white">{{ item.Title }}</p>
+            {% if item.Description %}
+            <p class="text-xs text-gray-400 truncate max-w-xs mt-0.5">{{ item.Description }}</p>
+            {% endif %}
+            {% if item.Assignees %}
+            <p class="text-xs text-brand-600 dark:text-brand-400 mt-1">👤 {{ item.Assignees }}</p>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            <a href="/{% if item.ParentType == 'project' %}projects{% else %}deals{% endif %}/{{ item.ParentID }}"
+               class="text-sm text-brand-600 dark:text-brand-400 hover:underline">
+              {{ item.ParentName or item.ParentType + ' #' + item.ParentID | string }}
+            </a>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <span class="text-xs px-2 py-0.5 rounded-full
+              {% if item.ParentType == 'project' %}bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300
+              {% else %}bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300{% endif %}">
+              {{ item.ParentType | capitalize }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <span class="text-xs px-2 py-0.5 rounded-full
+              {% if item.Status == 'in_progress' %}bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300
+              {% elif item.Status == 'blocked' %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
+              {% else %}bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400{% endif %}">
+              {{ item.Status.replace('_',' ').title() }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-center text-xs text-gray-400">
+            {% if item.Deadline %}
+              {% set day_diff = (item.Deadline - now.date()).days if item.Deadline else None %}
+              <span class="{% if day_diff is not none and day_diff < 0 %}text-red-400 font-semibold{% elif day_diff is not none and day_diff <= 7 %}text-amber-400 font-semibold{% endif %}">
+                {{ item.Deadline }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 text-right">
+            <button onclick="markDone({{ item.ItemID }})"
+                    class="text-xs text-gray-300 hover:text-emerald-500 transition font-medium">
+              ✓ Done
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-24 text-gray-400 dark:text-gray-600">
+    <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+    <p class="font-medium">All clear! No open work items.</p>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function filterItems() {
+  const type = document.getElementById('filter-type').value;
+  const status = document.getElementById('filter-status').value;
+  const assignee = document.getElementById('filter-assignee').value;
+  const deadline = document.getElementById('filter-deadline').value;
+  
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const nextWeek = new Date(today);
+  nextWeek.setDate(today.getDate() + 7);
+
+  document.querySelectorAll('.backlog-row').forEach(row => {
+    const typeMatch = !type || row.dataset.type === type;
+    const statusMatch = !status || row.dataset.status === status;
+    const assignees = row.dataset.assignees ? row.dataset.assignees.split(',') : [];
+    const assigneeMatch = !assignee || assignees.includes(assignee);
+    
+    let deadlineMatch = true;
+    if (deadline) {
+      if (deadline === 'none') {
+        deadlineMatch = !row.dataset.deadline;
+      } else if (!row.dataset.deadline) {
+        deadlineMatch = false;
+      } else {
+        const itemDate = new Date(row.dataset.deadline);
+        itemDate.setHours(0,0,0,0);
+        if (deadline === 'overdue') {
+          deadlineMatch = itemDate < today;
+        } else if (deadline === 'today') {
+          deadlineMatch = itemDate.getTime() === today.getTime();
+        } else if (deadline === 'week') {
+          deadlineMatch = itemDate >= today && itemDate <= nextWeek;
+        }
+      }
+    }
+    
+    row.style.display = typeMatch && statusMatch && assigneeMatch && deadlineMatch ? '' : 'none';
+  });
+}
+
+async function markDone(iid) {
+  await fetch(`/api/workitems/${iid}/status`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ status: 'done' })
+  });
+  location.reload();
+}
+</script>
+{% endblock %}

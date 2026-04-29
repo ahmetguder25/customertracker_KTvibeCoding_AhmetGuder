@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}OKRs — Customer Tracker{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">OKRs</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Objectives and Key Results — department strategic goals</p>
+    </div>
+    <button onclick="document.getElementById('modal-obj').classList.remove('hidden')"
+            class="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Add Objective
+    </button>
+  </div>
+
+  <!-- Objectives -->
+  {% set kr_map = {} %}
+  {% for kr in krs %}
+    {% if kr.ObjectiveID not in kr_map %}{% set _ = kr_map.update({kr.ObjectiveID: []}) %}{% endif %}
+    {% set _ = kr_map[kr.ObjectiveID].append(kr) %}
+  {% endfor %}
+
+  {% if objectives %}
+  <div class="space-y-5">
+    {% for obj in objectives %}
+    {% set obj_krs = krs | selectattr('ObjectiveID', 'equalto', obj.ObjectiveID) | list %}
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+      <!-- Objective header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div class="flex-1">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <h2 class="font-bold text-gray-900 dark:text-white">{{ obj.Title }}</h2>
+              {% if obj.Period %}<span class="text-xs text-gray-400 ml-1">{{ obj.Period }}</span>{% endif %}
+            </div>
+          </div>
+          {% if obj.Description %}<p class="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">{{ obj.Description }}</p>{% endif %}
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="showAddKR({{ obj.ObjectiveID }})"
+                  class="text-xs text-brand-500 hover:text-brand-600 font-semibold transition px-3 py-1.5 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20">
+            + Add KR
+          </button>
+          <button onclick="deleteObjective({{ obj.ObjectiveID }})" class="text-gray-300 hover:text-red-400 transition p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Key Results -->
+      <div class="divide-y divide-gray-50 dark:divide-gray-800/60">
+        {% for kr in obj_krs %}
+        {% set achieved_pct = [(kr.AchievedValue / kr.TargetValue * 100) if kr.TargetValue > 0 else 0, 100] | min %}
+        {% set pipeline_pct = [((kr.AchievedValue + kr.PipelineValue) / kr.TargetValue * 100) if kr.TargetValue > 0 else 0, 100] | min %}
+        <div class="px-6 py-4">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <div class="w-1.5 h-1.5 rounded-full bg-brand-500 mt-0.5 flex-shrink-0"></div>
+                <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ kr.Title }}</p>
+                <!-- Info button -->
+                <button title="KR Info" onclick="showKRInfo({{ kr.KRID }}, '{{ kr.Title|replace('\'', '\\\'') }}')" class="text-gray-300 hover:text-brand-400 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </button>
+              </div>
+              <p class="text-xs text-gray-400 ml-3.5 mt-0.5">
+                Method: {{ kr.CalcMethod }} · Unit: {{ kr.Unit or '—' }}
+              </p>
+            </div>
+            <div class="text-right flex-shrink-0 ml-4">
+              <p class="text-sm font-bold text-gray-900 dark:text-white">
+                {{ kr.AchievedValue | int }} / {{ kr.TargetValue | int }}
+                <span class="text-xs font-normal text-gray-400">{{ kr.Unit or '' }}</span>
+              </p>
+              {% if kr.PipelineValue > 0 %}
+              <p class="text-xs text-amber-500 dark:text-amber-400">+{{ kr.PipelineValue | int }} pipeline</p>
+              {% endif %}
+            </div>
+          </div>
+          <!-- Progress bar -->
+          <div class="relative h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden ml-3.5">
+            <!-- Pipeline (lighter) -->
+            <div class="absolute inset-y-0 left-0 rounded-full bg-brand-300/40 dark:bg-brand-700/40 transition-all duration-700"
+                 style="width: {{ pipeline_pct }}%"></div>
+            <!-- Achieved (solid) -->
+            <div class="absolute inset-y-0 left-0 rounded-full bg-brand-500 dark:bg-brand-400 transition-all duration-700"
+                 style="width: {{ achieved_pct }}%"></div>
+          </div>
+          <div class="flex items-center justify-between ml-3.5 mt-1">
+            <span class="text-xs text-gray-400">{{ '%.0f' | format(achieved_pct) }}% achieved</span>
+            <button onclick="deleteKR({{ kr.KRID }})" class="text-xs text-gray-300 hover:text-red-400 transition">Remove</button>
+          </div>
+        </div>
+        {% else %}
+        <div class="px-6 py-4 text-sm text-gray-400 dark:text-gray-500 italic">No key results yet. Add one to start tracking progress.</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-24 text-gray-400 dark:text-gray-600">
+    <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <p class="font-medium">No objectives yet.</p>
+    <p class="text-sm mt-1">Add your first Objective to start tracking strategic goals.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add Objective Modal -->
+<div id="modal-obj" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 border border-gray-200 dark:border-gray-800">
+    <h2 class="text-lg font-bold text-gray-900 dark:text-white">New Objective</h2>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Objective Title *</label>
+        <input id="obj-title" type="text" placeholder="e.g. Expand structured finance in tourism"
+               class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 text-gray-900 dark:text-white"/>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Period</label>
+        <input id="obj-period" type="text" placeholder="e.g. 2025-Annual"
+               class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white"/>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Description</label>
+        <textarea id="obj-desc" rows="2" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none resize-none text-gray-900 dark:text-white"></textarea>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button onclick="document.getElementById('modal-obj').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-500">Cancel</button>
+      <button onclick="saveObjective()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl shadow transition">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add KR Modal -->
+<div id="modal-kr" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <input type="hidden" id="kr-obj-id"/>
+  <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 border border-gray-200 dark:border-gray-800">
+    <h2 class="text-lg font-bold text-gray-900 dark:text-white">Add Key Result</h2>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Key Result Title *</label>
+        <input id="kr-title" type="text" placeholder="e.g. 10 companies onboarded under XYZ product"
+               class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 text-gray-900 dark:text-white"/>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Target *</label>
+          <input id="kr-target" type="number" min="0" placeholder="10"
+                 class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Unit</label>
+          <input id="kr-unit" type="text" placeholder="deals"
+                 class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Calc Method</label>
+          <select id="kr-calc" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white">
+            <option value="count">Count</option>
+            <option value="sum_size">Sum Size</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button onclick="document.getElementById('modal-kr').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-500">Cancel</button>
+      <button onclick="saveKR()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl shadow transition">Add KR</button>
+    </div>
+  </div>
+</div>
+
+<!-- KR Info Modal -->
+<div id="modal-kr-info" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl p-6 space-y-4 border border-gray-200 dark:border-gray-800 flex flex-col max-h-[80vh]">
+    <div class="flex justify-between items-center">
+      <h2 id="kr-info-title" class="text-lg font-bold text-gray-900 dark:text-white">Key Result Details</h2>
+      <button onclick="document.getElementById('modal-kr-info').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="overflow-y-auto flex-1 pr-2">
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Deals contributing to this key result (Pipeline & Achieved):</p>
+      <div id="kr-info-deals" class="space-y-2">
+        <div class="text-center py-8 text-sm text-gray-400">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function saveObjective() {
+  const title = document.getElementById('obj-title').value.trim();
+  if (!title) return;
+  await fetch('/api/okrs/objectives', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ title, description: document.getElementById('obj-desc').value, period: document.getElementById('obj-period').value })
+  });
+  location.reload();
+}
+
+async function deleteObjective(oid) {
+  if (!confirm('Delete this objective and all its KRs?')) return;
+  await fetch(`/api/okrs/objectives/${oid}`, { method: 'DELETE' });
+  location.reload();
+}
+
+function showAddKR(objId) {
+  document.getElementById('kr-obj-id').value = objId;
+  document.getElementById('modal-kr').classList.remove('hidden');
+}
+
+async function saveKR() {
+  const title = document.getElementById('kr-title').value.trim();
+  const target = document.getElementById('kr-target').value;
+  const objId = document.getElementById('kr-obj-id').value;
+  if (!title || !target || !objId) return;
+  await fetch('/api/okrs/krs', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ objective_id: parseInt(objId), title, target: parseFloat(target), unit: document.getElementById('kr-unit').value, calc_method: document.getElementById('kr-calc').value })
+  });
+  location.reload();
+}
+
+async function deleteKR(krid) {
+  if (!confirm('Remove this key result?')) return;
+  await fetch(`/api/okrs/krs/${krid}`, { method: 'DELETE' });
+  location.reload();
+}
+
+async function showKRInfo(krid, title) {
+  document.getElementById('kr-info-title').innerText = title;
+  document.getElementById('modal-kr-info').classList.remove('hidden');
+  document.getElementById('kr-info-deals').innerHTML = '<div class="text-center py-8 text-sm text-gray-400">Loading...</div>';
+  
+  try {
+    const res = await fetch(`/api/okrs/krs/${krid}/deals`);
+    const data = await res.json();
+    
+    if (!data.deals || data.deals.length === 0) {
+      document.getElementById('kr-info-deals').innerHTML = '<div class="text-center py-8 text-sm text-gray-400 italic">No contributing deals found.</div>';
+      return;
+    }
+    
+    let html = '';
+    data.deals.forEach(d => {
+      const badgeClass = d.status === '4' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+      
+      html += `
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
+          <div>
+            <a href="/deals/${d.id}" class="font-semibold text-sm text-brand-600 dark:text-brand-400 hover:underline">${d.company}</a>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${d.contact || 'No contact'}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-bold text-gray-900 dark:text-white">${d.size.toLocaleString()}</p>
+            <span class="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium uppercase ${badgeClass}">${d.status_label}</span>
+          </div>
+        </div>
+      `;
+    });
+    document.getElementById('kr-info-deals').innerHTML = html;
+  } catch (e) {
+    document.getElementById('kr-info-deals').innerHTML = `<div class="text-center py-8 text-sm text-red-500">Error loading deals.</div>`;
+  }
+}
+</script>
+{% endblock %}

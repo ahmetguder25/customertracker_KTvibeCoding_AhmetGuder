@@ -2,14 +2,28 @@
 {% block title %}Management — Customer Tracker{% endblock %}
 
 {% block content %}
+<style>
+.tab-btn.active { background: rgba(29,98,241,0.15); color: #3381fc; }
+.tab-btn { transition: all 0.2s; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+</style>
 <div class="space-y-8">
     <div>
         <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('mgmt_title', 'Customer Management') }}</h1>
         <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-1">{{ lang_dict.get('mgmt_subtitle', 'Add customers from the company database to your structured finance tracking') }}</p>
     </div>
 
-    <!-- Add Customer -->
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
+    <!-- Tab Controls -->
+    <div class="flex gap-2 border-b border-gray-200 dark:border-gray-800">
+        <button class="tab-btn active px-4 py-2 font-medium text-sm border-b-2 border-transparent" onclick="switchMgmtTab('customers', this)">Customers</button>
+        <button class="tab-btn px-4 py-2 font-medium text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border-b-2 border-transparent" onclick="switchMgmtTab('stakeholders', this)">Stakeholders</button>
+    </div>
+
+    <!-- CUSTOMERS TAB -->
+    <div id="tab-customers" class="tab-panel active space-y-8">
+        <!-- Add Customer -->
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('mgmt_add_title', 'Add Customer') }}</h2>
         <style>
             /* Hide number input spinners */
@@ -158,6 +172,76 @@
         <div class="text-center py-12 text-gray-700 dark:text-gray-500">{{ lang_dict.get('mgmt_empty', 'No customers tracked yet. Look up an account number above to add one.') }}</div>
         {% endif %}
     </div>
+    </div> <!-- end tab-customers -->
+
+    <!-- STAKEHOLDERS TAB -->
+    <div id="tab-stakeholders" class="tab-panel space-y-8">
+        <!-- Add Stakeholder Form -->
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
+            <h2 class="text-lg font-semibold mb-4">Add Stakeholder</h2>
+            <form id="add-stakeholder-form" class="space-y-4" onsubmit="addStakeholder(event)">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Full Name *</label>
+                        <input type="text" id="sh_name" required class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 text-gray-900 dark:text-white placeholder-gray-500" placeholder="e.g. Jane Doe">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Organization</label>
+                        <input type="text" id="sh_org" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 text-gray-900 dark:text-white placeholder-gray-500" placeholder="e.g. Acme Corp">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Department</label>
+                        <input type="text" id="sh_dept" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 text-gray-900 dark:text-white placeholder-gray-500" placeholder="e.g. Engineering">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Email</label>
+                        <input type="email" id="sh_email" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 text-gray-900 dark:text-white placeholder-gray-500" placeholder="jane.doe@example.com">
+                    </div>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 shadow-sm hover:shadow-lg hover:shadow-brand-600/25">
+                        + Add Stakeholder
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Stakeholders Table -->
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+                <h2 class="text-lg font-semibold">Tracked Stakeholders</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-700 dark:text-gray-500">
+                            <th class="px-6 py-3">Full Name</th>
+                            <th class="px-6 py-3">Organization</th>
+                            <th class="px-6 py-3">Department</th>
+                            <th class="px-6 py-3">Email</th>
+                            <th class="px-6 py-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800/60">
+                        {% for s in stakeholders %}
+                        <tr class="hover:bg-gray-800/40 transition-colors">
+                            <td class="px-6 py-3 font-medium text-gray-900 dark:text-white">{{ s.FullName }}</td>
+                            <td class="px-6 py-3 text-gray-700 dark:text-gray-400">{{ s.Organization or '—' }}</td>
+                            <td class="px-6 py-3 text-gray-700 dark:text-gray-400">{{ s.Department or '—' }}</td>
+                            <td class="px-6 py-3 text-gray-700 dark:text-gray-400">{{ s.Email or '—' }}</td>
+                            <td class="px-6 py-3 text-center whitespace-nowrap">
+                                <button onclick="deleteStakeholder({{ s.StakeholderID }}, '{{ s.FullName|replace("'", "\\'") }}')" class="text-red-600 dark:text-red-400 hover:text-red-300 text-xs font-medium transition">Remove</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if not stakeholders %}
+            <div class="text-center py-12 text-gray-700 dark:text-gray-500">No stakeholders tracked yet.</div>
+            {% endif %}
+        </div>
+    </div> <!-- end tab-stakeholders -->
 </div>
 
 <!-- Sync Progress Overlay -->
@@ -190,6 +274,57 @@
 </div>
 
 <script>
+function switchMgmtTab(tabId, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.classList.add('text-gray-500');
+    });
+    
+    btn.classList.add('active');
+    btn.classList.remove('text-gray-500');
+}
+
+async function addStakeholder(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    
+    const payload = {
+        full_name: document.getElementById('sh_name').value,
+        organization: document.getElementById('sh_org').value,
+        department: document.getElementById('sh_dept').value,
+        email: document.getElementById('sh_email').value
+    };
+    
+    try {
+        const res = await fetch('/api/stakeholders', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) window.location.reload();
+        else alert('Failed to add stakeholder');
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function deleteStakeholder(id, name) {
+    if (!confirm(`Remove stakeholder ${name}?`)) return;
+    try {
+        const res = await fetch(`/api/stakeholders/${id}`, { method: 'DELETE' });
+        if (res.ok) window.location.reload();
+        else alert('Failed to delete stakeholder');
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
 const accountInput  = document.getElementById('accountNumber');
 const nameField     = document.getElementById('CustomerName');
 const branchField   = document.getElementById('branch');

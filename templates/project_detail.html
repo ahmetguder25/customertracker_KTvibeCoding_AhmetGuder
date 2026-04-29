@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}{{ project.ProjectName }} — Projects{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3">
+    <a href="/projects" class="text-gray-400 hover:text-brand-500 transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <div class="flex-1">
+      <div class="flex items-center gap-3 flex-wrap">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ project.ProjectName }}</h1>
+        <span class="text-xs font-bold px-2.5 py-1 rounded-full
+          {% if project.Status == 'Active' %}bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300
+          {% elif project.Status == 'Completed' %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300
+          {% elif project.Status == 'On Hold' %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300
+          {% else %}bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400{% endif %}">
+          {{ project.Status }}
+        </span>
+      </div>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+        {% if project.ObjTitle %}📎 {{ project.ObjTitle }} · {% endif %}
+        {% if project.Deadline %}Due {{ project.Deadline }}{% endif %}
+      </p>
+    </div>
+    <button onclick="document.getElementById('modal-item').classList.remove('hidden')"
+            class="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Add Item
+    </button>
+  </div>
+
+  {% if project.Description %}
+  <p class="text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3">{{ project.Description }}</p>
+  {% endif %}
+
+  <!-- Backlog -->
+  <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+      <h2 class="font-bold text-gray-900 dark:text-white text-sm">Backlog
+        <span class="ml-2 text-xs font-normal text-gray-400">({{ items | length }} items)</span>
+      </h2>
+      {% if items %}
+      {% set done = items | selectattr('Status','equalto','done') | list | length %}
+      <span class="text-xs text-gray-400">{{ done }}/{{ items|length }} done</span>
+      {% endif %}
+    </div>
+
+    {% if items %}
+    <div class="divide-y divide-gray-50 dark:divide-gray-800/60">
+      {% for item in items %}
+      {% set prereqs = prereq_map.get(item.ItemID, []) %}
+      {% set subs = subitems_map.get(item.ItemID, []) %}
+      {% set is_blocked = prereqs | length > 0 and items | selectattr('ItemID','in',prereqs) | selectattr('Status','ne','done') | list | length > 0 %}
+      <div class="px-5 py-4 {% if is_blocked %}opacity-50{% endif %}" id="item-{{ item.ItemID }}">
+        <div class="flex items-start gap-3">
+          <!-- Status toggle -->
+          <button onclick="toggleStatus({{ item.ItemID }}, '{{ item.Status }}')"
+                  {% if is_blocked %}disabled title="Blocked by prerequisites"{% endif %}
+                  class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 transition
+                    {% if item.Status == 'done' %}bg-emerald-500 border-emerald-500 text-white
+                    {% elif item.Status == 'in_progress' %}border-brand-500 bg-brand-500/20
+                    {% elif is_blocked or item.Status == 'blocked' %}border-red-400 bg-red-50 dark:bg-red-900/10 disabled:opacity-50 disabled:cursor-not-allowed
+                    {% else %}border-gray-300 dark:border-gray-600 hover:border-brand-400{% endif %}
+                    flex items-center justify-center">
+            {% if item.Status == 'done' %}
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            {% endif %}
+          </button>
+
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-sm font-medium text-gray-900 dark:text-white {% if item.Status == 'done' %}line-through text-gray-400{% endif %}">
+                {{ item.Title }}
+              </span>
+              <div class="flex items-center gap-1 flex-shrink-0">
+                {% if item.Deadline %}
+                <span class="text-xs text-gray-400">{{ item.Deadline }}</span>
+                {% endif %}
+                <button onclick="deleteItem({{ item.ItemID }})" class="text-gray-300 hover:text-red-400 transition p-0.5">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </div>
+
+            {% if prereqs %}
+            <p class="text-xs text-gray-400 mt-0.5">
+              Requires: {% for rid in prereqs %}<span class="font-medium">#{{ rid }}</span>{% if not loop.last %}, {% endif %}{% endfor %}
+            </p>
+            {% endif %}
+
+            {% if is_blocked %}
+            <span class="inline-flex items-center gap-1 text-xs text-red-400 mt-1">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+              Blocked — waiting on prerequisites
+            </span>
+            {% endif %}
+
+            <!-- Sub-items -->
+            {% if subs %}
+            <div class="mt-2 ml-2 space-y-1.5 border-l-2 border-gray-100 dark:border-gray-800 pl-3">
+              {% for s in subs %}
+              <div class="flex items-center gap-2">
+                <button onclick="toggleSubStatus({{ s.SubItemID }}, '{{ s.Status }}')"
+                        class="flex-shrink-0 w-4 h-4 rounded border-2 transition
+                          {% if s.Status == 'done' %}bg-emerald-500 border-emerald-500 text-white{% else %}border-gray-300 dark:border-gray-600 hover:border-brand-400{% endif %}
+                          flex items-center justify-center">
+                  {% if s.Status == 'done' %}<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>{% endif %}
+                </button>
+                <span class="text-xs text-gray-600 dark:text-gray-400 {% if s.Status == 'done' %}line-through{% endif %}">{{ s.Title }}</span>
+                {% if s.Deadline %}<span class="text-xs text-gray-300 ml-auto">{{ s.Deadline }}</span>{% endif %}
+                <button onclick="deleteSubItem({{ s.SubItemID }})" class="text-gray-200 hover:text-red-400 transition">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Add sub-item inline -->
+            <button onclick="showAddSub({{ item.ItemID }})" class="text-xs text-gray-300 hover:text-brand-400 transition mt-1.5">+ sub-item</button>
+            <div id="sub-form-{{ item.ItemID }}" class="hidden mt-2 flex gap-2">
+              <input type="text" id="sub-title-{{ item.ItemID }}" placeholder="Sub-item title…"
+                     class="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs outline-none text-gray-900 dark:text-white"/>
+              <button onclick="saveSub({{ item.ItemID }})" class="px-2 py-1 text-xs bg-brand-600 text-white rounded-lg">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-12 text-center text-gray-400 dark:text-gray-500">
+      <p class="text-sm">No work items yet. Add the first item to start.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add Work Item Modal -->
+<div id="modal-item" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 border border-gray-200 dark:border-gray-800">
+    <h2 class="text-lg font-bold text-gray-900 dark:text-white">Add Work Item</h2>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Title *</label>
+        <input id="wi-title" type="text" placeholder="e.g. Talk to IT about deployment"
+               class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 text-gray-900 dark:text-white"/>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Description</label>
+        <textarea id="wi-desc" rows="2" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none resize-none text-gray-900 dark:text-white"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Deadline</label>
+        <input id="wi-deadline" type="date" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm outline-none text-gray-900 dark:text-white"/>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button onclick="document.getElementById('modal-item').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-500">Cancel</button>
+      <button onclick="saveItem()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl shadow transition">Add Item</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROJECT_ID = {{ project.ProjectID }};
+const STATUS_CYCLE = { 'not_started': 'in_progress', 'in_progress': 'done', 'done': 'not_started', 'blocked': 'in_progress' };
+
+async function toggleStatus(iid, current) {
+  const next = STATUS_CYCLE[current] || 'in_progress';
+  await fetch(`/api/workitems/${iid}/status`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ status: next })
+  });
+  location.reload();
+}
+
+async function toggleSubStatus(sid, current) {
+  const next = current === 'done' ? 'not_started' : 'done';
+  await fetch(`/api/subitems/${sid}/status`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ status: next })
+  });
+  location.reload();
+}
+
+async function saveItem() {
+  const title = document.getElementById('wi-title').value.trim();
+  if (!title) return;
+  await fetch('/api/workitems', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ parent_type: 'project', parent_id: PROJECT_ID, title, description: document.getElementById('wi-desc').value, deadline: document.getElementById('wi-deadline').value || null })
+  });
+  location.reload();
+}
+
+async function deleteItem(iid) {
+  if (!confirm('Remove this item?')) return;
+  await fetch(`/api/workitems/${iid}`, { method: 'DELETE' });
+  location.reload();
+}
+
+function showAddSub(iid) {
+  document.getElementById(`sub-form-${iid}`).classList.toggle('hidden');
+}
+
+async function saveSub(iid) {
+  const title = document.getElementById(`sub-title-${iid}`).value.trim();
+  if (!title) return;
+  await fetch('/api/subitems', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ parent_item_id: iid, title })
+  });
+  location.reload();
+}
+
+async function deleteSubItem(sid) {
+  await fetch(`/api/subitems/${sid}`, { method: 'DELETE' });
+  location.reload();
+}
+</script>
+{% endblock %}

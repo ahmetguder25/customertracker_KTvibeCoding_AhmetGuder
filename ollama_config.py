@@ -4,32 +4,40 @@
 OLLAMA_URL = "http://localhost:11434"
 
 # The local LLM model to use for the chat assistant
-OLLAMA_MODEL = "qwen2.5:14b"
+OLLAMA_MODEL = "qwen2.5:32b"
 
 # Timeout in seconds for the Ollama API request
 OLLAMA_TIMEOUT = 60
 
-# ── Multi-Agent Analysis Configuration ────────────────────────────────────────
+# ── Multi-Agent Analysis Configuration (agent_orchestrator.py) ────────────────
 
-# Model used by the multi-agent pipeline (preferably a general reasoning model)
-AGENT_MODEL = "qwen2.5:14b"
-
-# Timeout per agent call (longer, since agents chain sequentially)
-AGENT_TIMEOUT = 120
-
-# Maximum characters for the final synthesised report saved to the database
+# Model used by the 3-stage analysis pipeline (Strategist → Specialist → Editor)
+AGENT_MODEL    = "qwen2.5:72b"
+AGENT_TIMEOUT  = 180
 AGENT_MAX_CHARS = 1000
 
-# Pool of English names randomly assigned to agents each session
 AGENT_NAMES = ["Arthur", "Sarah", "Michael", "Elena", "James", "Priya", "Omar", "Clara"]
-
-# Knowledge base directory (relative to app root)
 KNOWLEDGE_BASE_DIR = "knowledge_base"
 
-# ── Data Agent Configuration ───────────────────────────────────────────────────
+# ── 4-Layer CoT Data Agent Configuration (data_agent_orchestrator.py) ─────────
 
-# Model used by the natural language Data Agent (intent parsing + entity resolution)
-DATA_AGENT_MODEL = "qwen2.5:14b"
+# Layer 1 — Multi-Intent Dispatcher: parses free-form text into Action Objects
+DISPATCHER_MODEL   = "qwen2.5:72b"
+DISPATCHER_TIMEOUT = 120
 
-# Timeout per Data Agent LLM call
-DATA_AGENT_TIMEOUT = 120
+# Layer 2 — Semantic Resolver & Parameter Mapper: entity resolution + schema validation
+RESOLVER_MODEL   = "qwen2.5:32b"
+RESOLVER_TIMEOUT = 90
+
+# Layer 3 — SQL Engineer: generates T-SQL preview with plain-language explanation
+SQL_ENGINEER_MODEL   = "qwen2.5-coder:32b"
+SQL_ENGINEER_TIMEOUT = 90
+
+# Layer 4 — Memory & Feedback Loop: synthesises rejections into persistent Golden Rules
+MEMORY_MODEL   = "qwen2.5:72b"
+MEMORY_TIMEOUT = 60
+
+# ── Backward-compat alias (used by legacy callers) ─────────────────────────────
+DATA_AGENT_MODEL   = RESOLVER_MODEL
+DATA_AGENT_TIMEOUT = RESOLVER_TIMEOUT
+

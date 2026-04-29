@@ -4,4 +4,5 @@ SELECT d.*, c.CustomerName, c.sector, c.credit_limit, c.value_segment,
 FROM BOA.ZZZ.CustomerDeals d
 JOIN BOA.ZZZ.Customer c ON d.customerid = c.Customerid
 WHERE c.IsStructured = 1
+  AND d.IsActive = 1
 ORDER BY d.created_at DESC

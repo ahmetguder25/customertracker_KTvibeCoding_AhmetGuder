@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Products — Customer Tracker{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Products</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Financing products available to structure deals</p>
+    </div>
+    <button onclick="document.getElementById('modal-add-product').classList.remove('hidden')"
+            class="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Add Product
+    </button>
+  </div>
+
+  <!-- Product Grid -->
+  {% if products %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for p in products %}
+    <a href="/products/{{ p.ProductID }}"
+       class="group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-lg hover:border-brand-500/40 transition-all duration-200 flex flex-col gap-3">
+      <!-- Type badge -->
+      <div class="flex items-start justify-between gap-2">
+        <span class="text-xs font-bold px-2.5 py-1 rounded-full
+          {% if p.ProductType == 'Sukuk' %}bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300
+          {% elif p.ProductType == 'Syndication' %}bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300
+          {% elif p.ProductType == 'Legacy' %}bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400
+          {% else %}bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300{% endif %}">
+          {{ p.ProductType or 'General' }}
+        </span>
+        <span class="text-xs text-gray-400 dark:text-gray-500">{{ p.deal_count }} deal{{ 's' if p.deal_count != 1 }}</span>
+      </div>
+
+      <!-- Name -->
+      <div>
+        <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition">
+          {{ p.ProductName }}
+        </h3>
+        {% if p.IslamicContractType %}
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ p.IslamicContractType }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Partner -->
+      {% if p.PartnerInstitution %}
+      <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M9 21V10m6 11V10M3 7l9-4 9 4"/></svg>
+        {{ p.PartnerInstitution }}
+      </div>
+      {% endif %}
+
+      <!-- Description -->
+      {% if p.Description %}
+      <p class="text-xs text-gray-400 dark:text-gray-500 line-clamp-2">{{ p.Description }}</p>
+      {% endif %}
+
+      <!-- Arrow -->
+      <div class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition text-brand-500">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-24 text-gray-400 dark:text-gray-600">
+    <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 3H8l-2 4h12l-2-4z"/></svg>
+    <p class="font-medium">No products yet.</p>
+    <p class="text-sm mt-1">Add your first product to start structuring deals.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add Product Modal -->
+<div id="modal-add-product" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 border border-gray-200 dark:border-gray-800">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-bold text-gray-900 dark:text-white">New Product</h2>
+      <button onclick="document.getElementById('modal-add-product').classList.add('hidden')"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2">
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Product Name *</label>
+        <input id="np-name" type="text" placeholder="e.g. KT Bank AG EUR Facility"
+               class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none text-gray-900 dark:text-white"/>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Product Code *</label>
+        <input id="np-code" type="text" placeholder="e.g. KTAG-EUR"
+               class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none text-gray-900 dark:text-white"/>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Product Type</label>
+        <select id="np-type"
+                class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none text-gray-900 dark:text-white">
+          <option value="">Select type…</option>
+          <option>Syndication</option>
+          <option>Sukuk</option>
+          <option>Guaranteed Loan</option>
+          <option>Bilateral Loan</option>
+          <option>Trade Finance</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Islamic Contract Type</label>
+        <select id="np-islamic"
+                class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none text-gray-900 dark:text-white">
+          <option value="">Select…</option>
+          <option>Murabaha</option>
+          <option>Wakala</option>
+          <option>Ijara</option>
+          <option>Sukuk</option>
+          <option>Musharaka</option>
+          <option>Istisna</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Partner Institution</label>
+        <input id="np-partner" type="text" placeholder="e.g. KT Bank AG"
+               class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none text-gray-900 dark:text-white"/>
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Description</label>
+        <textarea id="np-desc" rows="2" placeholder="Brief description of this product…"
+                  class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none text-gray-900 dark:text-white resize-none"></textarea>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 pt-1">
+      <button onclick="document.getElementById('modal-add-product').classList.add('hidden')"
+              class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition">Cancel</button>
+      <button onclick="saveProduct()"
+              class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl shadow transition">
+        Create Product
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function saveProduct() {
+  const name = document.getElementById('np-name').value.trim();
+  const code = document.getElementById('np-code').value.trim();
+  if (!name || !code) { alert('Name and Code are required.'); return; }
+  const res = await fetch('/api/products', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      name, code,
+      type: document.getElementById('np-type').value,
+      islamic_contract: document.getElementById('np-islamic').value,
+      partner: document.getElementById('np-partner').value,
+      description: document.getElementById('np-desc').value
+    })
+  });
+  const data = await res.json();
+  if (data.ok) window.location.href = '/products/' + data.product_id;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('modal-add-product').classList.add('hidden');
+});
+</script>
+{% endblock %}

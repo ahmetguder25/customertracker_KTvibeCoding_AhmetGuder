@@ -10,10 +10,8 @@ from werkzeug.utils import secure_filename
 import io
 from flask import stream_with_context, Response
 from ollama_config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
-from data_agent_orchestrator import (
-    extract_intents, resolve_entities, read_context,
-    check_required_fields, execute_action, build_action_card,
-)
+from data_agent_orchestrator import process_agent_turn
+
 from agent_orchestrator import AnalysisOrchestrator
 # ── App Setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
@@ -534,10 +532,11 @@ def deal_detail(deal_id):
     deal_type_map = get_param_map("DealType", conn)
     fec_map       = get_param_map("FEC",      conn)
     sector_map    = get_param_map("Sector",   conn)
+    items, prereq_map, subitems_map = _load_backlog(conn, "deal", deal_id)
     conn.close()
     return render_template("deal_detail.html", deal=deal, status_map=status_map,
                            deal_type_map=deal_type_map, fec_map=fec_map,
-                           sector_map=sector_map)
+                           sector_map=sector_map, items=items, prereq_map=prereq_map, subitems_map=subitems_map)
 
 
 @app.route("/deals/add", methods=["POST"])
@@ -554,6 +553,10 @@ def add_deal():
         request.form.get("notes", ""),
     ))
     conn.commit()
+    # Recalculate KR
+    deal_id = conn.execute("SELECT MAX(id) AS id FROM BOA.ZZZ.CustomerDeals").fetchone()["id"]
+    pid = conn.execute("SELECT ProductID FROM BOA.ZZZ.CustomerDeals WHERE id=?", (deal_id,)).fetchone()["ProductID"]
+    _recalc_kr(conn, pid)
     conn.close()
     return redirect(url_for("customer_list"))
 
@@ -562,6 +565,7 @@ def add_deal():
 def edit_deal(deal_id):
     conn = get_db()
     if request.method == "POST":
+        old_pid = conn.execute("SELECT ProductID FROM BOA.ZZZ.CustomerDeals WHERE id=?", (deal_id,)).fetchone()["ProductID"]
         conn.execute(load_query("deal_update"), (
             request.form.get("contact_name", ""),
             float(request.form["deal_size"]),
@@ -573,6 +577,10 @@ def edit_deal(deal_id):
             deal_id,
         ))
         conn.commit()
+        new_pid = conn.execute("SELECT ProductID FROM BOA.ZZZ.CustomerDeals WHERE id=?", (deal_id,)).fetchone()["ProductID"]
+        _recalc_kr(conn, old_pid)
+        if new_pid != old_pid:
+            _recalc_kr(conn, new_pid)
         conn.close()
         return redirect(url_for("deal_detail", deal_id=deal_id))
 
@@ -593,8 +601,10 @@ def edit_deal(deal_id):
 @app.route("/deals/delete/<int:deal_id>", methods=["POST"])
 def delete_deal(deal_id):
     conn = get_db()
+    pid = conn.execute("SELECT ProductID FROM BOA.ZZZ.CustomerDeals WHERE id=?", (deal_id,)).fetchone()["ProductID"]
     conn.execute(load_query("deal_delete"), (deal_id,))
     conn.commit()
+    _recalc_kr(conn, pid)
     conn.close()
     return redirect(url_for("customer_list"))
 
@@ -672,11 +682,54 @@ def export_excel():
 
 @app.route("/management")
 def management():
-    conn       = get_db()
-    sector_map = get_param_map("Sector", conn)
-    customers  = conn.execute(load_query("mgmt_list_customers")).fetchall()
+    conn         = get_db()
+    sector_map   = get_param_map("Sector", conn)
+    customers    = conn.execute(load_query("mgmt_list_customers")).fetchall()
+    stakeholders = conn.execute(
+        "SELECT * FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName"
+    ).fetchall()
     conn.close()
-    return render_template("management.html", customers=customers, sector_map=sector_map)
+    return render_template("management.html", customers=customers, sector_map=sector_map,
+                           stakeholders=stakeholders)
+
+
+# ── Stakeholder CRUD ───────────────────────────────────────────────────────────
+
+@app.route("/api/stakeholders", methods=["POST"])
+def api_stakeholder_create():
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO BOA.ZZZ.Stakeholder (FullName,Organization,Department,Email) VALUES (?,?,?,?)",
+        (data.get("full_name", ""), data.get("organization", ""),
+         data.get("department", ""), data.get("email", ""))
+    )
+    conn.commit()
+    sid = conn.execute("SELECT MAX(StakeholderID) AS id FROM BOA.ZZZ.Stakeholder").fetchone()["id"]
+    conn.close()
+    return jsonify({"ok": True, "stakeholder_id": sid})
+
+
+@app.route("/api/stakeholders/<int:sid>", methods=["PATCH"])
+def api_stakeholder_update(sid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "UPDATE BOA.ZZZ.Stakeholder SET FullName=?,Organization=?,Department=?,Email=? WHERE StakeholderID=?",
+        (data.get("full_name"), data.get("organization"), data.get("department"), data.get("email"), sid)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/stakeholders/<int:sid>", methods=["DELETE"])
+def api_stakeholder_delete(sid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.Stakeholder SET IsActive=0 WHERE StakeholderID=?", (sid,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/customer/lookup/<int:account_number>")
@@ -1152,320 +1205,25 @@ def analyze_stream(customer_id):
 @app.route("/api/agent/chat", methods=["POST"])
 def api_agent_chat():
     """
-    Multi-turn Data Agent endpoint.
-
-    Request body (JSON):
-      { "message": "...",       # new free-form text — starts a fresh turn
-        "action":  null         # or "confirm" | "skip" | "answer"
-        "answer":  "..."        # used when action="answer" (clarification reply)
-        "option_id": "..."      # used when action="answer" and options were shown
-      }
-
-    Response (JSON):
-      { "phase":          "extracting"|"clarifying"|"confirming"|"done"|"error",
-        "message":        "...",       # assistant message to display
-        "current_action": {...},       # action card for confirming phase
-        "action_index":   N,
-        "total_actions":  N,
-        "options":        [...],       # button chips for clarification options
-        "results":        [...]        # final result summaries
-      }
+    Data Agent HTTP endpoint — thin controller.
+    All business logic lives in data_agent_orchestrator.process_agent_turn().
     """
-    body          = request.get_json(silent=True) or {}
-    incoming_msg  = (body.get("message") or "").strip()
-    action        = body.get("action")        # None | "confirm" | "skip" | "answer"
-    answer        = (body.get("answer") or "").strip()
-    option_id     = body.get("option_id")     # id of chosen option chip
-    author        = session.get("username", "Agent")
-    base_dir      = BASE_DIR
+    body        = request.get_json(silent=True) or {}
+    author      = session.get("username", "Agent")
 
-    # ── Start a fresh turn when user sends new text ─────────────────
-    if incoming_msg:
-        session.pop("agent_state", None)
+    agent_state = session.get("agent_state", {})
 
-        # Phase 1 — extract intents via LLM
-        try:
-            parsed = extract_intents(incoming_msg, base_dir)
-        except Exception as e:
-            return jsonify({"phase": "error", "message": f"LLM error: {e}"})
-
-        if parsed.get("error") and not parsed.get("actions"):
-            return jsonify({"phase": "error", "message": f"Could not parse intent: {parsed['error']}"})
-
-        if not parsed.get("actions"):
-            return jsonify({"phase": "error",
-                            "message": "I couldn't identify any actions in your message. "
-                                       "Try mentioning a customer name and what happened."})
-
-        language = parsed.get("language", "en")
-
-        # Phase 2 — entity resolution
-        conn = get_db()
-        resolved, entity_clarifs = resolve_entities(parsed["actions"], conn)
-
-        # Phase 3 — context reading (attach recent deals/comments)
-        resolved = read_context(resolved, conn)
-
-        # Phase 4 — field checking (only for fully resolved actions)
-        # conn must still be open here — update_deal needs to query existing deals
-        field_clarifs = check_required_fields(resolved, conn)
+    conn = get_db()
+    try:
+        new_state, response = process_agent_turn(
+            agent_state, body, conn, BASE_DIR, author
+        )
+    finally:
         conn.close()
 
-        # Merge clarification queues (entity first, then field)
-        clarif_queue = entity_clarifs + field_clarifs
-
-        state = {
-            "actions":       resolved,
-            "clarif_queue":  clarif_queue,
-            "clarif_index":  0,
-            "confirm_index": 0,
-            "results":       [],
-            "language":      language,
-            "phase":         "clarifying" if clarif_queue else "confirming",
-        }
-        session["agent_state"] = state
-        session.modified = True
-
-        if clarif_queue:
-            return _ask_clarification(state)
-        else:
-            return _ask_confirmation(state)
-
-    # ── Continuing an existing conversation ─────────────────────────
-    state = session.get("agent_state")
-    if not state:
-        return jsonify({"phase": "error",
-                        "message": "No active session. Please type a message to start."})
-
-    phase = state.get("phase")
-
-    # ── Handle clarification answer ─────────────────────────────────
-    if phase == "clarifying" and action == "answer":
-        clarif_queue = state["clarif_queue"]
-        ci           = state["clarif_index"]
-        if ci >= len(clarif_queue):
-            state["phase"] = "confirming"
-            session.modified = True
-            return _ask_confirmation(state)
-
-        current_clarif = clarif_queue[ci]
-        action_idx     = current_clarif["action_index"]
-        field          = current_clarif["field"]
-
-        # Apply answered value
-        if field == "customer_name":
-            # User picked/typed a customer
-            if option_id:
-                # option_id is the Customerid as string
-                conn = get_db()
-                row = conn.execute(
-                    "SELECT Customerid, CustomerName FROM BOA.ZZZ.Customer WHERE Customerid = ?",
-                    (int(option_id),)
-                ).fetchone()
-                conn.close()
-                if row:
-                    state["actions"][action_idx]["customer_id"]   = row["Customerid"]
-                    state["actions"][action_idx]["customer_name"] = row["CustomerName"]
-            elif answer:
-                # Free text — re-resolve
-                conn = get_db()
-                rows = conn.execute(
-                    "SELECT Customerid, CustomerName FROM BOA.ZZZ.Customer "
-                    "WHERE IsStructured=1 AND LOWER(CustomerName) LIKE LOWER(?)",
-                    (f"%{answer}%",)
-                ).fetchall()
-                conn.close()
-                if len(rows) == 1:
-                    state["actions"][action_idx]["customer_id"]   = rows[0]["Customerid"]
-                    state["actions"][action_idx]["customer_name"] = rows[0]["CustomerName"]
-                elif len(rows) > 1:
-                    # Still ambiguous — re-ask with options
-                    opts = [{"id": r["Customerid"], "label": r["CustomerName"]} for r in rows[:6]]
-                    clarif_queue[ci]["question"] = f'Multiple matches for "{answer}". Which one?'
-                    clarif_queue[ci]["options"]  = opts
-                    session.modified = True
-                    return _ask_clarification(state)
-                # If 0 matches → leave customer_id None, skip this action later
-
-        elif field == "deal_id":
-            if option_id:
-                state["actions"][action_idx]["deal_id"] = int(option_id)
-            elif answer:
-                try:
-                    state["actions"][action_idx]["deal_id"] = int(answer)
-                except ValueError:
-                    pass
-            # Fetch and cache current DB values for from→to display in the card
-            resolved_id = state["actions"][action_idx].get("deal_id")
-            if resolved_id:
-                from data_agent_orchestrator import _cache_current
-                _conn = get_db()
-                row = _conn.execute(
-                    "SELECT id, contact_name, deal_size, currency, status, dealtype, notes "
-                    "FROM BOA.ZZZ.CustomerDeals WHERE id = ?",
-                    (resolved_id,)
-                ).fetchone()
-                _conn.close()
-                if row:
-                    _cache_current(state["actions"][action_idx], row)
-
-        elif field == "contact_name":
-            state["actions"][action_idx]["contact_name"] = answer
-
-        elif field == "deal_size":
-            # Parse human-friendly inputs like "1m", "500k", "1,500,000"
-            try:
-                raw_ds = answer.lower().replace(",", "").replace(" ", "").strip()
-                if raw_ds.endswith("m"):
-                    state["actions"][action_idx]["deal_size"] = float(raw_ds[:-1]) * 1_000_000
-                elif raw_ds.endswith("k"):
-                    state["actions"][action_idx]["deal_size"] = float(raw_ds[:-1]) * 1_000
-                else:
-                    state["actions"][action_idx]["deal_size"] = float(raw_ds)
-            except ValueError:
-                pass  # leave as None; DB will raise a clear error
-
-        elif field == "currency":
-            if option_id is not None:
-                # option_id is the int currency code sent as a string e.g. "0", "1", "19"
-                from data_agent_orchestrator import CURRENCY_LABELS
-                label = CURRENCY_LABELS.get(int(option_id), answer)
-                state["actions"][action_idx]["currency"] = label
-            elif answer:
-                state["actions"][action_idx]["currency"] = answer
-
-        elif field == "status_hint":
-            if option_id:
-                from data_agent_orchestrator import STATUS_LABELS
-                label = STATUS_LABELS.get(int(option_id), answer)
-                state["actions"][action_idx]["status_hint"] = label
-            elif answer:
-                state["actions"][action_idx]["status_hint"] = answer
-
-        # Advance clarification index
-        state["clarif_index"] = ci + 1
-        if state["clarif_index"] >= len(clarif_queue):
-            # Re-run field check now that entities are resolved
-            _recheck_conn = get_db()
-            extra_clarifs = check_required_fields(state["actions"], _recheck_conn)
-            _recheck_conn.close()
-            still_needed  = [c for c in extra_clarifs
-                             if not any(e["action_index"] == c["action_index"]
-                                        and e["field"] == c["field"]
-                                        for e in clarif_queue)]
-            if still_needed:
-                state["clarif_queue"] += still_needed
-                session.modified = True
-                return _ask_clarification(state)
-
-            state["phase"] = "confirming"
-            session.modified = True
-            return _ask_confirmation(state)
-
-        session.modified = True
-        return _ask_clarification(state)
-
-    # ── Handle confirmation ─────────────────────────────────────────
-    if phase == "confirming":
-        idx     = state["confirm_index"]
-        actions = state["actions"]
-
-        if idx < len(actions):
-            current = actions[idx]
-            card    = build_action_card(current)
-
-            # query_deals auto-executes without asking the user
-            if not card.get("requires_confirmation", True):
-                if current.get("customer_id") is not None:
-                    conn   = get_db()
-                    result = execute_action(current, conn, author=author)
-                    conn.close()
-                else:
-                    result = {"success": None, "message": "Customer not resolved."}
-                state["results"].append({"action": card, "result": result})
-                state["confirm_index"] = idx + 1
-                session.modified = True
-                if state["confirm_index"] >= len(state["actions"]):
-                    state["phase"] = "done"
-                    return _done_response(state)
-                return _ask_confirmation(state)
-
-            if action == "confirm":
-                if current.get("customer_id") is not None:
-                    conn = get_db()
-                    result = execute_action(current, conn, author=author)
-                    conn.close()
-                else:
-                    result = {"success": False,
-                              "message": f'Skipped — customer not resolved for {current.get("customer_name","?")}'}
-                state["results"].append({"action": build_action_card(current), "result": result})
-
-            elif action == "skip":
-                state["results"].append({
-                    "action": build_action_card(current),
-                    "result": {"success": None, "message": "Skipped by user."},
-                })
-
-            state["confirm_index"] = idx + 1
-            session.modified = True
-
-        # Check if more actions remain
-        if state["confirm_index"] >= len(state["actions"]):
-            state["phase"] = "done"
-            session.modified = True
-            return _done_response(state)
-
-        return _ask_confirmation(state)
-
-    if phase == "done":
-        return _done_response(state)
-
-    return jsonify({"phase": "error", "message": "Unexpected state. Please type a message to start over."})
-
-
-# ── Agent helper response builders ──────────────────────────────────────────
-
-def _ask_clarification(state: dict):
-    queue = state["clarif_queue"]
-    ci    = state["clarif_index"]
-    if ci >= len(queue):
-        state["phase"] = "confirming"
-        return _ask_confirmation(state)
-
-    clarif = queue[ci]
-    return jsonify({
-        "phase":         "clarifying",
-        "message":       clarif["question"],
-        "options":       clarif.get("options", []),
-        "action_index":  state["confirm_index"],
-        "total_actions": len(state["actions"]),
-    })
-
-
-def _ask_confirmation(state: dict):
-    idx     = state["confirm_index"]
-    actions = state["actions"]
-    if idx >= len(actions):
-        state["phase"] = "done"
-        return _done_response(state)
-
-    all_cards = [build_action_card(a) for a in actions]
-    card = all_cards[idx]
-    return jsonify({
-        "phase":          "confirming",
-        "current_action": card,
-        "action_index":   idx,
-        "total_actions":  len(actions),
-        "all_cards":      all_cards,
-        "message":        None,
-    })
-
-
-def _done_response(state: dict):
-    return jsonify({
-        "phase":   "done",
-        "results": state.get("results", []),
-    })
+    session["agent_state"] = new_state
+    session.modified = True
+    return jsonify(response)
 
 
 @app.route("/api/agent/reset", methods=["POST"])
@@ -1496,5 +1254,696 @@ app.register_blueprint(admin_bp)
 
 # ── Entry Point ────────────────────────────────────────────────────────────────
 
+def _col_exists(conn, table: str, column: str) -> bool:
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS "
+        "WHERE TABLE_SCHEMA='ZZZ' AND TABLE_NAME=? AND COLUMN_NAME=?",
+        (table, column)
+    ).fetchone()
+    return row and int(row["cnt"]) > 0
+
+
+def _table_exists(conn, table: str) -> bool:
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.TABLES "
+        "WHERE TABLE_SCHEMA='ZZZ' AND TABLE_NAME=?",
+        (table,)
+    ).fetchone()
+    return row and int(row["cnt"]) > 0
+
+
+def _ensure_isactive_columns():
+    """Idempotently add IsActive to CustomerDeals and Comment."""
+    try:
+        conn = get_db()
+        for table in ("CustomerDeals", "Comment"):
+            if not _col_exists(conn, table, "IsActive"):
+                conn.execute(f"ALTER TABLE BOA.ZZZ.{table} ADD IsActive TINYINT NOT NULL DEFAULT 1")
+                conn.commit()
+                print(f"[startup] IsActive column added to BOA.ZZZ.{table}")
+            else:
+                print(f"[startup] IsActive already present on BOA.ZZZ.{table} — skipping")
+        conn.close()
+    except Exception as e:
+        print(f"[startup] IsActive migration warning (non-fatal): {e}")
+
+
+def _run_platform_migrations():
+    """
+    Idempotently create all new platform tables (Products, OKRs, Projects, Backlog).
+    Safe to call on every startup.
+    """
+    conn = get_db()
+    try:
+        # 510xxxx — Stakeholders
+        if not _table_exists(conn, "Stakeholder"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.Stakeholder (
+                    StakeholderID INT IDENTITY(5100001,1) PRIMARY KEY,
+                    FullName      NVARCHAR(200) NOT NULL,
+                    Organization  NVARCHAR(200),
+                    Department    NVARCHAR(200),
+                    Email         NVARCHAR(200),
+                    IsActive      TINYINT NOT NULL DEFAULT 1,
+                    CreatedAt     DATETIME NOT NULL DEFAULT GETDATE()
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.Stakeholder")
+        else:
+            print("[startup] Stakeholder exists — skipping")
+
+        # 110xxxx — Product
+        if not _table_exists(conn, "Product"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.Product (
+                    ProductID           INT IDENTITY(1100001,1) PRIMARY KEY,
+                    ProductCode         NVARCHAR(50)  NOT NULL,
+                    ProductName         NVARCHAR(200) NOT NULL,
+                    ProductType         NVARCHAR(100),
+                    IslamicContractType NVARCHAR(100),
+                    PartnerInstitution  NVARCHAR(200),
+                    DefaultCurrencyID   INT,
+                    Description         NVARCHAR(MAX),
+                    IsActive            TINYINT NOT NULL DEFAULT 1,
+                    CreatedAt           DATETIME NOT NULL DEFAULT GETDATE(),
+                    UpdatedAt           DATETIME
+                )""")
+            conn.execute(
+                "INSERT INTO BOA.ZZZ.Product (ProductCode,ProductName,ProductType,Description) "
+                "VALUES ('UNCLASSIFIED','Unclassified','Legacy','Auto-created for pre-product deals')"
+            )
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.Product + seeded Unclassified (ID 1100001)")
+        else:
+            print("[startup] Product exists — skipping")
+
+        # 111xxxx — ProductField
+        if not _table_exists(conn, "ProductField"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.ProductField (
+                    FieldID      INT IDENTITY(1110001,1) PRIMARY KEY,
+                    ProductID    INT NOT NULL,
+                    FieldName    NVARCHAR(100) NOT NULL,
+                    FieldType    NVARCHAR(20)  NOT NULL DEFAULT 'text',
+                    DefaultValue NVARCHAR(200),
+                    IsRequired   TINYINT NOT NULL DEFAULT 0,
+                    IsActive     TINYINT NOT NULL DEFAULT 1,
+                    FOREIGN KEY (ProductID) REFERENCES BOA.ZZZ.Product(ProductID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.ProductField")
+        else:
+            print("[startup] ProductField exists — skipping")
+
+        # 310xxxx — Objective
+        if not _table_exists(conn, "Objective"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.Objective (
+                    ObjectiveID INT IDENTITY(3100001,1) PRIMARY KEY,
+                    Title       NVARCHAR(300) NOT NULL,
+                    Description NVARCHAR(MAX),
+                    Period      NVARCHAR(50),
+                    Owner       NVARCHAR(100),
+                    IsActive    TINYINT NOT NULL DEFAULT 1,
+                    CreatedAt   DATETIME NOT NULL DEFAULT GETDATE()
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.Objective")
+        else:
+            print("[startup] Objective exists — skipping")
+
+        # 311xxxx — KeyResult
+        if not _table_exists(conn, "KeyResult"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.KeyResult (
+                    KRID          INT IDENTITY(3110001,1) PRIMARY KEY,
+                    ObjectiveID   INT NOT NULL,
+                    Title         NVARCHAR(300) NOT NULL,
+                    TargetValue   DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    AchievedValue DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    PipelineValue DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    Unit          NVARCHAR(50),
+                    CalcMethod    NVARCHAR(20)  NOT NULL DEFAULT 'count',
+                    IsActive      TINYINT NOT NULL DEFAULT 1,
+                    FOREIGN KEY (ObjectiveID) REFERENCES BOA.ZZZ.Objective(ObjectiveID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.KeyResult")
+        else:
+            print("[startup] KeyResult exists — skipping")
+
+        # 312xxxx — OKRProductLink
+        if not _table_exists(conn, "OKRProductLink"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.OKRProductLink (
+                    LinkID    INT IDENTITY(3120001,1) PRIMARY KEY,
+                    KRID      INT NOT NULL,
+                    ProductID INT NOT NULL,
+                    IsActive  TINYINT NOT NULL DEFAULT 1,
+                    FOREIGN KEY (KRID)      REFERENCES BOA.ZZZ.KeyResult(KRID),
+                    FOREIGN KEY (ProductID) REFERENCES BOA.ZZZ.Product(ProductID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.OKRProductLink")
+        else:
+            print("[startup] OKRProductLink exists — skipping")
+
+        # 320xxxx — Project
+        if not _table_exists(conn, "Project"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.Project (
+                    ProjectID   INT IDENTITY(3200001,1) PRIMARY KEY,
+                    ProjectName NVARCHAR(300) NOT NULL,
+                    Description NVARCHAR(MAX),
+                    Status      NVARCHAR(50) NOT NULL DEFAULT 'Planning',
+                    Owner       NVARCHAR(100),
+                    StartDate   DATE,
+                    Deadline    DATE,
+                    ObjectiveID INT,
+                    IsActive    TINYINT NOT NULL DEFAULT 1,
+                    CreatedAt   DATETIME NOT NULL DEFAULT GETDATE(),
+                    UpdatedAt   DATETIME,
+                    FOREIGN KEY (ObjectiveID) REFERENCES BOA.ZZZ.Objective(ObjectiveID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.Project")
+        else:
+            print("[startup] Project exists — skipping")
+
+        # 410xxxx — WorkItem
+        if not _table_exists(conn, "WorkItem"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.WorkItem (
+                    ItemID      INT IDENTITY(4100001,1) PRIMARY KEY,
+                    ParentType  NVARCHAR(10) NOT NULL,
+                    ParentID    INT NOT NULL,
+                    Title       NVARCHAR(300) NOT NULL,
+                    Description NVARCHAR(MAX),
+                    Status      NVARCHAR(20) NOT NULL DEFAULT 'not_started',
+                    Deadline    DATE,
+                    SortOrder   INT NOT NULL DEFAULT 0,
+                    IsActive    TINYINT NOT NULL DEFAULT 1,
+                    CreatedAt   DATETIME NOT NULL DEFAULT GETDATE(),
+                    UpdatedAt   DATETIME
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.WorkItem")
+        else:
+            print("[startup] WorkItem exists — skipping")
+
+        # 411xxxx — WorkSubItem
+        if not _table_exists(conn, "WorkSubItem"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.WorkSubItem (
+                    SubItemID    INT IDENTITY(4110001,1) PRIMARY KEY,
+                    ParentItemID INT NOT NULL,
+                    Title        NVARCHAR(300) NOT NULL,
+                    Status       NVARCHAR(20) NOT NULL DEFAULT 'not_started',
+                    Deadline     DATE,
+                    SortOrder    INT NOT NULL DEFAULT 0,
+                    IsActive     TINYINT NOT NULL DEFAULT 1,
+                    CreatedAt    DATETIME NOT NULL DEFAULT GETDATE(),
+                    FOREIGN KEY (ParentItemID) REFERENCES BOA.ZZZ.WorkItem(ItemID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.WorkSubItem")
+        else:
+            print("[startup] WorkSubItem exists — skipping")
+
+        # 412xxxx — WorkItemPrerequisite
+        if not _table_exists(conn, "WorkItemPrerequisite"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.WorkItemPrerequisite (
+                    LinkID         INT IDENTITY(4120001,1) PRIMARY KEY,
+                    ItemID         INT NOT NULL,
+                    RequiresItemID INT NOT NULL,
+                    IsActive       TINYINT NOT NULL DEFAULT 1,
+                    FOREIGN KEY (ItemID)         REFERENCES BOA.ZZZ.WorkItem(ItemID),
+                    FOREIGN KEY (RequiresItemID) REFERENCES BOA.ZZZ.WorkItem(ItemID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.WorkItemPrerequisite")
+        else:
+            print("[startup] WorkItemPrerequisite exists — skipping")
+
+        # 413xxxx — WorkItemAssignee
+        if not _table_exists(conn, "WorkItemAssignee"):
+            conn.execute("""
+                CREATE TABLE BOA.ZZZ.WorkItemAssignee (
+                    AssigneeID    INT IDENTITY(4130001,1) PRIMARY KEY,
+                    ItemID        INT NOT NULL,
+                    StakeholderID INT NOT NULL,
+                    IsActive      TINYINT NOT NULL DEFAULT 1,
+                    FOREIGN KEY (ItemID)        REFERENCES BOA.ZZZ.WorkItem(ItemID),
+                    FOREIGN KEY (StakeholderID) REFERENCES BOA.ZZZ.Stakeholder(StakeholderID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.ZZZ.WorkItemAssignee")
+        else:
+            print("[startup] WorkItemAssignee exists — skipping")
+
+        # CustomerDeals.ProductID — add if missing
+        if not _col_exists(conn, "CustomerDeals", "ProductID"):
+            conn.execute(
+                "ALTER TABLE BOA.ZZZ.CustomerDeals ADD ProductID INT NOT NULL DEFAULT 1100001"
+            )
+            conn.execute(
+                "ALTER TABLE BOA.ZZZ.CustomerDeals ADD CONSTRAINT FK_Deal_Product "
+                "FOREIGN KEY (ProductID) REFERENCES BOA.ZZZ.Product(ProductID)"
+            )
+            conn.commit()
+            print("[startup] Added ProductID to CustomerDeals — legacy deals assigned to Unclassified")
+        else:
+            print("[startup] CustomerDeals.ProductID exists — skipping")
+
+    except Exception as e:
+        print(f"[startup] Platform migration error (non-fatal): {e}")
+        import traceback; traceback.print_exc()
+    finally:
+        conn.close()
+
+
+
+
+
+# ── Products ─────────────────────────────────────────────────────────────────────────
+
+@app.route("/products")
+def products_list():
+    conn = get_db()
+    products = conn.execute(
+        "SELECT p.*, "
+        "  (SELECT COUNT(*) FROM BOA.ZZZ.CustomerDeals d WHERE d.ProductID=p.ProductID AND d.IsActive=1) AS deal_count "
+        "FROM BOA.ZZZ.Product p WHERE p.IsActive=1 ORDER BY p.ProductName"
+    ).fetchall()
+    conn.close()
+    return render_template("products.html", products=products)
+
+
+@app.route("/products/<int:product_id>")
+def product_detail(product_id):
+    conn = get_db()
+    product = conn.execute("SELECT * FROM BOA.ZZZ.Product WHERE ProductID=? AND IsActive=1", (product_id,)).fetchone()
+    if not product:
+        conn.close()
+        return "Product not found", 404
+    fields   = conn.execute("SELECT * FROM BOA.ZZZ.ProductField WHERE ProductID=? AND IsActive=1 ORDER BY FieldID", (product_id,)).fetchall()
+    linked_krs = conn.execute(
+        "SELECT kr.KRID, kr.Title AS KRTitle, o.Title AS ObjTitle "
+        "FROM BOA.ZZZ.OKRProductLink lnk "
+        "JOIN BOA.ZZZ.KeyResult kr ON lnk.KRID=kr.KRID "
+        "JOIN BOA.ZZZ.Objective o ON kr.ObjectiveID=o.ObjectiveID "
+        "WHERE lnk.ProductID=? AND lnk.IsActive=1", (product_id,)
+    ).fetchall()
+    deals = conn.execute(
+        "SELECT d.id, c.CustomerName, d.deal_size, d.currency, d.status "
+        "FROM BOA.ZZZ.CustomerDeals d JOIN BOA.ZZZ.Customer c ON d.customerid=c.Customerid "
+        "WHERE d.ProductID=? AND d.IsActive=1 ORDER BY d.id DESC", (product_id,)
+    ).fetchall()
+    all_krs = conn.execute(
+        "SELECT kr.KRID, kr.Title, o.Title AS ObjTitle FROM BOA.ZZZ.KeyResult kr "
+        "JOIN BOA.ZZZ.Objective o ON kr.ObjectiveID=o.ObjectiveID WHERE kr.IsActive=1 ORDER BY o.Title, kr.Title"
+    ).fetchall()
+    conn.close()
+    return render_template("product_detail.html", product=product, fields=fields, linked_krs=linked_krs, deals=deals, all_krs=all_krs)
+
+
+@app.route("/api/products", methods=["POST"])
+def api_product_create():
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO BOA.ZZZ.Product (ProductCode,ProductName,ProductType,IslamicContractType,PartnerInstitution,Description) VALUES (?,?,?,?,?,?)",
+        (data.get("code",""), data.get("name",""), data.get("type",""), data.get("islamic_contract",""), data.get("partner",""), data.get("description",""))
+    )
+    conn.commit()
+    pid = conn.execute("SELECT MAX(ProductID) AS id FROM BOA.ZZZ.Product").fetchone()["id"]
+    conn.close()
+    return jsonify({"ok": True, "product_id": pid})
+
+
+@app.route("/api/products/<int:pid>", methods=["PATCH"])
+def api_product_update(pid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "UPDATE BOA.ZZZ.Product SET ProductName=?,ProductType=?,IslamicContractType=?,PartnerInstitution=?,Description=?,UpdatedAt=GETDATE() WHERE ProductID=?",
+        (data.get("name"), data.get("type"), data.get("islamic_contract"), data.get("partner"), data.get("description"), pid)
+    )
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/products/<int:pid>", methods=["DELETE"])
+def api_product_delete(pid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.Product SET IsActive=0 WHERE ProductID=?", (pid,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/products/<int:pid>/fields", methods=["POST"])
+def api_product_field_create(pid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO BOA.ZZZ.ProductField (ProductID,FieldName,FieldType,DefaultValue,IsRequired) VALUES (?,?,?,?,?)",
+        (pid, data.get("name",""), data.get("field_type","text"), data.get("default",""), 1 if data.get("required") else 0)
+    )
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/products/fields/<int:fid>", methods=["DELETE"])
+def api_product_field_delete(fid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.ProductField SET IsActive=0 WHERE FieldID=?", (fid,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/products/<int:pid>/link-kr", methods=["POST"])
+def api_product_link_kr(pid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    if not conn.execute("SELECT LinkID FROM BOA.ZZZ.OKRProductLink WHERE KRID=? AND ProductID=? AND IsActive=1", (data.get("kr_id"), pid)).fetchone():
+        conn.execute("INSERT INTO BOA.ZZZ.OKRProductLink (KRID,ProductID) VALUES (?,?)", (data.get("kr_id"), pid))
+        conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/products/<int:pid>/unlink-kr/<int:krid>", methods=["DELETE"])
+def api_product_unlink_kr(pid, krid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.OKRProductLink SET IsActive=0 WHERE ProductID=? AND KRID=?", (pid, krid))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+# ── OKRs ─────────────────────────────────────────────────────────────────────────────
+
+@app.route("/okrs")
+def okrs_list():
+    conn = get_db()
+    objectives = conn.execute("SELECT * FROM BOA.ZZZ.Objective WHERE IsActive=1 ORDER BY Period DESC, ObjectiveID").fetchall()
+    krs        = conn.execute("SELECT * FROM BOA.ZZZ.KeyResult WHERE IsActive=1 ORDER BY ObjectiveID, KRID").fetchall()
+    conn.close()
+    return render_template("okrs.html", objectives=objectives, krs=krs)
+
+
+@app.route("/api/okrs/objectives", methods=["POST"])
+def api_objective_create():
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute("INSERT INTO BOA.ZZZ.Objective (Title,Description,Period,Owner) VALUES (?,?,?,?)",
+                 (data.get("title",""), data.get("description",""), data.get("period",""), session.get("username","")))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/okrs/objectives/<int:oid>", methods=["DELETE"])
+def api_objective_delete(oid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.Objective SET IsActive=0 WHERE ObjectiveID=?", (oid,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/okrs/krs", methods=["POST"])
+def api_kr_create():
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute("INSERT INTO BOA.ZZZ.KeyResult (ObjectiveID,Title,TargetValue,Unit,CalcMethod) VALUES (?,?,?,?,?)",
+                 (data.get("objective_id"), data.get("title",""), float(data.get("target",0)), data.get("unit","deals"), data.get("calc_method","count")))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/okrs/krs/<int:krid>", methods=["DELETE"])
+def api_kr_delete(krid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.KeyResult SET IsActive=0 WHERE KRID=?", (krid,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/okrs/krs/<int:krid>/deals")
+def api_kr_deals(krid):
+    conn = get_db()
+    deals = conn.execute("""
+        SELECT d.id, c.CustomerName, d.contact_name, d.deal_size, d.status
+        FROM BOA.ZZZ.CustomerDeals d
+        JOIN BOA.ZZZ.Customer c ON d.customerid = c.Customerid
+        WHERE d.IsActive = 1
+        AND d.ProductID IN (
+            SELECT ProductID FROM BOA.ZZZ.OKRProductLink WHERE KRID = ? AND IsActive = 1
+        )
+        AND d.status IN ('2', '3', '4')
+        ORDER BY d.deal_size DESC
+    """, (krid,)).fetchall()
+    
+    status_map = get_param_map("Status", conn)
+    conn.close()
+    
+    results = []
+    for d in deals:
+        results.append({
+            "id": d["id"],
+            "company": d["CustomerName"],
+            "contact": d["contact_name"],
+            "size": d["deal_size"],
+            "status": str(d["status"]),
+            "status_label": status_map.get(str(d["status"]), {}).get("description", str(d["status"]))
+        })
+    return jsonify({"deals": results})
+
+
+def _recalc_kr(conn, product_id):
+    links = conn.execute(
+        "SELECT lnk.KRID, kr.CalcMethod FROM BOA.ZZZ.OKRProductLink lnk "
+        "JOIN BOA.ZZZ.KeyResult kr ON lnk.KRID=kr.KRID "
+        "WHERE lnk.ProductID=? AND lnk.IsActive=1 AND kr.IsActive=1", (product_id,)
+    ).fetchall()
+    for link in links:
+        krid, calc = link["KRID"], link["CalcMethod"]
+        if calc == "count":
+            achieved = conn.execute("SELECT COUNT(*) AS v FROM BOA.ZZZ.CustomerDeals WHERE ProductID=? AND IsActive=1 AND status=4", (product_id,)).fetchone()["v"]
+            pipeline = conn.execute("SELECT COUNT(*) AS v FROM BOA.ZZZ.CustomerDeals WHERE ProductID=? AND IsActive=1 AND status IN (2,3)", (product_id,)).fetchone()["v"]
+        elif calc == "sum_size":
+            achieved = conn.execute("SELECT ISNULL(SUM(deal_size),0) AS v FROM BOA.ZZZ.CustomerDeals WHERE ProductID=? AND IsActive=1 AND status=4", (product_id,)).fetchone()["v"]
+            pipeline = conn.execute("SELECT ISNULL(SUM(deal_size),0) AS v FROM BOA.ZZZ.CustomerDeals WHERE ProductID=? AND IsActive=1 AND status IN (2,3)", (product_id,)).fetchone()["v"]
+        else:
+            continue
+        conn.execute("UPDATE BOA.ZZZ.KeyResult SET AchievedValue=?,PipelineValue=? WHERE KRID=?", (achieved, pipeline, krid))
+
+
+# ── Projects ─────────────────────────────────────────────────────────────────────────
+
+@app.route("/projects")
+def projects_list():
+    conn = get_db()
+    projects = conn.execute(
+        "SELECT p.*, o.Title AS ObjTitle, "
+        "  (SELECT COUNT(*) FROM BOA.ZZZ.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1) AS total_items,"
+        "  (SELECT COUNT(*) FROM BOA.ZZZ.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1 AND w.Status='done') AS done_items "
+        "FROM BOA.ZZZ.Project p LEFT JOIN BOA.ZZZ.Objective o ON p.ObjectiveID=o.ObjectiveID "
+        "WHERE p.IsActive=1 ORDER BY p.CreatedAt DESC"
+    ).fetchall()
+    objectives = conn.execute("SELECT ObjectiveID, Title FROM BOA.ZZZ.Objective WHERE IsActive=1 ORDER BY Title").fetchall()
+    conn.close()
+    return render_template("projects.html", projects=projects, objectives=objectives)
+
+
+@app.route("/projects/<int:project_id>")
+def project_detail(project_id):
+    conn = get_db()
+    project = conn.execute(
+        "SELECT p.*, o.Title AS ObjTitle FROM BOA.ZZZ.Project p "
+        "LEFT JOIN BOA.ZZZ.Objective o ON p.ObjectiveID=o.ObjectiveID "
+        "WHERE p.ProjectID=? AND p.IsActive=1", (project_id,)
+    ).fetchone()
+    if not project:
+        conn.close()
+        return "Project not found", 404
+    items, prereq_map, subitems_map = _load_backlog(conn, "project", project_id)
+    stakeholders = conn.execute("SELECT StakeholderID, FullName, Organization FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
+    conn.close()
+    return render_template("project_detail.html", project=project, items=items, prereq_map=prereq_map, subitems_map=subitems_map, stakeholders=stakeholders)
+
+
+@app.route("/api/projects", methods=["POST"])
+def api_project_create():
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO BOA.ZZZ.Project (ProjectName,Description,Status,Owner,StartDate,Deadline,ObjectiveID) VALUES (?,?,?,?,?,?,?)",
+        (data.get("name",""), data.get("description",""), data.get("status","Planning"),
+         session.get("username",""), data.get("start_date") or None, data.get("deadline") or None, data.get("objective_id") or None)
+    )
+    conn.commit()
+    pid = conn.execute("SELECT MAX(ProjectID) AS id FROM BOA.ZZZ.Project").fetchone()["id"]
+    conn.close()
+    return jsonify({"ok": True, "project_id": pid})
+
+
+@app.route("/api/projects/<int:pid>", methods=["PATCH"])
+def api_project_update(pid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "UPDATE BOA.ZZZ.Project SET ProjectName=?,Description=?,Status=?,Deadline=?,ObjectiveID=?,UpdatedAt=GETDATE() WHERE ProjectID=?",
+        (data.get("name"), data.get("description"), data.get("status"), data.get("deadline") or None, data.get("objective_id") or None, pid)
+    )
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/projects/<int:pid>", methods=["DELETE"])
+def api_project_delete(pid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.Project SET IsActive=0 WHERE ProjectID=?", (pid,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+# ── Work Items (shared) ───────────────────────────────────────────────────────────────
+
+def _load_backlog(conn, parent_type, parent_id):
+    items = conn.execute(
+        "SELECT * FROM BOA.ZZZ.WorkItem WHERE ParentType=? AND ParentID=? AND IsActive=1 ORDER BY SortOrder, Deadline, ItemID",
+        (parent_type, parent_id)
+    ).fetchall()
+    item_ids = [i["ItemID"] for i in items]
+    prereq_map, subitems_map = {}, {}
+    if item_ids:
+        ph = ",".join("?" * len(item_ids))
+        for p in conn.execute(f"SELECT ItemID,RequiresItemID FROM BOA.ZZZ.WorkItemPrerequisite WHERE ItemID IN ({ph}) AND IsActive=1", item_ids).fetchall():
+            prereq_map.setdefault(p["ItemID"], []).append(p["RequiresItemID"])
+        for s in conn.execute(f"SELECT * FROM BOA.ZZZ.WorkSubItem WHERE ParentItemID IN ({ph}) AND IsActive=1 ORDER BY SortOrder,SubItemID", item_ids).fetchall():
+            subitems_map.setdefault(s["ParentItemID"], []).append(dict(s))
+    return items, prereq_map, subitems_map
+
+
+@app.route("/api/workitems", methods=["POST"])
+def api_workitem_create():
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO BOA.ZZZ.WorkItem (ParentType,ParentID,Title,Description,Deadline,SortOrder) VALUES (?,?,?,?,?,?)",
+        (data.get("parent_type"), data.get("parent_id"), data.get("title",""), data.get("description",""), data.get("deadline") or None, data.get("sort_order",0))
+    )
+    conn.commit()
+    iid = conn.execute("SELECT MAX(ItemID) AS id FROM BOA.ZZZ.WorkItem").fetchone()["id"]
+    conn.close()
+    return jsonify({"ok": True, "item_id": iid})
+
+
+@app.route("/api/workitems/<int:iid>", methods=["PATCH"])
+def api_workitem_update(iid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.WorkItem SET Title=?,Description=?,Status=?,Deadline=?,UpdatedAt=GETDATE() WHERE ItemID=?",
+                 (data.get("title"), data.get("description"), data.get("status"), data.get("deadline") or None, iid))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/workitems/<int:iid>/status", methods=["PATCH"])
+def api_workitem_status(iid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.WorkItem SET Status=?,UpdatedAt=GETDATE() WHERE ItemID=?", (data.get("status"), iid))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/workitems/<int:iid>", methods=["DELETE"])
+def api_workitem_delete(iid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.WorkItem SET IsActive=0 WHERE ItemID=?", (iid,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/workitems/<int:iid>/prerequisites", methods=["POST"])
+def api_workitem_add_prereq(iid):
+    data = request.get_json(silent=True) or {}
+    req_id = data.get("requires_item_id")
+    conn = get_db()
+    if not conn.execute("SELECT LinkID FROM BOA.ZZZ.WorkItemPrerequisite WHERE ItemID=? AND RequiresItemID=? AND IsActive=1", (iid, req_id)).fetchone():
+        conn.execute("INSERT INTO BOA.ZZZ.WorkItemPrerequisite (ItemID,RequiresItemID) VALUES (?,?)", (iid, req_id))
+        conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/workitems/<int:iid>/prerequisites/<int:req_id>", methods=["DELETE"])
+def api_workitem_remove_prereq(iid, req_id):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.WorkItemPrerequisite SET IsActive=0 WHERE ItemID=? AND RequiresItemID=?", (iid, req_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/subitems", methods=["POST"])
+def api_subitem_create():
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute("INSERT INTO BOA.ZZZ.WorkSubItem (ParentItemID,Title,Deadline,SortOrder) VALUES (?,?,?,?)",
+                 (data.get("parent_item_id"), data.get("title",""), data.get("deadline") or None, data.get("sort_order",0)))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/subitems/<int:sid>/status", methods=["PATCH"])
+def api_subitem_status(sid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.WorkSubItem SET Status=? WHERE SubItemID=?", (data.get("status"), sid))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/subitems/<int:sid>", methods=["DELETE"])
+def api_subitem_delete(sid):
+    conn = get_db()
+    conn.execute("UPDATE BOA.ZZZ.WorkSubItem SET IsActive=0 WHERE SubItemID=?", (sid,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+# ── Global Backlog ────────────────────────────────────────────────────────────────────
+
+@app.route("/backlog")
+def global_backlog():
+    conn = get_db()
+    items = conn.execute(
+        "SELECT w.*, "
+        "  CASE w.ParentType "
+        "    WHEN 'project' THEN (SELECT ProjectName FROM BOA.ZZZ.Project WHERE ProjectID=w.ParentID) "
+        "    WHEN 'deal' THEN (SELECT TOP 1 c.CustomerName + ' Deal #'+CAST(d.id AS NVARCHAR) "
+        "                     FROM BOA.ZZZ.CustomerDeals d JOIN BOA.ZZZ.Customer c ON d.customerid=c.Customerid "
+        "                     WHERE d.id=w.ParentID) "
+        "  END AS ParentName, "
+        "  (SELECT STRING_AGG(CAST(s.StakeholderID AS NVARCHAR), ',') "
+        "   FROM BOA.ZZZ.WorkItemAssignee wa "
+        "   JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
+        "   WHERE wa.ItemID = w.ItemID) AS AssigneeIDs, "
+        "  (SELECT STRING_AGG(s.FullName, ', ') "
+        "   FROM BOA.ZZZ.WorkItemAssignee wa "
+        "   JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
+        "   WHERE wa.ItemID = w.ItemID) AS Assignees "
+        "FROM BOA.ZZZ.WorkItem w WHERE w.IsActive=1 AND w.Status != 'done' "
+        "ORDER BY w.Deadline ASC, w.SortOrder ASC, w.ItemID ASC"
+    ).fetchall()
+    stakeholders = conn.execute("SELECT StakeholderID, FullName FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
+    conn.close()
+    from datetime import datetime as _dt
+    return render_template("backlog.html", items=items, stakeholders=stakeholders, now=_dt.utcnow())
+
+
 if __name__ == "__main__":
+    _ensure_isactive_columns()
+    _run_platform_migrations()
     app.run(debug=True, port=5000)

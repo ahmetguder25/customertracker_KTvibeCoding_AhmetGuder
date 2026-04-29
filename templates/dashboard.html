@@ -366,26 +366,40 @@
         </div>`;
 
         reviewCards.forEach((card, i) => {
-            const iconHTML   = card.icon === 'deal' ? '&#128200;' : '&#128172;';
+            const ICON_MAP = { deal: '&#128200;', comment: '&#128172;', query: '&#128269;', task: '&#9989;', subtask: '&#128204;', action: '&#9889;' };
+            const iconHTML   = ICON_MAP[card.icon] || '&#9889;';
             const sep        = i > 0 ? 'border-t border-gray-200 dark:border-gray-700/40' : '';
 
             if (i < doneCount) {
                 // Already confirmed or skipped
                 const wasConfirmed = reviewDone[i];
+                let statusText     = '&#8594; Skipped';
+                let statusClass    = 'text-gray-400';
+                if (wasConfirmed === true) {
+                    statusText  = '&#10003; Confirmed';
+                    statusClass = 'text-emerald-500 dark:text-emerald-400';
+                } else if (wasConfirmed === 'reject') {
+                    statusText  = '&#10060; Rejected';
+                    statusClass = 'text-red-500 dark:text-red-400';
+                }
+
                 html += `<div class="flex items-center justify-between px-4 py-2.5 ${sep} opacity-60">
                     <span class="text-xs text-gray-500 dark:text-gray-400">${iconHTML} ${card.title}</span>
-                    <span class="text-xs font-medium ${wasConfirmed ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400'}">${wasConfirmed ? '&#10003; Confirmed' : '&#8594; Skipped'}</span>
+                    <span class="text-xs font-medium ${statusClass}">${statusText}</span>
                 </div>`;
 
             } else if (i === doneCount) {
                 // Active — current action waiting for user response
                 const detailsHtml = (card.details || []).map(d => `<li class="text-xs text-gray-600 dark:text-gray-300">${d}</li>`).join('');
+                const sqlHtml     = card.sql_explanation ? `<div class="mt-2 mb-3 bg-white/50 dark:bg-black/20 rounded p-2 text-xs font-mono text-gray-600 dark:text-gray-400 border border-blue-200 dark:border-blue-800">${card.sql_explanation}</div>` : '';
+                
                 html += `<div class="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 ${sep}">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-sm font-semibold text-blue-800 dark:text-blue-200">${iconHTML} ${card.title}</span>
                         <span class="text-xs text-gray-500 dark:text-gray-400">${i + 1} of ${total}</span>
                     </div>
-                    <ul class="list-disc list-inside space-y-0.5 mb-3">${detailsHtml}</ul>
+                    <ul class="list-disc list-inside space-y-0.5 ${card.sql_explanation ? 'mb-1' : 'mb-3'}">${detailsHtml}</ul>
+                    ${sqlHtml}
                     <div class="flex gap-2">
                         <button id="review-confirm-btn" onclick="agentAnswer('confirm')"
                             class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition">
@@ -394,6 +408,10 @@
                         <button id="review-skip-btn" onclick="agentAnswer('skip')"
                             class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold py-1.5 px-3 rounded-lg text-xs transition">
                             &#8594; Skip
+                        </button>
+                        <button id="review-reject-btn" onclick="agentReject()"
+                            class="flex-1 bg-red-100 hover:bg-red-200 dark:bg-red-900/40 hover:dark:bg-red-900/60 text-red-600 dark:text-red-400 font-semibold py-1.5 px-3 rounded-lg text-xs transition">
+                            &#10060; Reject
                         </button>
                     </div>
                 </div>`;
@@ -437,6 +455,13 @@
             return;
         }
 
+        if (data.phase === 'selecting') {
+            agentLog_append(`<div class="flex justify-start"><div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40 text-blue-900 dark:text-blue-200 rounded-xl px-4 py-3 max-w-[90%] text-sm font-medium">&#128269; ${data.message}</div></div>`);
+            agentShowOptions(data.options || []);
+            agentInput.placeholder = 'Type your answer or pick an option above...';
+            return;
+        }
+
         if (data.phase === 'clarifying') {
             agentLog_append(`<div class="flex justify-start"><div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-amber-900 dark:text-amber-200 rounded-xl px-4 py-3 max-w-[90%] text-sm font-medium">&#10067; ${data.message}</div></div>`);
             agentShowOptions(data.options || []);
@@ -445,9 +470,13 @@
         }
 
         if (data.phase === 'confirming') {
-            // If we just sent a confirm/skip, record it before updating the panel
+            // If we just sent a confirm/skip/reject, record it before updating the panel
             if (reviewCards !== null && reviewLastAction !== null) {
-                reviewDone.push(reviewLastAction === 'confirm');
+                if (reviewLastAction === 'reject') {
+                    reviewDone.push('reject');
+                } else {
+                    reviewDone.push(reviewLastAction === 'confirm');
+                }
                 reviewLastAction = null;
             }
             // Initialise on the very first confirming response
@@ -482,9 +511,11 @@
 
                 // Render deal table for query_deals results
                 if (r.action && r.action.type === 'query_deals' && r.result.deals && r.result.deals.length) {
+                    const isPortfolio = r.result.deals.some(d => d.customer);
                     const rows = r.result.deals.map(d =>
                         `<tr class="border-t border-gray-200 dark:border-gray-700">
                             <td class="py-1 pr-3 text-gray-400 dark:text-gray-500 text-xs">#${d.id}</td>
+                            ${isPortfolio ? `<td class="py-1 pr-3 text-xs font-medium">${d.customer || '—'}</td>` : ''}
                             <td class="py-1 pr-3 text-xs">${d.contact}</td>
                             <td class="py-1 pr-3 text-xs font-mono">${d.size}</td>
                             <td class="py-1 pr-3 text-xs">${d.type}</td>
@@ -496,6 +527,7 @@
                         <table class="text-left w-full">
                             <thead><tr class="text-gray-400 dark:text-gray-500 text-xs">
                                 <th class="pr-3 pb-1">#</th>
+                                ${isPortfolio ? '<th class="pr-3 pb-1">Customer</th>' : ''}
                                 <th class="pr-3 pb-1">Contact</th>
                                 <th class="pr-3 pb-1">Size</th>
                                 <th class="pr-3 pb-1">Type</th>
@@ -506,6 +538,7 @@
                         </table>
                     </li>`;
                 }
+
             });
             agentLog_append(`
                 <div class="flex justify-start">
@@ -529,9 +562,9 @@
         agentSetLoading(true);
         try {
             let body;
-            // If we're mid-clarification, treat typed input as an answer, not a new message.
+            // If we're mid-clarification/selection, treat typed input as an answer, not a new message.
             // This handles the case where the user types instead of picking a chip.
-            if (agentPhase === 'clarifying') {
+            if (agentPhase === 'clarifying' || agentPhase === 'selecting') {
                 body = { action: 'answer', answer: msg };
             } else {
                 agentLog_append(`<div id="agent-thinking" class="flex justify-start"><div class="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${SPINNER} Agent is reading your message...</div></div>`);
@@ -555,6 +588,22 @@
         agentSetLoading(true);
         try {
             const data = await agentCall({ action });
+            agentHandleResponse(data);
+        } catch(err) {
+            agentLog_append(`<div class="text-red-500 text-xs">Network error: ${err.message}</div>`);
+        }
+        agentSetLoading(false);
+    }
+
+    async function agentReject() {
+        const note = prompt("Why is this action incorrect? This will be saved to Agent Memory to prevent future mistakes.");
+        if (!note) return; // cancelled or empty
+
+        reviewLastAction = 'reject';
+        agentHideAll();
+        agentSetLoading(true);
+        try {
+            const data = await agentCall({ action: 'reject', rejection_note: note });
             agentHandleResponse(data);
         } catch(err) {
             agentLog_append(`<div class="text-red-500 text-xs">Network error: ${err.message}</div>`);

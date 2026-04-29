@@ -1,2 +1,3 @@
-DELETE FROM BOA.ZZZ.CustomerDeals
+UPDATE BOA.ZZZ.CustomerDeals
+SET IsActive = 0
 WHERE id = ?
