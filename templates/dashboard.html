@@ -1,141 +1,108 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — Customer Tracker{% endblock %}
+{% block title %}DASHBOARD — CUSTOMER TRACKER{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
+<div class="t-page-header">
     <div>
-        <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('dash_title', 'Portfolio Dashboard') }}</h1>
-        <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-1">{{ lang_dict.get('dash_subtitle', 'Deal pipeline overview & customer insights') }}</p>
-    </div>
-
-    <!-- Pipeline KPI Cards -->
-    <div id="kpi-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_total_deals', 'Total Deals') }}</span>
-            <span id="kpi-total" class="text-3xl font-bold text-gray-900 dark:text-white"></span>
-        </div>
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_active_pipeline', 'Active Pipeline') }}</span>
-            <span id="kpi-active" class="text-3xl font-bold text-brand-600 dark:text-brand-400"></span>
-        </div>
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_win_rate', 'Win Rate') }}</span>
-            <span id="kpi-winrate" class="text-3xl font-bold text-emerald-600 dark:text-emerald-400"></span>
-        </div>
-    </div>
-
-    <!-- Volume KPI Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_credit_limit', 'Total Credit Limit') }}</span>
-            <span class="text-2xl font-bold text-violet-600 dark:text-violet-400">₺{{ "{:,.0f}".format(volume_totals.total_limit) }}</span>
-        </div>
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_foreign_trade', 'Foreign Trade Vol.') }}</span>
-            <span class="text-2xl font-bold text-cyan-600 dark:text-cyan-400">${{ "{:,.0f}".format(volume_totals.total_ft) }}</span>
-        </div>
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_151_vol', 'MEMZUC 151 Vol.') }}</span>
-            <span class="text-2xl font-bold text-amber-600 dark:text-amber-400">${{ "{:,.0f}".format(volume_totals.total_151) }}</span>
-        </div>
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-1">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_152_vol', 'MEMZUC 152 Vol.') }}</span>
-            <span class="text-2xl font-bold text-rose-400">${{ "{:,.0f}".format(volume_totals.total_152) }}</span>
-        </div>
-    </div>
-
-    <!-- Charts Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Pipeline Status Chart -->
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-            <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_pipeline_title', 'Customers by Deal Status') }}</h2>
-            <div style="position:relative; height:320px;">
-                <canvas id="statusChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Value Segment Chart -->
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-            <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_segment_title', 'Value Segment Distribution') }}</h2>
-            <div style="position:relative; height:320px;">
-                <canvas id="segmentChart"></canvas>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Data Agent Chat -->
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-                <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                Data Agent
-            </h2>
-            <button id="agent-reset-btn" onclick="agentReset()" class="text-xs text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition px-2 py-1 rounded border border-gray-200 dark:border-gray-700 hover:border-red-300">
-                Start Over
-            </button>
-        </div>
-
-        <!-- Message log -->
-        <div id="agent-log" class="bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl p-4 min-h-[160px] max-h-96 overflow-y-auto text-sm space-y-3 mb-4">
-            <p id="agent-placeholder" class="text-gray-500 dark:text-gray-400 text-center pt-8">
-                Describe a customer interaction, deal, or note in natural language...
-            </p>
-        </div>
-
-        <!-- Option chips (clarification) -->
-        <div id="agent-options" class="hidden flex flex-wrap gap-2 mb-3"></div>
-
-        <!-- Review panel (confirmation phase — all actions visible at once) -->
-        <div id="agent-review-panel" class="hidden mb-3"></div>
-
-        <!-- Input form -->
-        <form id="agent-form" class="flex gap-2">
-            <input type="text" id="agent-input" placeholder="Type your message..." autocomplete="off"
-                class="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition">
-            <button type="submit" id="agent-submit"
-                class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-all duration-200">
-                Send
-            </button>
-        </form>
-    </div>
-
-    <!-- Region Chart -->
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('dash_region_title', 'Customers by Region') }}</h2>
-        <div style="position:relative; height:320px;">
-            <canvas id="regionChart"></canvas>
-        </div>
+        <div class="t-page-title">{{ lang_dict.get('dash_title', 'PORTFOLIO DASHBOARD') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('dash_subtitle', 'DEAL PIPELINE OVERVIEW & CUSTOMER INSIGHTS') }}</div>
     </div>
 </div>
 
-<script>
-    // ── Pipeline Status ──────────────────────────────────────────────
-    const chartData = {{ chart_data | safe }};
-    const codeKeys = Object.keys(chartData);
-    const labels = codeKeys.map(k => chartData[k].label);
-    const values = codeKeys.map(k => chartData[k].count);
+<!-- Pipeline KPI Row -->
+<div class="t-grid-3" style="margin-bottom:1px;">
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_total_deals', 'TOTAL DEALS') }}</span>
+        <span class="t-kpi-value text-amber" id="kpi-total">—</span>
+    </div>
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_active_pipeline', 'ACTIVE PIPELINE') }}</span>
+        <span class="t-kpi-value text-green" id="kpi-active">—</span>
+    </div>
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_win_rate', 'WIN RATE') }}</span>
+        <span class="t-kpi-value text-cyan" id="kpi-winrate">—</span>
+    </div>
+</div>
 
-    const total = values.reduce((a, b) => a + b, 0);
-    const closedWon = (chartData["4"] && chartData["4"].count) ? chartData["4"].count : 0;
-    const closedLost = (chartData["5"] && chartData["5"].count) ? chartData["5"].count : 0;
-    const active = total - closedWon - closedLost;
-    const closedTotal = closedWon + closedLost;
-    const winRate = closedTotal > 0 ? Math.round((closedWon / closedTotal) * 100) : 0;
+<!-- Volume KPIs -->
+<div class="t-grid-4" style="margin-bottom:8px;">
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_credit_limit', 'CREDIT LIMIT') }}</span>
+        <span class="t-kpi-value" style="font-size:14px;color:var(--amber-text);">₺{{ "{:,.0f}".format(volume_totals.total_limit) }}</span>
+    </div>
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_foreign_trade', 'FOREIGN TRADE VOL') }}</span>
+        <span class="t-kpi-value" style="font-size:14px;color:var(--cyan);">${{ "{:,.0f}".format(volume_totals.total_ft) }}</span>
+    </div>
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_151_vol', 'MEMZUC 151 VOL') }}</span>
+        <span class="t-kpi-value" style="font-size:14px;color:var(--green);">${{ "{:,.0f}".format(volume_totals.total_151) }}</span>
+    </div>
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_152_vol', 'MEMZUC 152 VOL') }}</span>
+        <span class="t-kpi-value" style="font-size:14px;color:var(--red-dim);">${{ "{:,.0f}".format(volume_totals.total_152) }}</span>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:1px;">
+    <div class="t-panel">
+        <div class="t-panel-header">{{ lang_dict.get('dash_pipeline_title', 'CUSTOMERS BY DEAL STATUS') }}</div>
+        <div style="position:relative;height:280px;"><canvas id="statusChart"></canvas></div>
+    </div>
+    <div class="t-panel">
+        <div class="t-panel-header">{{ lang_dict.get('dash_segment_title', 'VALUE SEGMENT DISTRIBUTION') }}</div>
+        <div style="position:relative;height:280px;"><canvas id="segmentChart"></canvas></div>
+    </div>
+</div>
+
+<!-- Region Chart -->
+<div class="t-panel">
+    <div class="t-panel-header">{{ lang_dict.get('dash_region_title', 'CUSTOMERS BY REGION') }}</div>
+    <div style="position:relative;height:280px;"><canvas id="regionChart"></canvas></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ── Terminal Chart Defaults ──
+    Chart.defaults.color = '#9C8F78';
+    Chart.defaults.borderColor = '#333333';
+    Chart.defaults.font.family = "'JetBrains Mono', monospace";
+    Chart.defaults.font.size = 10;
+
+    var tooltipStyle = {
+        backgroundColor: '#1a1a12',
+        titleColor: '#FFC100',
+        bodyColor: '#ECE1D0',
+        borderColor: '#FFC100',
+        borderWidth: 1,
+        cornerRadius: 0,
+        padding: 8,
+        titleFont: { family: "'JetBrains Mono'" },
+        bodyFont: { family: "'JetBrains Mono'" }
+    };
+
+    // ── Pipeline Status ──
+    var chartData = {{ chart_data | safe }};
+    var codeKeys = Object.keys(chartData);
+    var labels = codeKeys.map(function(k) { return chartData[k].label; });
+    var values = codeKeys.map(function(k) { return chartData[k].count; });
+
+    var total = values.reduce(function(a, b) { return a + b; }, 0);
+    var closedWon = (chartData["4"] && chartData["4"].count) ? chartData["4"].count : 0;
+    var closedLost = (chartData["5"] && chartData["5"].count) ? chartData["5"].count : 0;
+    var active = total - closedWon - closedLost;
+    var closedTotal = closedWon + closedLost;
+    var winRate = closedTotal > 0 ? Math.round((closedWon / closedTotal) * 100) : 0;
 
     document.getElementById("kpi-total").textContent = total;
     document.getElementById("kpi-active").textContent = active;
     document.getElementById("kpi-winrate").textContent = winRate + "%";
 
-    const colorMap = {
-        "1": { bg: "rgba(99,102,241,0.7)",  border: "rgb(99,102,241)"  },
-        "2": { bg: "rgba(59,130,246,0.7)",  border: "rgb(59,130,246)"  },
-        "3": { bg: "rgba(245,158,11,0.7)",  border: "rgb(245,158,11)"  },
-        "4": { bg: "rgba(16,185,129,0.7)",  border: "rgb(16,185,129)"  },
-        "5": { bg: "rgba(239,68,68,0.7)",   border: "rgb(239,68,68)"   },
-        "6": { bg: "rgba(20,184,166,0.7)",  border: "rgb(20,184,166)"  },
-    };
-    const bgColors     = codeKeys.map(k => (colorMap[k] || {}).bg     || "rgba(148,163,184,0.7)");
-    const borderColors = codeKeys.map(k => (colorMap[k] || {}).border || "rgb(148,163,184)");
+    var terminalColors = ['#FFC100','#00FF00','#00FFFF','#FF4444','#34FFFF','#CC9A00'];
 
     new Chart(document.getElementById("statusChart"), {
         type: "bar",
@@ -144,53 +111,25 @@
             datasets: [{
                 label: "# of Customers",
                 data: values,
-                backgroundColor: bgColors,
-                borderColor: borderColors,
-                borderWidth: 1,
-                borderRadius: 8,
-                barPercentage: 0.55,
+                backgroundColor: codeKeys.map(function(_, i) { return terminalColors[i % terminalColors.length]; }),
+                borderWidth: 0,
+                barPercentage: 0.6,
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: "rgba(15,23,42,0.95)",
-                    titleColor: "#e2e8f0",
-                    bodyColor: "#94a3b8",
-                    borderColor: "#334155",
-                    borderWidth: 1,
-                    cornerRadius: 8,
-                    padding: 12,
-                }
-            },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: tooltipStyle },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: document.documentElement.classList.contains("dark") ? "#64748b" : "#334155", stepSize: 1, font: { family: "Inter" } },
-                    grid:  { color: document.documentElement.classList.contains("dark") ? "rgba(51,65,85,0.4)" : "rgba(203,213,225,0.8)" },
-                },
-                x: {
-                    ticks: { color: document.documentElement.classList.contains("dark") ? "#94a3b8" : "#475569", font: { family: "Inter", weight: 500 } },
-                    grid:  { display: false },
-                }
+                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(51,51,51,0.5)' } },
+                x: { grid: { display: false } }
             }
         }
     });
 
-    // ── Value Segment Doughnut ───────────────────────────────────────
-    const segmentData = {{ segment_data | safe }};
-    const segLabels = Object.keys(segmentData);
-    const segValues = Object.values(segmentData);
-    const segColors = [
-        "rgba(139,92,246,0.8)",
-        "rgba(59,130,246,0.8)",
-        "rgba(16,185,129,0.8)",
-        "rgba(245,158,11,0.8)",
-        "rgba(239,68,68,0.8)",
-    ];
+    // ── Segment Doughnut ──
+    var segmentData = {{ segment_data | safe }};
+    var segLabels = Object.keys(segmentData);
+    var segValues = Object.values(segmentData);
 
     new Chart(document.getElementById("segmentChart"), {
         type: "doughnut",
@@ -198,58 +137,24 @@
             labels: segLabels,
             datasets: [{
                 data: segValues,
-                backgroundColor: segColors.slice(0, segLabels.length),
-                borderColor: "rgb(17,24,39)",
-                borderWidth: 3,
-                hoverOffset: 8,
+                backgroundColor: ['#FFC100','#00FF00','#00FFFF','#FF4444','#34FFFF'],
+                borderColor: '#111109',
+                borderWidth: 2,
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: "60%",
+            responsive: true, maintainAspectRatio: false, cutout: "55%",
             plugins: {
-                legend: {
-                    position: "bottom",
-                    labels: { color: document.documentElement.classList.contains("dark") ? "#94a3b8" : "#475569", font: { family: "Inter", size: 12 }, padding: 16 }
-                },
-                tooltip: {
-                    backgroundColor: "rgba(15,23,42,0.95)",
-                    titleColor: "#e2e8f0",
-                    bodyColor: "#94a3b8",
-                    borderColor: "#334155",
-                    borderWidth: 1,
-                    cornerRadius: 8,
-                    padding: 12,
-                }
+                legend: { position: "bottom", labels: { padding: 12, font: { size: 10 } } },
+                tooltip: tooltipStyle
             }
         }
     });
 
-    // ── Region Bar Chart ─────────────────────────────────────────────
-    const regionData = {{ region_data | safe }};
-    const regLabels = Object.keys(regionData);
-    const regValues = Object.values(regionData);
-    const regColors = regLabels.map((_, i) => {
-        const palette = [
-            "rgba(6,182,212,0.7)",
-            "rgba(168,85,247,0.7)",
-            "rgba(34,197,94,0.7)",
-            "rgba(251,146,60,0.7)",
-            "rgba(244,63,94,0.7)",
-        ];
-        return palette[i % palette.length];
-    });
-    const regBorders = regLabels.map((_, i) => {
-        const palette = [
-            "rgb(6,182,212)",
-            "rgb(168,85,247)",
-            "rgb(34,197,94)",
-            "rgb(251,146,60)",
-            "rgb(244,63,94)",
-        ];
-        return palette[i % palette.length];
-    });
+    // ── Region Bar ──
+    var regionData = {{ region_data | safe }};
+    var regLabels = Object.keys(regionData);
+    var regValues = Object.values(regionData);
 
     new Chart(document.getElementById("regionChart"), {
         type: "bar",
@@ -258,404 +163,19 @@
             datasets: [{
                 label: "# of Customers",
                 data: regValues,
-                backgroundColor: regColors,
-                borderColor: regBorders,
-                borderWidth: 1,
-                borderRadius: 8,
+                backgroundColor: regLabels.map(function(_, i) { return terminalColors[i % terminalColors.length]; }),
+                borderWidth: 0,
                 barPercentage: 0.5,
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: "rgba(15,23,42,0.95)",
-                    titleColor: "#e2e8f0",
-                    bodyColor: "#94a3b8",
-                    borderColor: "#334155",
-                    borderWidth: 1,
-                    cornerRadius: 8,
-                    padding: 12,
-                }
-            },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: tooltipStyle },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: document.documentElement.classList.contains("dark") ? "#64748b" : "#334155", stepSize: 1, font: { family: "Inter" } },
-                    grid:  { color: document.documentElement.classList.contains("dark") ? "rgba(51,65,85,0.4)" : "rgba(203,213,225,0.8)" },
-                },
-                x: {
-                    ticks: { color: document.documentElement.classList.contains("dark") ? "#94a3b8" : "#475569", font: { family: "Inter", weight: 500 } },
-                    grid:  { display: false },
-                }
+                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(51,51,51,0.5)' } },
+                x: { grid: { display: false } }
             }
         }
     });
-
-    // ── Data Agent ─────────────────────────────────────────────────
-    const agentForm       = document.getElementById('agent-form');
-    const agentInput      = document.getElementById('agent-input');
-    const agentLog        = document.getElementById('agent-log');
-    const agentSubmit     = document.getElementById('agent-submit');
-    const agentOptions    = document.getElementById('agent-options');
-    const agentReviewPanel = document.getElementById('agent-review-panel');
-    let   agentPhase       = 'idle';
-
-    // Review panel state
-    let reviewCards      = null;   // all confirmable cards (set on first confirming response)
-    let reviewDone       = [];     // array of booleans: true=confirmed, false=skipped
-    let reviewLastAction = null;   // 'confirm' or 'skip' — set just before each API call
-
-    const SPINNER = `<svg class="animate-spin h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
-
-    function agentLog_append(html) {
-        const ph = document.getElementById('agent-placeholder');
-        if (ph) ph.remove();
-        const d = document.createElement('div');
-        d.innerHTML = html;
-        agentLog.appendChild(d);
-        agentLog.scrollTop = agentLog.scrollHeight;
-    }
-
-    function agentSetLoading(loading) {
-        agentInput.disabled  = loading;
-        agentSubmit.disabled = loading;
-        agentSubmit.innerHTML = loading ? SPINNER : 'Send';
-        // Also freeze review panel buttons while waiting
-        const rc = document.getElementById('review-confirm-btn');
-        const rs = document.getElementById('review-skip-btn');
-        if (rc) { rc.disabled = loading; rc.classList.toggle('opacity-50', loading); rc.classList.toggle('cursor-not-allowed', loading); }
-        if (rs) { rs.disabled = loading; rs.classList.toggle('opacity-50', loading); rs.classList.toggle('cursor-not-allowed', loading); }
-    }
-
-    function agentShowOptions(options) {
-        agentOptions.innerHTML = '';
-        if (!options || !options.length) { agentOptions.classList.add('hidden'); return; }
-        agentOptions.classList.remove('hidden');
-        options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'px-3 py-1.5 text-xs font-medium rounded-lg border border-brand-400 text-brand-600 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/30 transition';
-            btn.textContent = opt.label;
-            btn.onclick = () => agentSendAnswer(opt.label, opt.id);
-            agentOptions.appendChild(btn);
-        });
-    }
-
-    function agentHideAll() {
-        agentOptions.classList.add('hidden');
-        agentOptions.innerHTML = '';
-        // NOTE: agentReviewPanel is NOT hidden here — it persists across confirming steps
-    }
-
-    function renderReviewPanel() {
-        if (!reviewCards || !reviewCards.length) return;
-        agentReviewPanel.classList.remove('hidden');
-
-        const doneCount = reviewDone.length;
-        const total     = reviewCards.length;
-
-        let html = `<div class="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/50 rounded-xl overflow-hidden">`;
-
-        // Header bar
-        html += `<div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700/50 bg-gray-100/60 dark:bg-gray-800">
-            <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">&#9889; Review Actions</span>
-            <span class="text-xs text-gray-400 dark:text-gray-500">${doneCount} / ${total} done</span>
-        </div>`;
-
-        reviewCards.forEach((card, i) => {
-            const ICON_MAP = { deal: '&#128200;', comment: '&#128172;', query: '&#128269;', task: '&#9989;', subtask: '&#128204;', action: '&#9889;' };
-            const iconHTML   = ICON_MAP[card.icon] || '&#9889;';
-            const sep        = i > 0 ? 'border-t border-gray-200 dark:border-gray-700/40' : '';
-
-            if (i < doneCount) {
-                // Already confirmed or skipped
-                const wasConfirmed = reviewDone[i];
-                let statusText     = '&#8594; Skipped';
-                let statusClass    = 'text-gray-400';
-                if (wasConfirmed === true) {
-                    statusText  = '&#10003; Confirmed';
-                    statusClass = 'text-emerald-500 dark:text-emerald-400';
-                } else if (wasConfirmed === 'reject') {
-                    statusText  = '&#10060; Rejected';
-                    statusClass = 'text-red-500 dark:text-red-400';
-                }
-
-                html += `<div class="flex items-center justify-between px-4 py-2.5 ${sep} opacity-60">
-                    <span class="text-xs text-gray-500 dark:text-gray-400">${iconHTML} ${card.title}</span>
-                    <span class="text-xs font-medium ${statusClass}">${statusText}</span>
-                </div>`;
-
-            } else if (i === doneCount) {
-                // Active — current action waiting for user response
-                const detailsHtml = (card.details || []).map(d => `<li class="text-xs text-gray-600 dark:text-gray-300">${d}</li>`).join('');
-                const sqlHtml     = card.sql_explanation ? `<div class="mt-2 mb-3 bg-white/50 dark:bg-black/20 rounded p-2 text-xs font-mono text-gray-600 dark:text-gray-400 border border-blue-200 dark:border-blue-800">${card.sql_explanation}</div>` : '';
-                
-                html += `<div class="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 ${sep}">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm font-semibold text-blue-800 dark:text-blue-200">${iconHTML} ${card.title}</span>
-                        <span class="text-xs text-gray-500 dark:text-gray-400">${i + 1} of ${total}</span>
-                    </div>
-                    <ul class="list-disc list-inside space-y-0.5 ${card.sql_explanation ? 'mb-1' : 'mb-3'}">${detailsHtml}</ul>
-                    ${sqlHtml}
-                    <div class="flex gap-2">
-                        <button id="review-confirm-btn" onclick="agentAnswer('confirm')"
-                            class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition">
-                            &#10003; Confirm
-                        </button>
-                        <button id="review-skip-btn" onclick="agentAnswer('skip')"
-                            class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold py-1.5 px-3 rounded-lg text-xs transition">
-                            &#8594; Skip
-                        </button>
-                        <button id="review-reject-btn" onclick="agentReject()"
-                            class="flex-1 bg-red-100 hover:bg-red-200 dark:bg-red-900/40 hover:dark:bg-red-900/60 text-red-600 dark:text-red-400 font-semibold py-1.5 px-3 rounded-lg text-xs transition">
-                            &#10060; Reject
-                        </button>
-                    </div>
-                </div>`;
-
-            } else {
-                // Upcoming — visible but dimmed, no buttons yet
-                html += `<div class="flex items-center gap-2.5 px-4 py-2.5 opacity-40 ${sep}">
-                    <span class="w-5 h-5 flex-shrink-0 rounded-full border border-gray-400 dark:border-gray-600 text-xs flex items-center justify-center text-gray-400 font-medium">${i + 1}</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">${iconHTML} ${card.title}</span>
-                </div>`;
-            }
-        });
-
-        html += `</div>`;
-        agentReviewPanel.innerHTML = html;
-    }
-
-    function agentResetReviewPanel() {
-        reviewCards      = null;
-        reviewDone       = [];
-        reviewLastAction = null;
-        agentReviewPanel.classList.add('hidden');
-        agentReviewPanel.innerHTML = '';
-    }
-
-    async function agentCall(body) {
-        const res  = await fetch('/api/agent/chat', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(body),
-        });
-        return res.json();
-    }
-
-    function agentHandleResponse(data) {
-        agentPhase = data.phase;
-        agentHideAll();
-
-        if (data.phase === 'error') {
-            agentLog_append(`<div class="flex justify-start"><div class="bg-red-500/15 text-red-600 dark:text-red-400 border border-red-400/30 rounded-xl px-4 py-3 max-w-[90%] text-sm">&#9888; ${data.message}</div></div>`);
-            return;
-        }
-
-        if (data.phase === 'selecting') {
-            agentLog_append(`<div class="flex justify-start"><div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40 text-blue-900 dark:text-blue-200 rounded-xl px-4 py-3 max-w-[90%] text-sm font-medium">&#128269; ${data.message}</div></div>`);
-            agentShowOptions(data.options || []);
-            agentInput.placeholder = 'Type your answer or pick an option above...';
-            return;
-        }
-
-        if (data.phase === 'clarifying') {
-            agentLog_append(`<div class="flex justify-start"><div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-amber-900 dark:text-amber-200 rounded-xl px-4 py-3 max-w-[90%] text-sm font-medium">&#10067; ${data.message}</div></div>`);
-            agentShowOptions(data.options || []);
-            agentInput.placeholder = 'Type your answer or pick an option above...';
-            return;
-        }
-
-        if (data.phase === 'confirming') {
-            // If we just sent a confirm/skip/reject, record it before updating the panel
-            if (reviewCards !== null && reviewLastAction !== null) {
-                if (reviewLastAction === 'reject') {
-                    reviewDone.push('reject');
-                } else {
-                    reviewDone.push(reviewLastAction === 'confirm');
-                }
-                reviewLastAction = null;
-            }
-            // Initialise on the very first confirming response
-            if (reviewCards === null) {
-                // Only show cards that need user confirmation (auto-execute ones like query_deals are skipped)
-                reviewCards = (data.all_cards || [data.current_action]).filter(c => c.requires_confirmation !== false);
-                reviewDone  = [];
-            }
-            renderReviewPanel();
-            agentInput.placeholder = 'Confirm or skip each action above...';
-            return;
-        }
-
-        if (data.phase === 'done') {
-            // If there was a pending review action, finalise it
-            if (reviewCards !== null && reviewLastAction !== null) {
-                reviewDone.push(reviewLastAction === 'confirm');
-                reviewLastAction = null;
-                renderReviewPanel(); // show the final checked state briefly
-            }
-            // Collapse panel — summary replaces it
-            agentResetReviewPanel();
-
-            const results = data.results || [];
-            let html = '';
-            results.forEach(r => {
-                const ok   = r.result.success === true;
-                const skip = r.result.success === null;
-                const icon  = ok ? '&#9989;' : (skip ? '&#8594;' : '&#10060;');
-                const color = ok ? 'text-emerald-700 dark:text-emerald-300' : (skip ? 'text-gray-500 dark:text-gray-400' : 'text-red-600 dark:text-red-400');
-                html += `<li class="${color} text-xs">${icon} ${r.result.message}</li>`;
-
-                // Render deal table for query_deals results
-                if (r.action && r.action.type === 'query_deals' && r.result.deals && r.result.deals.length) {
-                    const isPortfolio = r.result.deals.some(d => d.customer);
-                    const rows = r.result.deals.map(d =>
-                        `<tr class="border-t border-gray-200 dark:border-gray-700">
-                            <td class="py-1 pr-3 text-gray-400 dark:text-gray-500 text-xs">#${d.id}</td>
-                            ${isPortfolio ? `<td class="py-1 pr-3 text-xs font-medium">${d.customer || '—'}</td>` : ''}
-                            <td class="py-1 pr-3 text-xs">${d.contact}</td>
-                            <td class="py-1 pr-3 text-xs font-mono">${d.size}</td>
-                            <td class="py-1 pr-3 text-xs">${d.type}</td>
-                            <td class="py-1 pr-3 text-xs">${d.status}</td>
-                            <td class="py-1 text-xs text-gray-500 dark:text-gray-400 max-w-[160px] truncate">${d.notes}</td>
-                        </tr>`
-                    ).join('');
-                    html += `<li class="mt-2 overflow-x-auto">
-                        <table class="text-left w-full">
-                            <thead><tr class="text-gray-400 dark:text-gray-500 text-xs">
-                                <th class="pr-3 pb-1">#</th>
-                                ${isPortfolio ? '<th class="pr-3 pb-1">Customer</th>' : ''}
-                                <th class="pr-3 pb-1">Contact</th>
-                                <th class="pr-3 pb-1">Size</th>
-                                <th class="pr-3 pb-1">Type</th>
-                                <th class="pr-3 pb-1">Status</th>
-                                <th class="pb-1">Notes</th>
-                            </tr></thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </li>`;
-                }
-
-            });
-            agentLog_append(`
-                <div class="flex justify-start">
-                    <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-xl px-4 py-3 w-full max-w-[90%]">
-                        <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200 mb-1">&#10024; Done</p>
-                        <ul class="space-y-1">${html || '<li class="text-xs text-gray-500">No actions taken.</li>'}</ul>
-                    </div>
-                </div>`);
-            agentInput.placeholder = 'Type a new message...';
-            agentPhase = 'idle';
-        }
-    }
-
-    agentForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const msg = agentInput.value.trim();
-        if (!msg) return;
-        agentHideAll();
-        agentLog_append(`<div class="flex justify-end"><div class="bg-brand-600 text-white rounded-xl px-4 py-2 max-w-[80%] text-sm whitespace-pre-wrap">${msg}</div></div>`);
-        agentInput.value = '';
-        agentSetLoading(true);
-        try {
-            let body;
-            // If we're mid-clarification/selection, treat typed input as an answer, not a new message.
-            // This handles the case where the user types instead of picking a chip.
-            if (agentPhase === 'clarifying' || agentPhase === 'selecting') {
-                body = { action: 'answer', answer: msg };
-            } else {
-                agentLog_append(`<div id="agent-thinking" class="flex justify-start"><div class="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${SPINNER} Agent is reading your message...</div></div>`);
-                body = { message: msg };
-            }
-            const data = await agentCall(body);
-            const thinking = document.getElementById('agent-thinking');
-            if (thinking) thinking.remove();
-            agentHandleResponse(data);
-        } catch(err) {
-            const thinking = document.getElementById('agent-thinking');
-            if (thinking) thinking.remove();
-            agentLog_append(`<div class="flex justify-start"><div class="bg-red-500/15 text-red-600 dark:text-red-400 border border-red-400/30 rounded-xl px-4 py-2 text-sm">Network error: ${err.message}</div></div>`);
-        }
-        agentSetLoading(false);
-    });
-
-    async function agentAnswer(action) {
-        reviewLastAction = action;  // record before the API roundtrip
-        agentHideAll();
-        agentSetLoading(true);
-        try {
-            const data = await agentCall({ action });
-            agentHandleResponse(data);
-        } catch(err) {
-            agentLog_append(`<div class="text-red-500 text-xs">Network error: ${err.message}</div>`);
-        }
-        agentSetLoading(false);
-    }
-
-    async function agentReject() {
-        const note = prompt("Why is this action incorrect? This will be saved to Agent Memory to prevent future mistakes.");
-        if (!note) return; // cancelled or empty
-
-        reviewLastAction = 'reject';
-        agentHideAll();
-        agentSetLoading(true);
-        try {
-            const data = await agentCall({ action: 'reject', rejection_note: note });
-            agentHandleResponse(data);
-        } catch(err) {
-            agentLog_append(`<div class="text-red-500 text-xs">Network error: ${err.message}</div>`);
-        }
-        agentSetLoading(false);
-    }
-
-    async function agentSendAnswer(text, optionId) {
-        agentHideAll();
-        agentLog_append(`<div class="flex justify-end"><div class="bg-brand-600 text-white rounded-xl px-3 py-1.5 text-sm">${text}</div></div>`);
-        agentSetLoading(true);
-        try {
-            const data = await agentCall({ action: 'answer', answer: text, option_id: optionId });
-            agentHandleResponse(data);
-        } catch(err) {
-            agentLog_append(`<div class="text-red-500 text-xs">Network error: ${err.message}</div>`);
-        }
-        agentSetLoading(false);
-    }
-
-    async function agentReset() {
-        await fetch('/api/agent/reset', { method: 'POST' });
-        agentLog.innerHTML = '<p id="agent-placeholder" class="text-gray-500 dark:text-gray-400 text-center pt-8">Describe a customer interaction, deal, or note in natural language...</p>';
-        agentHideAll();
-        agentResetReviewPanel();
-        agentPhase = 'idle';
-        agentInput.placeholder = 'Type your message...';
-    }
-    // Dynamic redraw on Theme switch
-    window.addEventListener('themeChanged', function() {
-        const isDark = document.documentElement.classList.contains("dark");
-        const tc1 = isDark ? "#94a3b8" : "#475569";
-        const tc2 = isDark ? "#64748b" : "#334155";
-        const gc  = isDark ? "rgba(51,65,85,0.4)" : "rgba(203,213,225,0.8)";
-        
-        if (typeof statusChart !== 'undefined') {
-            statusChart.options.scales.x.ticks.color = tc1;
-            statusChart.options.scales.y.ticks.color = tc2;
-            statusChart.options.scales.y.grid.color = gc;
-            statusChart.update();
-        }
-        if (typeof segmentChart !== 'undefined') {
-            segmentChart.options.plugins.legend.labels.color = tc1;
-            segmentChart.update();
-        }
-        if (typeof volumeChart !== 'undefined') {
-            volumeChart.options.scales.x.ticks.color = tc1;
-            volumeChart.options.scales.y.ticks.color = tc2;
-            volumeChart.options.scales.y.grid.color = gc;
-            volumeChart.update();
-        }
-    });
-
 </script>
 {% endblock %}

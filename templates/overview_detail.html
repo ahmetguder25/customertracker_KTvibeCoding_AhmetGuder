@@ -1,335 +1,189 @@
 {% extends "base.html" %}
-{% block title %}{{ customer['CustomerName'] }} — Overview{% endblock %}
+{% block title %}{{ customer['CustomerName'] | upper }} — OVERVIEW{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Back link -->
-    <a href="/overview" class="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 hover:text-brand-600 dark:text-brand-400 transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-        </svg>
-        {{ lang_dict.get('overview_back', 'Back to Overview') }}
-    </a>
+<!-- Back -->
+<div style="margin-bottom:4px;">
+    <a href="/overview" style="font-size:10px;color:var(--on-surface-3);text-transform:uppercase;">← {{ lang_dict.get('overview_back', 'BACK TO OVERVIEW') }}</a>
+</div>
 
-    <!-- ════════════════ HEADER ════════════════ -->
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 relative overflow-hidden">
-        <!-- Gradient overlay -->
-        <div class="absolute inset-0 bg-gradient-to-br from-brand-600/10 via-transparent to-transparent pointer-events-none"></div>
-
-        <div class="relative flex items-start justify-between gap-6">
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-3 mb-1">
-                    <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white truncate">{{ customer['CustomerName'] }}</h1>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        {{ lang_dict.get('overview_active_deals', '{} Active Deals').format(deals|length) }}
-                    </span>
-                </div>
-                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-2">
-                    <span class="flex items-center gap-1.5" title="Portfolio Manager">
-                        <svg class="w-4 h-4 text-gray-700 dark:text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                        {{ customer['portfolio_manager'] or 'Unassigned' }}
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-gray-700 dark:text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                        {{ sector_map.get(customer['sector']|string, {}).get('description', customer['sector']) if customer['sector'] else 'N/A' }}
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-gray-700 dark:text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        {{ customer['branch'] or 'N/A' }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Right: Company Logo -->
-            <div class="flex-shrink-0 w-20 h-20 rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 overflow-hidden flex items-center justify-center shadow-lg">
-                {% if customer['LogoFilename'] %}
-                <img src="{{ url_for('static', filename='logos/' + customer['LogoFilename']) }}"
-                     alt="{{ customer['CustomerName'] }} logo" class="w-full h-full object-cover" id="company-logo">
-                {% else %}
-                <span class="text-3xl font-bold text-gray-700 dark:text-gray-500">{{ customer['CustomerName'][0] }}</span>
-                {% endif %}
-            </div>
+<!-- ═══ HEADER ═══ -->
+<div class="t-panel" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1px;">
+    <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span class="t-display" style="font-size:18px;">{{ customer['CustomerName'] }}</span>
+            <span class="t-chip t-chip-green">{{ lang_dict.get('overview_active_deals', '{} DEALS').format(deals|length) }}</span>
+        </div>
+        <div style="display:flex;gap:16px;font-size:11px;color:var(--on-surface-3);">
+            <span>PM: <span style="color:var(--on-surface-2);">{{ customer['portfolio_manager'] or '—' }}</span></span>
+            <span>SECTOR: <span style="color:var(--on-surface-2);">{{ sector_map.get(customer['sector']|string, {}).get('description', customer['sector']) if customer['sector'] else '—' }}</span></span>
+            <span>BRANCH: <span style="color:var(--on-surface-2);">{{ customer['branch'] or '—' }}</span></span>
         </div>
     </div>
-
-    <!-- ════════════════ FINANCIALS ROW ════════════════ -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_total_deals', 'Total Deals Size') }}</span>
-            <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 font-mono">${{ "{:,.0f}".format(total_deal_size) }}</p>
-        </div>
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_credit_limit', 'Credit Limit') }}</span>
-            <p class="text-2xl font-bold text-violet-600 dark:text-violet-400 mt-1 font-mono">₺{{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</p>
-        </div>
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_foreign_trade', 'Foreign Trade') }}</span>
-            <p class="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</p>
-        </div>
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_sector_peers', 'Sector Peers') }}</span>
-            <p class="text-2xl font-bold text-brand-600 dark:text-brand-400 mt-1">{{ same_sector }}</p>
-        </div>
+    {% if customer['LogoFilename'] %}
+    <div style="width:40px;height:40px;border:1px solid var(--border);overflow:hidden;flex-shrink:0;">
+        <img src="{{ url_for('static', filename='logos/' + customer['LogoFilename']) }}" alt="" style="width:100%;height:100%;object-fit:cover;" id="company-logo">
     </div>
+    {% endif %}
+</div>
 
-    <!-- ════════════════ TABS ════════════════ -->
-    <div class="border-b border-gray-200 dark:border-gray-800 mt-2">
-        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-            <button onclick="switchTab('overview')" id="btn-tab-overview" style="border-bottom: 2px solid; padding: 1rem 0.25rem; font-weight: 600; font-size: 0.875rem; white-space: nowrap; border-color: #10b981; color: #10b981; background: none; cursor: pointer; transition: color 0.2s;">
-                Overview
-            </button>
-            <button onclick="switchTab('credit')" id="btn-tab-credit" style="border-bottom: 2px solid transparent; padding: 1rem 0.25rem; font-weight: 600; font-size: 0.875rem; white-space: nowrap; color: #9ca3af; background: none; cursor: pointer; transition: color 0.2s;">
-                Credit Analysis
-            </button>
-        </nav>
+<!-- ═══ FINANCIALS ═══ -->
+<div class="t-grid-4" style="margin-bottom:1px;">
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_total_deals', 'TOTAL DEALS SIZE') }}</span>
+        <span class="t-kpi-value" style="font-size:16px;color:var(--green);">${{ "{:,.0f}".format(total_deal_size) }}</span>
     </div>
-
-    <div id="tab-overview" class="space-y-6 block animate-fade-in">
-
-    <!-- ════════════════ MULTI-AGENT REASONING CONSOLE ════════════════ -->
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-800">
-            <h2 class="text-lg font-semibold text-emerald-400 flex items-center gap-3 font-mono">
-                <svg class="w-5 h-5 text-emerald-500 animate-pulse" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-                {{ lang_dict.get('ov_multi_ai_title', 'Multi-Agent Reasoning Console') }}
-            </h2>
-            <div class="flex items-center gap-4">
-                <label class="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-200 transition-colors">
-                    <input type="checkbox" id="toggle-thought-stream" class="rounded border-gray-700 bg-gray-800 text-emerald-500 focus:ring-emerald-500">
-                    <span class="text-sm font-mono tracking-tight">{{ lang_dict.get('ov_thought_stream', 'Thought Stream') }}</span>
-                </label>
-                <div class="h-4 w-px bg-gray-800"></div>
-                <span id="ai-timestamp" class="text-xs text-gray-500 font-mono hidden">
-                    {% if analysis %}{{ analysis['created_at'] | tr_time }}{% endif %}
-                </span>
-                <button type="button" id="btn-refresh-ai" data-id="{{ customer['Customerid'] }}" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-sm font-mono transition-colors flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    {{ lang_dict.get('ov_run_analysis', 'Run Analysis') }}
-                </button>
-            </div>
-        </div>
-
-        <!-- Terminal Output Stream -->
-        <div id="ai-terminal" class="rounded bg-black/50 border border-gray-800/80 min-h-[160px] p-4 font-mono text-sm overflow-hidden mb-6 hidden">
-            <div id="ai-log-lines" class="space-y-1.5 text-gray-300">
-                <!-- SSE logs injected here -->
-            </div>
-            <!-- Blinking cursor -->
-            <div id="ai-cursor" class="w-2 h-4 bg-emerald-500 animate-pulse mt-2 hidden"></div>
-        </div>
-
-        <!-- Final Report Output -->
-        <div id="ai-final-report" class="hidden animate-fade-in">
-            <h3 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 font-sans">{{ lang_dict.get('ov_final_report', 'Final Report') }}</h3>
-            <div id="ai-final-content" class="text-gray-300 leading-relaxed text-sm format-markdown whitespace-pre-wrap"></div>
-        </div>
-        
-        <!-- Previous static output (if exists and hasn't been re-run yet) -->
-        {% if analysis %}
-        <div id="ai-legacy-report" class="text-gray-300 leading-relaxed text-sm format-markdown whitespace-pre-wrap">
-            {{ analysis['analysis_text'] }}
-        </div>
-        {% endif %}
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_credit_limit', 'CREDIT LIMIT') }}</span>
+        <span class="t-kpi-value" style="font-size:16px;color:var(--amber);">₺{{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</span>
     </div>
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_foreign_trade', 'FOREIGN TRADE') }}</span>
+        <span class="t-kpi-value" style="font-size:16px;color:var(--cyan);">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</span>
+    </div>
+    <div class="t-kpi">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_sector_peers', 'SECTOR PEERS') }}</span>
+        <span class="t-kpi-value" style="font-size:16px;color:var(--amber-text);">{{ same_sector }}</span>
+    </div>
+</div>
 
-                <!-- DEALS SECTION -->
-    <div>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ lang_dict.get('dash_pipeline_title', 'Pipeline Deals') }}</h2>
-        {% if deals %}
-        <div class="space-y-4">
+<!-- ═══ TABS ═══ -->
+<div class="t-tabs">
+    <button onclick="switchTab('overview')" id="btn-tab-overview" class="t-tab active">OVERVIEW</button>
+    <button onclick="switchTab('credit')" id="btn-tab-credit" class="t-tab">CREDIT ANALYSIS</button>
+</div>
+
+<!-- ═══ TAB: OVERVIEW ═══ -->
+<div id="tab-overview">
+
+    <!-- DEALS -->
+    <div class="t-section-header" style="margin-bottom:0;">{{ lang_dict.get('dash_pipeline_title', 'PIPELINE DEALS') }}</div>
+    {% if deals %}
+    <table class="t-table" style="margin-bottom:8px;">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>TYPE</th>
+                <th>STATUS</th>
+                <th>CONTACT</th>
+                <th style="text-align:right;">SIZE</th>
+                <th style="text-align:right;">PRICING</th>
+                <th>NOTES</th>
+            </tr>
+        </thead>
+        <tbody>
             {% for d in deals %}
             {% set st = status_map.get(d['status']|string, {}) %}
             {% set dt = deal_type_map.get(d['dealtype']|string, {}) %}
             {% set cur = fec_map.get((d['currency'] or 0)|string, {}) %}
-            <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col lg:flex-row gap-6 items-start lg:items-center cursor-pointer hover:border-brand-300 dark:hover:border-brand-700 transition" onclick="window.location='/deals/edit/{{ d.id }}'" title="Click to edit deal">
-                <!-- Deal Header Info -->
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-3 mb-1">
-                        <span class="font-mono text-gray-700 dark:text-gray-500 text-sm">#{{ d['id'] }}</span>
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ dt.get('description', d['dealtype']) }}</h3>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ st.get('bg', 'bg-gray-500/20') }} {{ st.get('text', 'text-gray-400') }}">
-                            {% if st.get('logo') %}{{ st.get('logo') }} {% endif %}{{ st.get('description', d['status']) }}
-                        </span>
-                    </div>
-                    <p class="text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-2">{{ lang_dict.get('list_contact', 'Contact Name') }}: <span class="text-gray-700 dark:text-gray-300">{{ d['contact_name'] or 'None' }}</span> &middot; {{ d['created_at'] | fmtdate }}</p>
-                    <div class="flex items-center gap-4">
-                        <p class="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{{ "{:,.0f}".format(d['deal_size']) }} {{ cur.get('bg', 'TRY') }}</p>
-                        {% if d['expected_pricing_pa'] %}
-                        <span class="text-sm font-mono text-amber-600 dark:text-amber-400">{{ "{:.2f}".format(d['expected_pricing_pa']) }}% p.a.</span>
-                        {% endif %}
-                    </div>
-                    <p class="text-sm text-gray-700 dark:text-gray-500 mt-3">{{ d['notes'] or lang_dict.get('detail_no_notes', 'No notes for this deal.') }}</p>
-                </div>
-                
-                <!-- Timeline/Pipeline -->
-                <div class="lg:w-64 bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50" onclick="event.stopPropagation()">
-                    <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-400 dark:text-gray-400 uppercase tracking-wider mb-2">{{ lang_dict.get('detail_timeline', 'Status Timeline') }}</h4>
-                    <div class="space-y-2">
-                        {% set reached = [true] %}
-                        {% for code, info in status_map.items() %}
-                        <div class="flex items-center gap-2 {{ 'opacity-30' if not reached[0] else '' }}">
-                            <div class="w-5 h-5 rounded flex items-center justify-center text-xs {% if code == d['status']|string %}bg-brand-600/30 ring-1 ring-brand-500 {% elif reached[0] %}bg-gray-700 {% else %}bg-gray-800/50{% endif %}">
-                                {{ info.get('logo', '●') }}
-                            </div>
-                            <span class="text-xs {% if code == d['status']|string %}text-white font-semibold{% else %}text-gray-700 dark:text-gray-500{% endif %} truncate">{{ info.description }}</span>
-                        </div>
-                        {% if code == d['status']|string %}{% if reached.append(false) %}{% endif %}{% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
+            <tr onclick="window.location='/deals/edit/{{ d.id }}'" style="cursor:pointer;">
+                <td style="color:var(--on-surface-3);">{{ d['id'] }}</td>
+                <td><span class="t-chip t-chip-amber">{{ dt.get('description', d['dealtype']) }}</span></td>
+                <td><span class="t-chip {% if d['status']|string in ['4'] %}t-chip-green{% elif d['status']|string in ['5'] %}t-chip-red{% else %}t-chip-cyan{% endif %}">{{ st.get('description', d['status']) }}</span></td>
+                <td>{{ d['contact_name'] or '—' }}</td>
+                <td style="text-align:right;color:var(--green);font-weight:700;">{{ "{:,.0f}".format(d['deal_size']) }} {{ cur.get('bg', 'TRY') }}</td>
+                <td style="text-align:right;color:var(--amber);">{% if d['expected_pricing_pa'] %}{{ "{:.2f}".format(d['expected_pricing_pa']) }}%{% else %}—{% endif %}</td>
+                <td style="color:var(--on-surface-3);max-width:200px;overflow:hidden;text-overflow:ellipsis;">{{ d['notes'] or '—' }}</td>
+            </tr>
             {% endfor %}
-        </div>
-        {% else %}
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-12 text-center">
-            <svg class="w-12 h-12 mx-auto text-gray-700 mb-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/>
-            </svg>
-            <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400">{{ lang_dict.get('list_empty', 'No active deals found for this customer.') }}</p>
-        </div>
-        {% endif %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="t-panel" style="text-align:center;padding:16px;color:var(--on-surface-3);border-top:none;">
+        {{ lang_dict.get('list_empty', 'NO ACTIVE DEALS.') }}
     </div>
+    {% endif %}
 
-    <!-- ════════════════ TEAM MEMOS ════════════════ -->
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-        <div class="flex items-center justify-between mb-5">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
-                </svg>
-                {{ lang_dict.get('ov_comments_title', 'Customer Team Memos') }}
-            </h2>
-            <span class="text-xs text-gray-700 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">{{ lang_dict.get('overview_memos_count', '{} memos').format(comments|length) }}</span>
-        </div>
-
-        <div class="space-y-3 mb-6 max-h-96 overflow-y-auto pr-1" id="memo-list">
+    <!-- MEMOS -->
+    <div class="t-section-header">{{ lang_dict.get('ov_comments_title', 'TEAM MEMOS') }} <span style="color:var(--on-surface-3);font-size:10px;margin-left:6px;">[{{ comments|length }}]</span></div>
+    <div class="t-panel" style="border-top:none;">
+        <div style="max-height:300px;overflow-y:auto;margin-bottom:8px;" id="memo-list">
             {% if comments %}
                 {% for comment in comments %}
-                <div class="comment-card bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl p-4 hover:border-gray-600/50 transition-colors">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded-full bg-brand-600/30 flex items-center justify-center text-xs font-bold text-brand-600 dark:text-brand-400">
-                                {{ comment['author'][0] }}
-                            </div>
-                            <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ comment['author'] }}</span>
-                        </div>
-                        <span class="text-xs text-gray-700 dark:text-gray-400">{{ comment['created_at'] | fmtdatetime if comment['created_at'] else '' }}</span>
-                    </div>
-                    <p class="text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 leading-relaxed pl-9">{{ comment['content'] }}</p>
+                <div class="t-comment">
+                    <span class="t-comment-author">{{ comment['author'] }}</span>
+                    <span class="t-comment-time">{{ comment['created_at'] | fmtdatetime if comment['created_at'] else '' }}</span>
+                    <div style="margin-top:2px;color:var(--on-surface-2);">{{ comment['content'] }}</div>
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="text-center py-8 text-gray-700 dark:text-gray-400">
-                    <p>{{ lang_dict.get('overview_memos_empty', 'No memos found for this customer hierarchy.') }}</p>
-                </div>
+                <div style="padding:12px;text-align:center;color:var(--on-surface-3);">{{ lang_dict.get('overview_memos_empty', 'NO MEMOS.') }}</div>
             {% endif %}
         </div>
 
-        <form action="/overview/{{ customer['Customerid'] }}/comment" method="POST" class="border-t border-gray-300/50 dark:border-gray-700/50 pt-5">
-            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ lang_dict.get('overview_memos_add', 'Add a Memo') }}</h3>
-            <div class="flex gap-3">
-                <div class="relative">
-                    <input type="text" name="author" value="{{ session.get('username', '') }}" readonly class="w-48 bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 cursor-not-allowed">
-                    <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="flex gap-3 mt-3">
-                <textarea name="content" required rows="2" placeholder="{{ lang_dict.get('ov_comment_content', 'Add a comment or update...') }}" class="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white resize-none"></textarea>
-                <button type="submit" class="self-end bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium">{{ lang_dict.get('ov_comment_btn', 'Post Update') }}</button>
+        <form action="/overview/{{ customer['Customerid'] }}/comment" method="POST" style="border-top:1px solid var(--border);padding-top:6px;">
+            <div style="display:flex;gap:4px;align-items:flex-end;">
+                <input type="text" name="author" value="{{ session.get('username', '') }}" readonly class="t-input" style="width:120px;color:var(--cyan);cursor:not-allowed;">
+                <textarea name="content" required rows="2" placeholder="{{ lang_dict.get('ov_comment_content', 'ADD MEMO...') }}" class="t-input" style="flex:1;"></textarea>
+                <button type="submit" class="t-btn">{{ lang_dict.get('ov_comment_btn', 'POST') }}</button>
             </div>
         </form>
     </div>
-    </div> <!-- END TAB OVERVIEW -->
+</div>
 
-    <!-- ════════════════ CREDIT ANALYSIS TAB ════════════════ -->
-    <div id="tab-credit" style="display: none;" class="space-y-6 animate-fade-in">
-        <!-- Chart Row -->
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Total Assets Over Time</h2>
-            <div class="relative h-64 w-full">
-                <canvas id="assetChart"></canvas>
-            </div>
-        </div>
+<!-- ═══ TAB: CREDIT ANALYSIS ═══ -->
+<div id="tab-credit" style="display:none;">
+    <div class="t-panel" style="margin-bottom:1px;">
+        <div class="t-panel-header">TOTAL ASSETS OVER TIME</div>
+        <div style="position:relative;height:240px;"><canvas id="assetChart"></canvas></div>
+    </div>
 
-        <!-- Balance Sheet Table -->
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 overflow-hidden shadow-sm">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Balance Sheet / Financial Items</h2>
-                <button onclick="toggleAllNodes()" id="btn-toggle-all" class="text-sm font-medium text-brand-600 hover:text-brand-500 dark:text-brand-400 border border-brand-200 dark:border-brand-800 rounded-lg px-3 py-1.5 transition-colors">Expand All</button>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm text-left border-collapse">
-                    <thead>
-                        <tr class="border-b-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50">
-                            <th class="py-3 px-3 font-semibold rounded-tl-lg">Code</th>
-                            <th class="py-3 px-3 font-semibold">Item Name</th>
-                            {% for p in periods %}
-                            <th class="py-3 px-3 font-semibold text-right">Period {{ p }}</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800/50">
-                        {% for node in fin_nodes %}
-                        <tr class="fin-row hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors {{ 'cursor-pointer' if node.has_children else '' }}" 
-                            data-id="{{ node.id }}" 
-                            data-parent="{{ node.parent_id or '' }}" 
-                            data-depth="{{ node.depth }}"
-                            {% if node.has_children %}onclick="toggleChildren({{ node.id }})"{% endif %}
-                            {% if node.depth > 0 %}style="display: none;"{% endif %}>
-                            <td class="py-2.5 px-3 font-mono text-gray-500 dark:text-gray-400 whitespace-nowrap" style="padding-left: {{ (node.depth * 1.5) + 0.75 }}rem;">
-                                {% if node.has_children %}
-                                    <span class="inline-block transition-transform duration-200 w-4 text-center mr-1 text-xs select-none" id="icon-{{ node.id }}">▶</span>
-                                {% else %}
-                                    <span class="inline-block w-4 mr-1"></span>
-                                {% endif %}
-                                {{ node.code }}
-                            </td>
-                            <td class="py-2.5 px-3 {% if node.depth == 0 %}font-bold text-gray-900 dark:text-white{% else %}text-gray-700 dark:text-gray-300{% endif %}">
-                                {{ node.name }}
-                            </td>
-                            {% for p in periods %}
-                            <td class="py-2.5 px-3 text-right font-mono {% if node.amounts[p] < 0 %}text-red-500{% elif node.depth == 0 %}font-bold text-gray-900 dark:text-white{% else %}text-gray-600 dark:text-gray-400{% endif %}">
-                                {{ "{:,.2f}".format(node.amounts[p]) }}
-                            </td>
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="t-section-header" style="flex:1;">BALANCE SHEET / FINANCIAL ITEMS</div>
+        <button onclick="toggleAllNodes()" id="btn-toggle-all" class="t-btn t-btn-sm" style="margin-left:4px;">EXPAND ALL</button>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="t-table">
+            <thead>
+                <tr>
+                    <th>CODE</th>
+                    <th>ITEM</th>
+                    {% for p in periods %}
+                    <th style="text-align:right;">P{{ p }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for node in fin_nodes %}
+                <tr class="fin-row {% if node.has_children %}{% endif %}"
+                    data-id="{{ node.id }}" data-parent="{{ node.parent_id or '' }}" data-depth="{{ node.depth }}"
+                    {% if node.has_children %}onclick="toggleChildren({{ node.id }})" style="cursor:pointer;{% if node.depth > 0 %}display:none;{% endif %}"
+                    {% else %}style="{% if node.depth > 0 %}display:none;{% endif %}"{% endif %}>
+                    <td style="padding-left:{{ (node.depth * 12) + 8 }}px;{% if node.depth == 0 %}color:var(--amber);font-weight:700;{% else %}color:var(--on-surface-3);{% endif %}">
+                        {% if node.has_children %}<span id="icon-{{ node.id }}" style="display:inline-block;width:12px;text-align:center;font-size:9px;">▶</span>{% else %}<span style="display:inline-block;width:12px;"></span>{% endif %}
+                        {{ node.code }}
+                    </td>
+                    <td style="{% if node.depth == 0 %}color:var(--amber-text);font-weight:700;{% endif %}">{{ node.name }}</td>
+                    {% for p in periods %}
+                    <td style="text-align:right;{% if node.amounts[p] < 0 %}color:var(--red);{% elif node.depth == 0 %}color:var(--amber-text);font-weight:700;{% endif %}">{{ "{:,.2f}".format(node.amounts[p]) }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
-<script>
-// ── GLOBAL TAB FUNCTIONS (must be global for onclick= to work) ──
-function switchTab(tabName) {
-    var tabOverview = document.getElementById('tab-overview');
-    var tabCredit   = document.getElementById('tab-credit');
-    var btnOverview = document.getElementById('btn-tab-overview');
-    var btnCredit   = document.getElementById('btn-tab-credit');
-    if (!tabOverview || !tabCredit) return;
+{% endblock %}
 
+{% block scripts %}
+<script>
+Chart.defaults.color = '#9C8F78';
+Chart.defaults.borderColor = '#333333';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 10;
+
+function switchTab(tabName) {
+    var tabOv = document.getElementById('tab-overview');
+    var tabCr = document.getElementById('tab-credit');
+    var btnOv = document.getElementById('btn-tab-overview');
+    var btnCr = document.getElementById('btn-tab-credit');
     if (tabName === 'overview') {
-        tabOverview.style.display = '';
-        tabCredit.style.display   = 'none';
-        btnOverview.style.borderColor = '#10b981';
-        btnOverview.style.color       = '#10b981';
-        btnCredit.style.borderColor   = 'transparent';
-        btnCredit.style.color         = '#9ca3af';
+        tabOv.style.display = ''; tabCr.style.display = 'none';
+        btnOv.classList.add('active'); btnCr.classList.remove('active');
     } else {
-        tabOverview.style.display = 'none';
-        tabCredit.style.display   = '';
-        btnCredit.style.borderColor   = '#10b981';
-        btnCredit.style.color         = '#10b981';
-        btnOverview.style.borderColor = 'transparent';
-        btnOverview.style.color       = '#9ca3af';
+        tabOv.style.display = 'none'; tabCr.style.display = '';
+        btnCr.classList.add('active'); btnOv.classList.remove('active');
     }
 }
 
@@ -337,174 +191,39 @@ var allExpanded = false;
 function toggleChildren(parentId) {
     var icon = document.getElementById('icon-' + parentId);
     if (!icon) return;
-    var isExpanded = icon.textContent.trim() === '\u25bc';
-    icon.textContent = isExpanded ? '\u25b6' : '\u25bc';
-    var rows = document.querySelectorAll('.fin-row');
-    rows.forEach(function(row) {
+    var isExp = icon.textContent.trim() === '\u25bc';
+    icon.textContent = isExp ? '\u25b6' : '\u25bc';
+    document.querySelectorAll('.fin-row').forEach(function(row) {
         if (row.getAttribute('data-parent') == parentId) {
-            row.style.display = isExpanded ? 'none' : 'table-row';
-            if (isExpanded) collapseDeep(row.getAttribute('data-id'));
+            row.style.display = isExp ? 'none' : 'table-row';
+            if (isExp) collapseDeep(row.getAttribute('data-id'));
         }
     });
 }
-
 function collapseDeep(id) {
     var icon = document.getElementById('icon-' + id);
     if (icon) icon.textContent = '\u25b6';
-    var rows = document.querySelectorAll('.fin-row');
-    rows.forEach(function(row) {
-        if (row.getAttribute('data-parent') == id) {
-            row.style.display = 'none';
-            collapseDeep(row.getAttribute('data-id'));
-        }
+    document.querySelectorAll('.fin-row').forEach(function(row) {
+        if (row.getAttribute('data-parent') == id) { row.style.display = 'none'; collapseDeep(row.getAttribute('data-id')); }
     });
 }
-
 function toggleAllNodes() {
     allExpanded = !allExpanded;
     var btn = document.getElementById('btn-toggle-all');
-    if (btn) btn.textContent = allExpanded ? 'Collapse All' : 'Expand All';
-    document.querySelectorAll('[id^=icon-]').forEach(function(icon) {
-        icon.textContent = allExpanded ? '\u25bc' : '\u25b6';
-    });
-    document.querySelectorAll('.fin-row').forEach(function(row) {
-        if (parseInt(row.getAttribute('data-depth')) > 0) {
-            row.style.display = allExpanded ? 'table-row' : 'none';
-        }
+    if (btn) btn.textContent = allExpanded ? 'COLLAPSE ALL' : 'EXPAND ALL';
+    document.querySelectorAll('[id^=icon-]').forEach(function(i) { i.textContent = allExpanded ? '\u25bc' : '\u25b6'; });
+    document.querySelectorAll('.fin-row').forEach(function(r) {
+        if (parseInt(r.getAttribute('data-depth')) > 0) r.style.display = allExpanded ? 'table-row' : 'none';
     });
 }
 
-// ── DOM READY ──
-document.addEventListener('DOMContentLoaded', function() {
-
-    // Chart.js - Total Assets
-    var ctx = document.getElementById('assetChart');
-    if (ctx) {
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: {{ chart_periods | tojson }},
-                datasets: [{
-                    label: 'Total Assets',
-                    data: {{ chart_asset_data | tojson }},
-                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                    borderColor: 'rgba(16, 185, 129, 1)',
-                    borderWidth: 2,
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(156, 163, 175, 0.1)' },
-                        ticks: {
-                            callback: function(value) {
-                                return value >= 1000000 ? (value / 1000000).toFixed(1) + 'M' : value;
-                            }
-                        }
-                    },
-                    x: { grid: { display: false } }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-
-    // AI Console
-    var btnRefresh          = document.getElementById('btn-refresh-ai');
-    var toggleThoughtStream = document.getElementById('toggle-thought-stream');
-    var terminal            = document.getElementById('ai-terminal');
-    var logLines            = document.getElementById('ai-log-lines');
-    var cursor              = document.getElementById('ai-cursor');
-    var reportContainer     = document.getElementById('ai-final-report');
-    var reportContent       = document.getElementById('ai-final-content');
-    var legacyReport        = document.getElementById('ai-legacy-report');
-    var eventSource         = null;
-
-    function addLog(msg, color) {
-        color = color || 'text-gray-300';
-        var el = document.createElement('div');
-        el.className = color;
-        el.textContent = '> ' + msg;
-        logLines.appendChild(el);
-        terminal.scrollTop = terminal.scrollHeight;
-    }
-
-    if (toggleThoughtStream) {
-        toggleThoughtStream.addEventListener('change', function(e) {
-            if (e.target.checked) {
-                terminal.classList.remove('hidden');
-            } else if (!btnRefresh.disabled) {
-                terminal.classList.add('hidden');
-            }
-        });
-    }
-
-    if (btnRefresh) {
-        btnRefresh.addEventListener('click', function() {
-            var id = btnRefresh.getAttribute('data-id');
-            btnRefresh.disabled = true;
-            btnRefresh.classList.add('opacity-50', 'cursor-not-allowed', 'animate-pulse');
-            btnRefresh.textContent = '{{ lang_dict.get("ov_refreshing", "Running Agents...") }}';
-
-            if (legacyReport) legacyReport.style.display = 'none';
-            reportContainer.classList.add('hidden');
-            reportContent.innerHTML = '';
-            logLines.innerHTML = '';
-            terminal.classList.remove('hidden');
-            cursor.classList.remove('hidden');
-
-            eventSource = new EventSource('/api/analyze/' + id);
-
-            eventSource.addEventListener('start', function(e) {
-                var data = JSON.parse(e.data);
-                addLog('[' + data.time + '] Analysis Orchestrator Initialised.', 'text-brand-400 font-bold');
-            });
-            eventSource.addEventListener('progress', function(e) {
-                var data = JSON.parse(e.data);
-                addLog('[' + data.time + '] [' + data.role + '] ' + data.message, 'text-emerald-400');
-            });
-            eventSource.addEventListener('stage1_done', function(e) {
-                var data = JSON.parse(e.data);
-                if (toggleThoughtStream && toggleThoughtStream.checked) {
-                    addLog(data.output, 'text-gray-500');
-                }
-            });
-            eventSource.addEventListener('stage2_done', function(e) {
-                var data = JSON.parse(e.data);
-                if (toggleThoughtStream && toggleThoughtStream.checked) {
-                    addLog(data.output, 'text-gray-500');
-                }
-            });
-            eventSource.addEventListener('done', function(e) {
-                var data = JSON.parse(e.data);
-                addLog('[' + data.time + '] Orchestrator cycle complete.', 'text-brand-400 font-bold');
-                eventSource.close();
-                cursor.classList.add('hidden');
-                btnRefresh.disabled = false;
-                btnRefresh.classList.remove('opacity-50', 'cursor-not-allowed', 'animate-pulse');
-                btnRefresh.textContent = '{{ lang_dict.get("dash_ai_refresh", "Refresh Analysis") }}';
-                if (!toggleThoughtStream || !toggleThoughtStream.checked) {
-                    terminal.classList.add('hidden');
-                }
-                reportContent.textContent = data.final;
-                reportContainer.classList.remove('hidden');
-                var ts = document.getElementById('ai-timestamp');
-                if (ts) { ts.classList.remove('hidden'); ts.textContent = 'Last Updated: ' + data.time; }
-            });
-            eventSource.onerror = function() {
-                addLog('[System] EventSource connection fractured.', 'text-red-500');
-                eventSource.close();
-                cursor.classList.add('hidden');
-                btnRefresh.disabled = false;
-                btnRefresh.classList.remove('opacity-50', 'cursor-not-allowed', 'animate-pulse');
-                btnRefresh.textContent = 'Retry Analysis';
-            };
-        });
-    }
-});
+var ctx = document.getElementById('assetChart');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'bar',
+        data: { labels: {{ chart_periods | tojson }}, datasets: [{ label: 'Total Assets', data: {{ chart_asset_data | tojson }}, backgroundColor: 'rgba(0,255,0,0.2)', borderColor: '#00FF00', borderWidth: 1 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(51,51,51,0.5)' }, ticks: { callback: function(v) { return v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v; } } }, x: { grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a12', titleColor: '#FFC100', bodyColor: '#ECE1D0', borderColor: '#FFC100', borderWidth: 1, cornerRadius: 0 } } }
+    });
+}
 </script>
 {% endblock %}

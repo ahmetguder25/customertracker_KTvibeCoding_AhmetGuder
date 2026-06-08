@@ -42,8 +42,10 @@ def get_pk_column(table_name: str) -> str:
 
 
 def get_table_columns(table_name: str) -> list[str]:
-    """Return editable column names (excluding the PK) via INFORMATION_SCHEMA."""
+    """Return editable column names (excluding the PK and hidden cols) via INFORMATION_SCHEMA."""
     pk_col = get_pk_column(table_name)
+    # Columns that exist in the DB but should not appear in the admin editor
+    hidden = {"default_theme"}
     conn = get_db()
     rows = conn.execute(
         "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
@@ -52,7 +54,8 @@ def get_table_columns(table_name: str) -> list[str]:
         (table_name,)
     ).fetchall()
     conn.close()
-    return [r["COLUMN_NAME"] for r in rows if r["COLUMN_NAME"] != pk_col]
+    return [r["COLUMN_NAME"] for r in rows
+            if r["COLUMN_NAME"] != pk_col and r["COLUMN_NAME"].lower() not in hidden]
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────

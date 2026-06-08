@@ -1,124 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Overview — Customer Tracker{% endblock %}
+{% block title %}OVERVIEW — CUSTOMER TRACKER{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
-    <div class="flex items-center justify-between flex-wrap gap-4">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('ov_title', 'Customer Overview') }}</h1>
-            <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-1">{{ lang_dict.get('ov_subtitle', 'Select a customer to view their profile, active deals, and team memos') }}</p>
-        </div>
-        <button id="btn-refresh-all" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all duration-200 shadow shadow-brand-600/20">
-            {{ lang_dict.get('ov_refresh_all', 'Refresh All AI Analysis') }}
-        </button>
-    </div>
-
-    <!-- Progress Bar Section (Hidden) -->
-    <div id="progress-container" class="hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
-        <div class="flex justify-between text-sm mb-2">
-            <span class="text-gray-700 dark:text-gray-300 font-medium">{{ lang_dict.get('ov_refreshing', 'Refreshing AI Analysis...') }}</span>
-            <span id="progress-text" class="text-brand-600 dark:text-brand-400 font-mono">0 / {{ customers|length }}</span>
-        </div>
-        <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
-            <div id="progress-bar" class="bg-brand-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
-        </div>
-    </div>
-
-    <!-- Customer Cards Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {% for c in customers %}
-        <a href="/overview/{{ c['Customerid'] }}" id="customer-card-{{ c['Customerid'] }}"
-           class="group bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex gap-4 items-start hover:border-brand-600/50 hover:shadow-lg hover:shadow-brand-600/5 transition-all duration-300 hover:-translate-y-0.5">
-            <!-- Logo -->
-            <div class="flex-shrink-0 w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 overflow-hidden flex items-center justify-center">
-                {% if c['LogoFilename'] %}
-                <img src="{{ url_for('static', filename='logos/' + c['LogoFilename']) }}"
-                     alt="{{ c['CustomerName'] }} logo" class="w-full h-full object-cover">
-                {% else %}
-                <span class="text-2xl font-bold text-gray-700 dark:text-gray-500">{{ c['CustomerName'][0] }}</span>
-                {% endif %}
-            </div>
-            <!-- Info -->
-            <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 dark:text-brand-400 transition-colors truncate">{{ c['CustomerName'] }}</h3>
-                <p class="text-xs text-gray-700 dark:text-gray-500 mt-0.5">{{ c['portfolio_manager'] or 'Unassigned' }}</p>
-                <div class="flex items-center gap-2 mt-2">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                        {{ c['deal_count'] }} {{ lang_dict.get('ov_deals_title', 'Active Deals') }}
-                    </span>
-                    <span class="text-xs text-gray-700 dark:text-gray-400">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '') }}</span>
-                </div>
-                <!-- Aggregated Deal Size -->
-                <p class="text-sm font-mono text-emerald-600 dark:text-emerald-400 mt-2">${{ "{:,.0f}".format(c['total_deal_size'] or 0) }}</p>
-            </div>
-            <!-- Arrow -->
-            <div class="flex-shrink-0 self-center text-gray-700 group-hover:text-brand-600 dark:text-brand-400 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                </svg>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-
-    {% if not customers %}
-    <div class="text-center py-16 text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_empty_recent', 'No customers found.') }}</div>
-    {% endif %}
-    
-    <!-- Toast Notice -->
-    <div id="toast-success" class="fixed bottom-5 right-5 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-xl font-medium transition-all duration-500 opacity-0 translate-y-4 pointer-events-none z-50">
-        {{ lang_dict.get('ov_refresh_complete', 'Refresh complete!') }}
+<div class="t-page-header">
+    <div>
+        <div class="t-page-title">{{ lang_dict.get('ov_title', 'CUSTOMER OVERVIEW') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('ov_subtitle', 'SELECT A CUSTOMER TO VIEW PROFILE, DEALS, AND MEMOS') }}</div>
     </div>
 </div>
 
-<script>
-document.getElementById('btn-refresh-all').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-refresh-all');
-    const container = document.getElementById('progress-container');
-    const text = document.getElementById('progress-text');
-    const bar = document.getElementById('progress-bar');
-    const toast = document.getElementById('toast-success');
-    
-    btn.disabled = true;
-    btn.classList.add('opacity-50', 'cursor-not-allowed');
-    container.classList.remove('hidden');
-    
-    const cards = document.querySelectorAll('a[id^="customer-card-"]');
-    const ids = Array.from(cards).map(c => c.id.replace('customer-card-', ''));
-    const total = ids.length;
-    let done = 0;
-    
-    text.innerText = `0 / ${total}`;
-    bar.style.width = '0%';
-    
-    for (const id of ids) {
-        try {
-            await fetch(`/api/analysis/generate/${id}`, { method: 'POST' });
-        } catch(e) {
-            console.error('Failed to generate for ID', id, e);
-        }
-        done++;
-        text.innerText = `${done} / ${total}`;
-        bar.style.width = `${(done/total)*100}%`;
-    }
-    
-    // Process complete
-    setTimeout(() => {
-        container.classList.add('hidden');
-        
-        // Show Toast
-        toast.classList.remove('opacity-0', 'translate-y-4');
-        toast.classList.add('opacity-100', 'translate-y-0');
-        
-        // Fade Toast after 3s
-        setTimeout(() => {
-            toast.classList.remove('opacity-100', 'translate-y-0');
-            toast.classList.add('opacity-0', 'translate-y-4');
-        }, 3000);
-        
-        btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-    }, 600);
-});
-</script>
+{% if customers %}
+<table class="t-table">
+    <thead>
+        <tr>
+            <th style="width:30px;"></th>
+            <th>CUSTOMER</th>
+            <th>PM</th>
+            <th>SECTOR</th>
+            <th style="text-align:center;">DEALS</th>
+            <th style="text-align:right;">TOTAL SIZE</th>
+            <th style="text-align:center;">→</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in customers %}
+        <tr onclick="window.location='/overview/{{ c['Customerid'] }}'" style="cursor:pointer;" id="customer-card-{{ c['Customerid'] }}">
+            <td style="text-align:center;">
+                {% if c['LogoFilename'] %}
+                <img src="{{ url_for('static', filename='logos/' + c['LogoFilename']) }}" alt="" style="width:20px;height:20px;object-fit:cover;">
+                {% else %}
+                <span style="color:var(--amber);font-weight:700;">{{ c['CustomerName'][0] }}</span>
+                {% endif %}
+            </td>
+            <td style="color:var(--amber-text);font-weight:600;">{{ c['CustomerName'] }}</td>
+            <td style="color:var(--on-surface-2);">{{ c['portfolio_manager'] or '—' }}</td>
+            <td style="color:var(--on-surface-3);">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
+            <td style="text-align:center;"><span class="t-chip t-chip-cyan">{{ c['deal_count'] }}</span></td>
+            <td style="text-align:right;color:var(--green);">${{ "{:,.0f}".format(c['total_deal_size'] or 0) }}</td>
+            <td style="text-align:center;color:var(--cyan);">▶</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="t-panel" style="text-align:center;padding:24px;color:var(--on-surface-3);">
+    {{ lang_dict.get('dash_empty_recent', 'NO CUSTOMERS FOUND.') }}
+</div>
+{% endif %}
 {% endblock %}

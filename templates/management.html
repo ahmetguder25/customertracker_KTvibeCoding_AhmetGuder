@@ -1,624 +1,342 @@
 {% extends "base.html" %}
-{% block title %}Management — Customer Tracker{% endblock %}
+{% block title %}MANAGEMENT — CUSTOMER TRACKER{% endblock %}
 
 {% block content %}
 <style>
-.tab-btn.active { background: rgba(29,98,241,0.15); color: #3381fc; }
-.tab-btn { transition: all 0.2s; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
 </style>
-<div class="space-y-8">
+
+<div class="t-page-header">
     <div>
-        <h1 class="text-2xl font-bold tracking-tight">{{ lang_dict.get('mgmt_title', 'Customer Management') }}</h1>
-        <p class="text-gray-700 dark:text-gray-400 dark:text-gray-400 mt-1">{{ lang_dict.get('mgmt_subtitle', 'Add customers from the company database to your structured finance tracking') }}</p>
+        <div class="t-page-title">{{ lang_dict.get('mgmt_title', 'CUSTOMER MANAGEMENT') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('mgmt_subtitle', 'ADD CUSTOMERS FROM COMPANY DATABASE') }}</div>
     </div>
+</div>
 
-    <!-- Tab Controls -->
-    <div class="flex gap-2 border-b border-gray-200 dark:border-gray-800">
-        <button class="tab-btn active px-4 py-2 font-medium text-sm border-b-2 border-transparent" onclick="switchMgmtTab('customers', this)">Customers</button>
-        <button class="tab-btn px-4 py-2 font-medium text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border-b-2 border-transparent" onclick="switchMgmtTab('stakeholders', this)">Stakeholders</button>
-    </div>
+<!-- Tabs -->
+<div class="t-tabs">
+    <button class="t-tab active" onclick="switchMgmtTab('customers', this)">CUSTOMERS</button>
+    <button class="t-tab" onclick="switchMgmtTab('stakeholders', this)">STAKEHOLDERS</button>
+</div>
 
-    <!-- CUSTOMERS TAB -->
-    <div id="tab-customers" class="tab-panel active space-y-8">
-        <!-- Add Customer -->
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4">{{ lang_dict.get('mgmt_add_title', 'Add Customer') }}</h2>
-        <style>
-            /* Hide number input spinners */
-            input[type=number]::-webkit-inner-spin-button, 
-            input[type=number]::-webkit-outer-spin-button { 
-                -webkit-appearance: none; 
-                margin: 0; 
-            }
-            input[type=number] {
-                -moz-appearance: textfield;
-            }
-        </style>
-        <form id="add-form" action="/management/customer/add" method="POST" class="space-y-4">
-            <!-- Hidden field to submit Customerid -->
+<!-- ═══ CUSTOMERS TAB ═══ -->
+<div id="tab-customers" class="tab-panel active">
+    <!-- Add Customer -->
+    <div class="t-section-header">{{ lang_dict.get('mgmt_add_title', 'ADD CUSTOMER') }}</div>
+    <div class="t-panel" style="border-top:none;margin-bottom:8px;">
+        <form id="add-form" action="/management/customer/add" method="POST">
             <input type="hidden" name="Customerid" id="formCustomerid" value="">
-
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                <!-- Account Number (active) -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">
                 <div>
-                    <label for="accountNumber" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
-                        {{ lang_dict.get('mgmt_acc_label', 'Account Number *') }}
-                        {% if session.get('env', 'test') != 'prod' %}<span class="text-amber-500 ml-1 text-[10px] uppercase font-bold">{{ lang_dict.get('mgmt_prod_only', '(PROD ONLY)') }}</span>{% endif %}
+                    <label class="t-label" style="display:block;margin-bottom:2px;">
+                        {{ lang_dict.get('mgmt_acc_label', 'ACCOUNT # *') }}
+                        {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:9px;margin-left:4px;">PROD ONLY</span>{% endif %}
                     </label>
-                    <div class="relative flex items-center">
-                        <input type="number" id="accountNumber" required {% if session.get('env', 'test') != 'prod' %}disabled{% endif %}
-                            class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 pr-20 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Enter account number') }}">
-                        <button type="button" id="btn-fetch" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="absolute right-1 px-3 py-1 bg-brand-600 hover:bg-brand-500 text-white rounded text-xs font-semibold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed">Fetch</button>
-                        <div class="absolute top-full left-0 mt-1 w-[200%] sm:w-[150%] z-10">
-                            <p id="lookup-empty" class="text-xs text-red-600 dark:text-red-400 hidden">Please enter an account number.</p>
-                            <p id="lookup-error" class="text-xs text-red-600 dark:text-red-400 hidden">{{ lang_dict.get('mgmt_err_notfound', 'Customer not found.') }}</p>
-                            <p id="lookup-conn-error" class="text-xs text-red-600 dark:text-red-400 hidden">⚠ Could not connect to SRVDNZ. Check your network / VPN and ODBC driver.</p>
-                            <p id="lookup-query-error" class="text-xs text-orange-600 dark:text-orange-400 hidden">⚠ Query error on server. See details below.</p>
-                            <p id="lookup-error-detail" class="text-[10px] text-gray-500 dark:text-gray-600 hidden mt-0.5 break-all"></p>
-                            <p id="lookup-already" class="text-xs text-amber-600 dark:text-amber-400 hidden leading-tight">{{ lang_dict.get('mgmt_err_tracked', 'Customer is already tracked in structured finance.') }}</p>
-                            <p id="lookup-success" class="text-xs text-emerald-600 dark:text-emerald-400 hidden">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
-                        </div>
+                    <div style="position:relative;display:flex;align-items:center;">
+                        <input type="number" id="accountNumber" required {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-input" placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Account #') }}" style="padding-right:50px;">
+                        <button type="button" id="btn-fetch" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-btn t-btn-sm" style="position:absolute;right:2px;">FETCH</button>
+                    </div>
+                    <div style="margin-top:2px;">
+                        <p id="lookup-empty" class="hidden" style="font-size:10px;color:var(--red);">Enter account number.</p>
+                        <p id="lookup-error" class="hidden" style="font-size:10px;color:var(--red);">{{ lang_dict.get('mgmt_err_notfound', 'Customer not found.') }}</p>
+                        <p id="lookup-conn-error" class="hidden" style="font-size:10px;color:var(--red);">⚠ Cannot connect to SRVDNZ.</p>
+                        <p id="lookup-query-error" class="hidden" style="font-size:10px;color:var(--amber);">⚠ Query error.</p>
+                        <p id="lookup-error-detail" class="hidden" style="font-size:9px;color:var(--on-surface-3);word-break:break-all;"></p>
+                        <p id="lookup-already" class="hidden" style="font-size:10px;color:var(--amber);">{{ lang_dict.get('mgmt_err_tracked', 'Already tracked.') }}</p>
+                        <p id="lookup-success" class="hidden" style="font-size:10px;color:var(--green);">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
                     </div>
                 </div>
-
-                <!-- Customer Name (disabled) -->
                 <div>
-                    <label for="CustomerName" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_company_col', 'Company Name') }}</label>
-                    <input type="text" id="CustomerName" disabled
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
-                        placeholder="—">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_company_col', 'COMPANY') }}</label>
+                    <input type="text" id="CustomerName" disabled class="t-input" placeholder="—">
                 </div>
-
-                <!-- Branch (disabled) -->
                 <div>
-                    <label for="branch" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_branch_col', 'Branch') }}</label>
-                    <input type="text" id="branch" disabled
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
-                        placeholder="—">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_branch_col', 'BRANCH') }}</label>
+                    <input type="text" id="branch" disabled class="t-input" placeholder="—">
                 </div>
-
-                <!-- Region (disabled) -->
                 <div>
-                    <label for="region" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_region_col', 'Region') }}</label>
-                    <input type="text" id="region" disabled
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
-                        placeholder="—">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_region_col', 'REGION') }}</label>
+                    <input type="text" id="region" disabled class="t-input" placeholder="—">
                 </div>
-
-                <!-- Value Segment (disabled) -->
                 <div>
-                    <label for="value_segment" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_segment_col', 'Value Segment') }}</label>
-                    <input type="text" id="value_segment" disabled
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
-                        placeholder="—">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_segment_col', 'SEGMENT') }}</label>
+                    <input type="text" id="value_segment" disabled class="t-input" placeholder="—">
                 </div>
-
-                <!-- Portfolio Manager (disabled) -->
                 <div>
-                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }}</label>
-                    <input type="text" id="portfolio_manager" disabled
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
-                        placeholder="—">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_pm_col', 'PM') }}</label>
+                    <input type="text" id="portfolio_manager" disabled class="t-input" placeholder="—">
                 </div>
-
-                <!-- Customer Class Name (disabled) -->
                 <div>
-                    <label for="customer_class" class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Customer Class</label>
-                    <input type="text" id="customer_class" disabled
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-500 cursor-not-allowed transition"
-                        placeholder="—">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">CLASS</label>
+                    <input type="text" id="customer_class" disabled class="t-input" placeholder="—">
                 </div>
             </div>
+            <button type="submit" id="btn-add" disabled class="t-btn" style="opacity:0.4;">{{ lang_dict.get('mgmt_btn_add', '+ ADD CUSTOMER') }}</button>
+        </form>
+    </div>
 
-            <div class="pt-2">
-                <button type="submit" id="btn-add" disabled
-                    class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-brand-600">
-                    {{ lang_dict.get('mgmt_btn_add', '+ Add Customer') }}
-                </button>
+    <!-- Tracked Customers Table -->
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="t-section-header" style="flex:1;">{{ lang_dict.get('mgmt_tbl_title', 'TRACKED CUSTOMERS') }}</div>
+        <button type="button"
+            {% if session.get('env', 'test') != 'prod' %}disabled title="PROD ONLY"{% else %}onclick="startUpdateAll()"{% endif %}
+            class="t-btn t-btn-sm t-btn-cyan" style="{% if session.get('env', 'test') != 'prod' %}opacity:0.4;cursor:not-allowed;{% endif %}">
+            ↻ {{ lang_dict.get('mgmt_btn_sync', 'SYNC ALL') }}
+            {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:9px;margin-left:4px;">PROD</span>{% endif %}
+        </button>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="t-table" id="mgmt-table">
+            <thead>
+                <tr>
+                    <th>{{ lang_dict.get('mgmt_tbl_acc', 'ACCOUNT') }}</th>
+                    <th>{{ lang_dict.get('mgmt_company_col', 'COMPANY') }}</th>
+                    <th>{{ lang_dict.get('mgmt_sector_col', 'SECTOR') }}</th>
+                    <th>{{ lang_dict.get('mgmt_pm_col', 'PM') }}</th>
+                    <th style="text-align:center;">{{ lang_dict.get('mgmt_tbl_actions', 'ACTIONS') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td style="color:var(--on-surface-3);">{{ c['Customerid'] }}</td>
+                    <td style="color:var(--amber-text);font-weight:600;">{{ c['CustomerName'] }}</td>
+                    <td>{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
+                    <td>{{ c['portfolio_manager'] or '—' }}</td>
+                    <td style="text-align:center;white-space:nowrap;">
+                        {% if session.get('env', 'test') == 'prod' %}
+                        <button data-id="{{ c.Customerid }}" data-name="{{ c.CustomerName }}" onclick="updateSingle(this.dataset.id, this.dataset.name)" class="t-btn t-btn-sm t-btn-cyan" style="margin-right:2px;">SYNC</button>
+                        {% endif %}
+                        <a href="/management/edit/{{ c['Customerid'] }}" class="t-btn t-btn-sm" style="text-decoration:none;margin-right:2px;">{{ lang_dict.get('mgmt_btn_edit', 'EDIT') }}</a>
+                        <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" style="display:inline;" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_remove', 'Remove {}?').format(c['CustomerName']) }}')">
+                            <button type="submit" class="t-btn t-btn-sm t-btn-danger">{{ lang_dict.get('mgmt_btn_remove', 'DEL') }}</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if not customers %}
+    <div class="t-panel" style="text-align:center;padding:16px;color:var(--on-surface-3);">{{ lang_dict.get('mgmt_empty', 'NO CUSTOMERS TRACKED.') }}</div>
+    {% endif %}
+</div>
+
+<!-- ═══ STAKEHOLDERS TAB ═══ -->
+<div id="tab-stakeholders" class="tab-panel">
+    <div class="t-section-header">ADD STAKEHOLDER</div>
+    <div class="t-panel" style="border-top:none;margin-bottom:8px;">
+        <form id="add-stakeholder-form" onsubmit="addStakeholder(event)" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">NAME *</label>
+                <input type="text" id="sh_name" required class="t-input" placeholder="Jane Doe">
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">ORG</label>
+                <input type="text" id="sh_org" class="t-input" placeholder="Acme Corp">
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">DEPT</label>
+                <input type="text" id="sh_dept" class="t-input" placeholder="Engineering">
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">EMAIL</label>
+                <input type="email" id="sh_email" class="t-input" placeholder="jane@example.com">
+            </div>
+            <div style="grid-column:span 4;padding-top:4px;">
+                <button type="submit" class="t-btn t-btn-green">+ ADD STAKEHOLDER</button>
             </div>
         </form>
     </div>
 
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-            <h2 class="text-lg font-semibold">{{ lang_dict.get('mgmt_tbl_title', 'Tracked Customers') }}</h2>
-            <button type="button"
-                {% if session.get('env', 'test') != 'prod' %}disabled title="Update All is only available in PROD environment"{% else %}onclick="startUpdateAll()" title="Sync local customer details with remote SRVDNZ DB"{% endif %}
-                class="bg-blue-600/20 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-600/20 disabled:hover:text-blue-400"
-            >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                {{ lang_dict.get('mgmt_btn_sync', 'Update All') }}
-                {% if session.get('env', 'test') != 'prod' %}<span class="ml-1 px-1 py-0.5 text-[9px] font-bold bg-amber-400/20 text-amber-600 dark:text-amber-400 rounded">PROD ONLY</span>{% endif %}
-            </button>
-        </div>
-        <div class="overflow-x-auto">
-            <table id="mgmt-table" class="w-full text-sm">
-                <thead>
-                    <tr class="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-700 dark:text-gray-500">
-                        <th class="px-6 py-3">{{ lang_dict.get('mgmt_tbl_acc', 'Account #') }}</th>
-                        <th class="px-6 py-3">{{ lang_dict.get('mgmt_company_col', 'Company Name') }}</th>
-                        <th class="px-6 py-3">{{ lang_dict.get('mgmt_sector_col', 'Sector') }}</th>
-                        <th class="px-6 py-3">{{ lang_dict.get('mgmt_pm_col', 'PM') }}</th>
-                        <th class="px-6 py-3 text-center">{{ lang_dict.get('mgmt_tbl_actions', 'Actions') }}</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800/60">
-                    {% for c in customers %}
-                    <tr class="hover:bg-gray-800/40 transition-colors">
-                        <td class="px-6 py-3 font-mono text-gray-700 dark:text-gray-500">{{ c['Customerid'] }}</td>
-                        <td class="px-6 py-3 font-medium text-gray-900 dark:text-white">{{ c['CustomerName'] }}</td>
-                        <td class="px-6 py-3 text-gray-700 dark:text-gray-400 dark:text-gray-400">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
-                        <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c['portfolio_manager'] or '—' }}</td>
-                        <td class="px-6 py-3 text-center whitespace-nowrap">
-                            {% if session.get('env', 'test') == 'prod' %}
-                            <button data-id="{{ c.Customerid }}" data-name="{{ c.CustomerName }}" onclick="updateSingle(this.dataset.id, this.dataset.name)" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">Update</button>
-                            {% else %}
-                            <span class="text-gray-500 dark:text-gray-600 text-xs font-medium mr-3 cursor-not-allowed" title="Update only available in PROD">Update</span>
-                            {% endif %}
-                            <a href="/management/edit/{{ c['Customerid'] }}" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-xs font-medium mr-3 transition">{{ lang_dict.get('mgmt_btn_edit', 'Edit Customer') }}</a>
-                            <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" class="inline" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_remove', 'Remove {} from structured finance tracking?').format(c['CustomerName']) }}')">
-                                <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-300 text-xs font-medium transition">{{ lang_dict.get('mgmt_btn_remove', 'Remove') }}</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% if not customers %}
-        <div class="text-center py-12 text-gray-700 dark:text-gray-500">{{ lang_dict.get('mgmt_empty', 'No customers tracked yet. Look up an account number above to add one.') }}</div>
-        {% endif %}
+    <div class="t-section-header">TRACKED STAKEHOLDERS</div>
+    <div style="overflow-x:auto;">
+        <table class="t-table">
+            <thead><tr><th>NAME</th><th>ORG</th><th>DEPT</th><th>EMAIL</th><th style="text-align:center;">ACTIONS</th></tr></thead>
+            <tbody>
+                {% for s in stakeholders %}
+                <tr>
+                    <td style="color:var(--amber-text);font-weight:600;">{{ s.FullName }}</td>
+                    <td>{{ s.Organization or '—' }}</td>
+                    <td>{{ s.Department or '—' }}</td>
+                    <td style="color:var(--cyan);">{{ s.Email or '—' }}</td>
+                    <td style="text-align:center;">
+                        <button onclick="deleteStakeholder({{ s.StakeholderID }}, '{{ s.FullName|replace("'", "\\'") }}')" class="t-btn t-btn-sm t-btn-danger">DEL</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    </div> <!-- end tab-customers -->
-
-    <!-- STAKEHOLDERS TAB -->
-    <div id="tab-stakeholders" class="tab-panel space-y-8">
-        <!-- Add Stakeholder Form -->
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-            <h2 class="text-lg font-semibold mb-4">Add Stakeholder</h2>
-            <form id="add-stakeholder-form" class="space-y-4" onsubmit="addStakeholder(event)">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Full Name *</label>
-                        <input type="text" id="sh_name" required class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 text-gray-900 dark:text-white placeholder-gray-500" placeholder="e.g. Jane Doe">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Organization</label>
-                        <input type="text" id="sh_org" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 text-gray-900 dark:text-white placeholder-gray-500" placeholder="e.g. Acme Corp">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Department</label>
-                        <input type="text" id="sh_dept" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 text-gray-900 dark:text-white placeholder-gray-500" placeholder="e.g. Engineering">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Email</label>
-                        <input type="email" id="sh_email" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 text-gray-900 dark:text-white placeholder-gray-500" placeholder="jane.doe@example.com">
-                    </div>
-                </div>
-                <div class="pt-2">
-                    <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 shadow-sm hover:shadow-lg hover:shadow-brand-600/25">
-                        + Add Stakeholder
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Stakeholders Table -->
-        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-                <h2 class="text-lg font-semibold">Tracked Stakeholders</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wider text-gray-700 dark:text-gray-500">
-                            <th class="px-6 py-3">Full Name</th>
-                            <th class="px-6 py-3">Organization</th>
-                            <th class="px-6 py-3">Department</th>
-                            <th class="px-6 py-3">Email</th>
-                            <th class="px-6 py-3 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-800/60">
-                        {% for s in stakeholders %}
-                        <tr class="hover:bg-gray-800/40 transition-colors">
-                            <td class="px-6 py-3 font-medium text-gray-900 dark:text-white">{{ s.FullName }}</td>
-                            <td class="px-6 py-3 text-gray-700 dark:text-gray-400">{{ s.Organization or '—' }}</td>
-                            <td class="px-6 py-3 text-gray-700 dark:text-gray-400">{{ s.Department or '—' }}</td>
-                            <td class="px-6 py-3 text-gray-700 dark:text-gray-400">{{ s.Email or '—' }}</td>
-                            <td class="px-6 py-3 text-center whitespace-nowrap">
-                                <button onclick="deleteStakeholder({{ s.StakeholderID }}, '{{ s.FullName|replace("'", "\\'") }}')" class="text-red-600 dark:text-red-400 hover:text-red-300 text-xs font-medium transition">Remove</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% if not stakeholders %}
-            <div class="text-center py-12 text-gray-700 dark:text-gray-500">No stakeholders tracked yet.</div>
-            {% endif %}
-        </div>
-    </div> <!-- end tab-stakeholders -->
+    {% if not stakeholders %}
+    <div class="t-panel" style="text-align:center;padding:16px;color:var(--on-surface-3);">NO STAKEHOLDERS.</div>
+    {% endif %}
 </div>
 
-<!-- Sync Progress Overlay -->
-<div id="sync-overlay" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-[100] hidden flex-col items-center justify-center p-4">
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center">
-        <h3 id="sync-title" class="text-xl font-bold text-gray-900 dark:text-white mb-6">Synchronizing...</h3>
-        
-        <!-- Progress Bar container -->
-        <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3 mb-2 overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div id="sync-progress-bar" class="bg-brand-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+<!-- Sync Overlay -->
+<div id="sync-overlay" class="t-modal-backdrop" style="flex-direction:column;">
+    <div class="t-modal" style="max-width:420px;text-align:center;">
+        <h3 id="sync-title" style="color:var(--amber);font-family:var(--font-head);font-size:16px;font-weight:700;text-transform:uppercase;margin-bottom:12px;">SYNCHRONIZING...</h3>
+        <div class="t-progress" style="margin-bottom:4px;">
+            <div id="sync-progress-bar" class="t-progress-bar" style="width:0%;"></div>
         </div>
-        <div class="w-full flex justify-between text-xs font-semibold text-gray-700 dark:text-gray-500 mb-6">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--on-surface-3);margin-bottom:12px;">
             <span id="sync-stats">0 / 0</span>
             <span id="sync-percent">0%</span>
         </div>
-        
-        <!-- Animation Box -->
-        <div class="w-full h-16 relative overflow-hidden bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-3 flex items-center justify-center">
-            <div id="sync-current-card" class="absolute inset-x-3 transition-all duration-500 flex items-center justify-between text-sm font-medium">
-                <span id="sync-customer-name" class="truncate text-gray-700 dark:text-gray-300"></span>
-                <span id="sync-status-icon" class="text-brand-600 dark:text-brand-400">
-                    <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                </span>
+        <div style="border:1px solid var(--border);padding:8px;display:flex;align-items:center;justify-content:center;min-height:40px;">
+            <div id="sync-current-card" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+                <span id="sync-customer-name" style="color:var(--on-surface-2);font-size:11px;"></span>
+                <span id="sync-status-icon" style="color:var(--amber);">⟳</span>
             </div>
         </div>
-        
-        <button id="btn-cancel-sync" class="mt-4 w-full hidden bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/30 font-medium py-2 rounded-lg transition text-sm" onclick="cancelSync()">Cancel</button>
-        <button id="sync-close-btn" class="mt-6 w-full hidden bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium py-2 rounded-lg transition" onclick="window.location.reload()">Finish &amp; Reload</button>
+        <button id="btn-cancel-sync" class="t-btn t-btn-danger hidden" style="width:100%;margin-top:8px;" onclick="cancelSync()">CANCEL</button>
+        <button id="sync-close-btn" class="t-btn hidden" style="width:100%;margin-top:8px;" onclick="window.location.reload()">FINISH & RELOAD</button>
     </div>
 </div>
 
 <script>
 function switchMgmtTab(tabId, btn) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
     document.getElementById('tab-' + tabId).classList.add('active');
-    
-    document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('active');
-        b.classList.add('text-gray-500');
-    });
-    
+    document.querySelectorAll('.t-tab').forEach(function(b) { b.classList.remove('active'); });
     btn.classList.add('active');
-    btn.classList.remove('text-gray-500');
 }
 
 async function addStakeholder(e) {
     e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
+    var btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
-    
-    const payload = {
+    var payload = {
         full_name: document.getElementById('sh_name').value,
         organization: document.getElementById('sh_org').value,
         department: document.getElementById('sh_dept').value,
         email: document.getElementById('sh_email').value
     };
-    
     try {
-        const res = await fetch('/api/stakeholders', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        if (res.ok) window.location.reload();
-        else alert('Failed to add stakeholder');
-    } catch (err) {
-        alert('Error: ' + err.message);
-    } finally {
-        btn.disabled = false;
-    }
+        var res = await fetch('/api/stakeholders', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if (res.ok) window.location.reload(); else alert('Failed');
+    } catch(err) { alert('Error: ' + err.message); }
+    finally { btn.disabled = false; }
 }
 
 async function deleteStakeholder(id, name) {
-    if (!confirm(`Remove stakeholder ${name}?`)) return;
+    if (!confirm('Remove ' + name + '?')) return;
     try {
-        const res = await fetch(`/api/stakeholders/${id}`, { method: 'DELETE' });
-        if (res.ok) window.location.reload();
-        else alert('Failed to delete stakeholder');
-    } catch (err) {
-        alert('Error: ' + err.message);
-    }
+        var res = await fetch('/api/stakeholders/' + id, { method: 'DELETE' });
+        if (res.ok) window.location.reload(); else alert('Failed');
+    } catch(err) { alert('Error: ' + err.message); }
 }
 
-const accountInput  = document.getElementById('accountNumber');
-const nameField     = document.getElementById('CustomerName');
-const branchField   = document.getElementById('branch');
-const regionField   = document.getElementById('region');
-const vsField       = document.getElementById('value_segment');
-const pmField       = document.getElementById('portfolio_manager');
-const ccField       = document.getElementById('customer_class');
-const hiddenId      = document.getElementById('formCustomerid');
-const btnAdd        = document.getElementById('btn-add');
-const btnFetch      = document.getElementById('btn-fetch');
-const msgEmpty      = document.getElementById('lookup-empty');
-const errMsg        = document.getElementById('lookup-error');
-const connErrMsg    = document.getElementById('lookup-conn-error');
-const queryErrMsg   = document.getElementById('lookup-query-error');
-const errDetail     = document.getElementById('lookup-error-detail');
-const alreadyMsg    = document.getElementById('lookup-already');
-const successMsg    = document.getElementById('lookup-success');
+var accountInput = document.getElementById('accountNumber');
+var nameField = document.getElementById('CustomerName');
+var branchField = document.getElementById('branch');
+var regionField = document.getElementById('region');
+var vsField = document.getElementById('value_segment');
+var pmField = document.getElementById('portfolio_manager');
+var ccField = document.getElementById('customer_class');
+var hiddenId = document.getElementById('formCustomerid');
+var btnAdd = document.getElementById('btn-add');
+var btnFetch = document.getElementById('btn-fetch');
+var msgEmpty = document.getElementById('lookup-empty');
+var errMsg = document.getElementById('lookup-error');
+var connErrMsg = document.getElementById('lookup-conn-error');
+var queryErrMsg = document.getElementById('lookup-query-error');
+var errDetail = document.getElementById('lookup-error-detail');
+var alreadyMsg = document.getElementById('lookup-already');
+var successMsg = document.getElementById('lookup-success');
 
 function resetFields() {
-    nameField.value  = '';
-    branchField.value = '';
-    regionField.value = '';
-    vsField.value    = '';
-    pmField.value    = '';
-    ccField.value    = '';
-    hiddenId.value   = '';
-    btnAdd.disabled  = true;
-
-    // Hide ALL status messages including new error ones
-    [msgEmpty, errMsg, connErrMsg, queryErrMsg, alreadyMsg, successMsg].forEach(el => el.classList.add('hidden'));
-    errDetail.classList.add('hidden');
-    errDetail.textContent = '';
-    errMsg.textContent    = errMsg.dataset.original || errMsg.textContent; // restore original text
-
-    [nameField, branchField, regionField, vsField, pmField, ccField].forEach(f => {
-        f.classList.remove('text-white', 'bg-gray-800', 'border-gray-700');
-        f.classList.add('text-gray-700', 'dark:text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
-    });
+    [nameField,branchField,regionField,vsField,pmField,ccField].forEach(function(f){f.value='';});
+    hiddenId.value=''; btnAdd.disabled=true; btnAdd.style.opacity='0.4';
+    [msgEmpty,errMsg,connErrMsg,queryErrMsg,alreadyMsg,successMsg,errDetail].forEach(function(el){el.classList.add('hidden');});
+    errDetail.textContent='';
 }
 
 function fillFields(data) {
-    nameField.value = data.CustomerName;
-    branchField.value = data.branch;
-    regionField.value = data.region;
-    vsField.value = data.value_segment;
-    pmField.value = data.portfolio_manager;
-    ccField.value = data.customer_class;
-    // Highlight filled fields
-    [nameField, branchField, regionField, vsField, pmField, ccField].forEach(f => {
-        f.classList.add('text-white', 'bg-gray-800', 'border-gray-700');
-        f.classList.remove('text-gray-700', 'dark:text-gray-500', 'bg-gray-800/50', 'border-gray-700/50');
-    });
+    nameField.value=data.CustomerName; branchField.value=data.branch;
+    regionField.value=data.region; vsField.value=data.value_segment;
+    pmField.value=data.portfolio_manager; ccField.value=data.customer_class;
 }
 
 async function lookupCustomer() {
-    const val = accountInput.value.trim();
-    if (!val) { 
-        resetFields(); 
-        msgEmpty.classList.remove('hidden');
-        return; 
-    }
-    
-    // Show a loading state on the button
-    btnFetch.disabled    = true;
-    btnFetch.textContent = '...';
-    
+    var val=accountInput.value.trim();
+    if(!val){resetFields();msgEmpty.classList.remove('hidden');return;}
+    btnFetch.disabled=true;btnFetch.textContent='...';
     try {
-        const res  = await fetch(`/api/customer/lookup/${encodeURIComponent(val)}`);
-        const data = await res.json();
-        
-        resetFields();  // clear all previous messages & fields
-        
-        if (data.connection_error) {
-            // SRVDNZ is unreachable — show detailed error
-            connErrMsg.classList.remove('hidden');
-            if (data.error) {
-                errDetail.textContent = data.error;
-                errDetail.classList.remove('hidden');
-            }
-        } else if (data.query_error) {
-            // SQL executed but failed (permissions, bad column, etc.)
-            queryErrMsg.classList.remove('hidden');
-            if (data.error) {
-                errDetail.textContent = data.error;
-                errDetail.classList.remove('hidden');
-            }
-        } else if (data.found) {
-            // ✅ Customer found — fill the passive fields and enable Add
-            fillFields(data);
-            if (data.IsStructured === 1) {
-                // Already tracked in local DB
-                alreadyMsg.classList.remove('hidden');
-                btnAdd.disabled = true;
-            } else {
-                hiddenId.value = data.Customerid;
-                successMsg.classList.remove('hidden');
-                btnAdd.disabled = false;
-            }
-        } else {
-            // Customer does not exist in BOADWH.CUS.Customer
-            errMsg.classList.remove('hidden');
-        }
-    } catch (e) {
-        // Network-level failure (fetch itself threw)
-        console.error('Lookup fetch error:', e);
-        resetFields();
-        connErrMsg.classList.remove('hidden');
-        errDetail.textContent = 'Network error: ' + e.message;
-        errDetail.classList.remove('hidden');
-    } finally {
-        // Always restore button state
-        btnFetch.disabled    = false;
-        btnFetch.textContent = 'Fetch';
-    }
+        var res=await fetch('/api/customer/lookup/'+encodeURIComponent(val));
+        var data=await res.json(); resetFields();
+        if(data.connection_error){connErrMsg.classList.remove('hidden');if(data.error){errDetail.textContent=data.error;errDetail.classList.remove('hidden');}}
+        else if(data.query_error){queryErrMsg.classList.remove('hidden');if(data.error){errDetail.textContent=data.error;errDetail.classList.remove('hidden');}}
+        else if(data.found){fillFields(data);if(data.IsStructured===1){alreadyMsg.classList.remove('hidden');btnAdd.disabled=true;}else{hiddenId.value=data.Customerid;successMsg.classList.remove('hidden');btnAdd.disabled=false;btnAdd.style.opacity='1';}}
+        else{errMsg.classList.remove('hidden');}
+    }catch(e){resetFields();connErrMsg.classList.remove('hidden');errDetail.textContent='Network: '+e.message;errDetail.classList.remove('hidden');}
+    finally{btnFetch.disabled=false;btnFetch.textContent='FETCH';}
 }
 
-function showAddProgressLoader() {
-    document.getElementById('sync-overlay').classList.remove('hidden');
-    document.getElementById('sync-overlay').classList.add('flex');
-    document.getElementById('sync-title').innerText = 'Importing Customer...';
-    
-    document.getElementById('sync-progress-bar').classList.add('animate-pulse');
-    document.getElementById('sync-progress-bar').style.width = '100%';
-    document.getElementById('sync-stats').innerText = `Syncing from Real Server`;
-    document.getElementById('sync-percent').innerText = ``;
-    
-    document.getElementById('sync-customer-name').innerText = 'Waiting for BOADWH response...';
+function showAddProgressLoader(){
+    document.getElementById('sync-overlay').classList.add('open');
+    document.getElementById('sync-title').innerText='IMPORTING...';
+    document.getElementById('sync-progress-bar').style.width='100%';
+    document.getElementById('sync-stats').innerText='Syncing';
+    document.getElementById('sync-customer-name').innerText='Waiting...';
 }
 
-let syncAbortController = null;
+var syncAbortController=null;
+function cancelSync(){if(syncAbortController){syncAbortController.abort();document.getElementById('sync-title').innerText='CANCELLED';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--amber);">Cancelled by user</span>';document.getElementById('btn-cancel-sync').classList.add('hidden');document.getElementById('sync-close-btn').classList.remove('hidden');}}
 
-function cancelSync() {
-    if (syncAbortController) {
-        syncAbortController.abort();
-        document.getElementById('sync-title').innerText = 'Sync Cancelled';
-        document.getElementById('sync-current-card').innerHTML = '<span class="text-amber-500 font-bold w-full text-center">Operation Cancelled by User</span>';
-        document.getElementById('sync-progress-bar').classList.remove('animate-pulse');
-        document.getElementById('sync-progress-bar').style.width = '0%';
-        document.getElementById('btn-cancel-sync').classList.add('hidden');
-        document.getElementById('sync-close-btn').classList.remove('hidden');
-    }
-}
-
-async function updateSingle(id, name) {
-    document.getElementById('sync-overlay').classList.remove('hidden');
-    document.getElementById('sync-overlay').classList.add('flex');
+async function updateSingle(id,name){
+    document.getElementById('sync-overlay').classList.add('open');
     document.getElementById('btn-cancel-sync').classList.remove('hidden');
     document.getElementById('sync-close-btn').classList.add('hidden');
-    
-    document.getElementById('sync-title').innerText = 'Updating Customer...';
-    document.getElementById('sync-progress-bar').classList.add('animate-pulse');
-    document.getElementById('sync-progress-bar').style.width = '100%';
-    document.getElementById('sync-stats').innerText = `1 Customer`;
-    document.getElementById('sync-percent').innerText = '';
-    
-    const card = document.getElementById('sync-current-card');
-    const nameLabel = document.getElementById('sync-customer-name');
-    const icon = document.getElementById('sync-status-icon');
-    
-    nameLabel.innerText = `Updating: ${name}`;
-    nameLabel.classList.remove('text-emerald-500');
-    nameLabel.classList.add('text-gray-700', 'dark:text-gray-300');
-    icon.innerHTML = '<svg class="animate-spin h-5 w-5 text-brand-600 dark:text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
-    
-    syncAbortController = new AbortController();
-    
-    try {
-        let sRes = await fetch('/management/api/sync/batch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ customer_ids: [id] }),
-            signal: syncAbortController.signal
-        });
-        let sData = await sRes.json();
-        
-        document.getElementById('sync-progress-bar').classList.remove('animate-pulse');
+    document.getElementById('sync-title').innerText='UPDATING...';
+    document.getElementById('sync-progress-bar').style.width='100%';
+    document.getElementById('sync-stats').innerText='1 Customer';
+    document.getElementById('sync-customer-name').innerText=name;
+    syncAbortController=new AbortController();
+    try{
+        var r=await fetch('/management/api/sync/batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer_ids:[id]}),signal:syncAbortController.signal});
+        var d=await r.json();
         document.getElementById('btn-cancel-sync').classList.add('hidden');
-        
-        if (sData.success) {
-            document.getElementById('sync-title').innerText = 'Update Complete!';
-            card.innerHTML = `<span class="text-emerald-500 font-bold w-full text-center tracking-wide animate-pulse">Successfully Updated ${name}!</span>`;
-        } else if (sData.connection_error) {
-            document.getElementById('sync-title').innerText = 'Connection Failed!';
-            card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">⚠ Cannot reach SRVDNZ. Check network/VPN.</span>`;
-            console.error('Connection error:', sData.error);
-        } else if (sData.env_error) {
-            document.getElementById('sync-title').innerText = 'PROD Only!';
-            card.innerHTML = `<span class="text-amber-500 font-bold w-full text-center tracking-wide">Switch to PROD environment to sync.</span>`;
-        } else {
-            document.getElementById('sync-title').innerText = 'Update Failed!';
-            card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">${sData.error || 'Server error occurred'}</span>`;
-        }
-    } catch (e) {
-        if (e.name === 'AbortError') return;
-        document.getElementById('sync-title').innerText = 'Network Error!';
-        card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">Failed to connect to server.</span>`;
-        document.getElementById('btn-cancel-sync').classList.add('hidden');
-    }
-    
+        if(d.success){document.getElementById('sync-title').innerText='COMPLETE';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--green);">Updated '+name+'</span>';}
+        else if(d.connection_error){document.getElementById('sync-title').innerText='CONN FAIL';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--red);">Cannot reach SRVDNZ</span>';}
+        else{document.getElementById('sync-title').innerText='FAILED';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--red);">'+(d.error||'Error')+'</span>';}
+    }catch(e){if(e.name==='AbortError')return;document.getElementById('sync-title').innerText='NET ERROR';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--red);">Connection failed</span>';document.getElementById('btn-cancel-sync').classList.add('hidden');}
     document.getElementById('sync-close-btn').classList.remove('hidden');
 }
 
-async function startUpdateAll() {
-    document.getElementById('sync-overlay').classList.remove('hidden');
-    document.getElementById('sync-overlay').classList.add('flex');
-    document.getElementById('sync-title').innerText = 'Gathering Customer List...';
+async function startUpdateAll(){
+    document.getElementById('sync-overlay').classList.add('open');
+    document.getElementById('sync-title').innerText='GATHERING...';
     document.getElementById('btn-cancel-sync').classList.remove('hidden');
     document.getElementById('sync-close-btn').classList.add('hidden');
-    
-    let res = await fetch('/management/api/sync/queue');
-    let data = await res.json();
-    if (!data.success) {
-        alert(data.error);
-        window.location.reload();
-        return;
-    }
-    
-    let customers = data.customers;
-    if (customers.length === 0) {
-        document.getElementById('sync-title').innerText = 'Sync Complete';
-        document.getElementById('sync-current-card').innerHTML = '<span class="text-emerald-500 font-bold w-full text-center">No customers to sync.</span>';
+    var res=await fetch('/management/api/sync/queue');var data=await res.json();
+    if(!data.success){alert(data.error);window.location.reload();return;}
+    var customers=data.customers;
+    if(customers.length===0){document.getElementById('sync-title').innerText='DONE';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--green);">No customers to sync</span>';document.getElementById('btn-cancel-sync').classList.add('hidden');document.getElementById('sync-close-btn').classList.remove('hidden');return;}
+    var ids=customers.map(function(c){return c.id;});
+    document.getElementById('sync-title').innerText='SYNCING...';
+    document.getElementById('sync-progress-bar').style.width='100%';
+    document.getElementById('sync-stats').innerText=customers.length+' Customers';
+    document.getElementById('sync-customer-name').innerText='Updating...';
+    syncAbortController=new AbortController();
+    try{
+        var r=await fetch('/management/api/sync/batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer_ids:ids}),signal:syncAbortController.signal});
+        var d=await r.json();
         document.getElementById('btn-cancel-sync').classList.add('hidden');
-        document.getElementById('sync-close-btn').classList.remove('hidden');
-        return;
-    }
-    
-    const customerIds = customers.map(c => c.id);
-    document.getElementById('sync-title').innerText = 'Syncing Customers in Bulk...';
-    document.getElementById('sync-progress-bar').classList.add('animate-pulse');
-    document.getElementById('sync-progress-bar').style.width = '100%';
-    document.getElementById('sync-stats').innerText = `${customers.length} Customers`;
-    document.getElementById('sync-percent').innerText = '';
-    
-    const card = document.getElementById('sync-current-card');
-    const nameLabel = document.getElementById('sync-customer-name');
-    const icon = document.getElementById('sync-status-icon');
-    
-    nameLabel.innerText = 'Updating from Database...';
-    nameLabel.classList.remove('text-emerald-500');
-    nameLabel.classList.add('text-gray-700', 'dark:text-gray-300');
-    icon.innerHTML = '<svg class="animate-spin h-5 w-5 text-brand-600 dark:text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
-    
-    syncAbortController = new AbortController();
-    
-    try {
-        let sRes = await fetch('/management/api/sync/batch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ customer_ids: customerIds }),
-            signal: syncAbortController.signal
-        });
-        let sData = await sRes.json();
-        
-        document.getElementById('sync-progress-bar').classList.remove('animate-pulse');
-        document.getElementById('btn-cancel-sync').classList.add('hidden');
-        
-        if (sData.success) {
-            document.getElementById('sync-title').innerText = 'Sync Complete!';
-            card.innerHTML = `<span class="text-emerald-500 font-bold w-full text-center tracking-wide animate-pulse">Successfully Updated ${sData.count} Customers!</span>`;
-        } else if (sData.connection_error) {
-            document.getElementById('sync-title').innerText = 'Connection Failed!';
-            card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">⚠ Cannot reach SRVDNZ. Check network/VPN.<br><small style="font-weight:normal">${sData.error || ''}</small></span>`;
-        } else if (sData.env_error) {
-            document.getElementById('sync-title').innerText = 'PROD Only!';
-            card.innerHTML = `<span class="text-amber-500 font-bold w-full text-center tracking-wide">Switch to PROD environment to sync real data.</span>`;
-        } else {
-            document.getElementById('sync-title').innerText = 'Sync Failed!';
-            card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">${sData.error || 'Server error occurred'}</span>`;
-        }
-    } catch (e) {
-        if (e.name === 'AbortError') return; // Handled in cancel function
-        document.getElementById('sync-title').innerText = 'Network Error!';
-        card.innerHTML = `<span class="text-red-500 font-bold w-full text-center tracking-wide">Failed to connect to server.</span>`;
-        document.getElementById('btn-cancel-sync').classList.add('hidden');
-    }
-    
+        if(d.success){document.getElementById('sync-title').innerText='COMPLETE';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--green);">Updated '+d.count+' customers</span>';}
+        else if(d.connection_error){document.getElementById('sync-title').innerText='CONN FAIL';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--red);">Cannot reach SRVDNZ</span>';}
+        else{document.getElementById('sync-title').innerText='FAILED';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--red);">'+(d.error||'Error')+'</span>';}
+    }catch(e){if(e.name==='AbortError')return;document.getElementById('sync-title').innerText='NET ERROR';document.getElementById('sync-current-card').innerHTML='<span style="color:var(--red);">Connection failed</span>';document.getElementById('btn-cancel-sync').classList.add('hidden');}
     document.getElementById('sync-close-btn').classList.remove('hidden');
 }
 
-if (btnFetch) {
-    btnFetch.addEventListener('click', lookupCustomer);
-}
-accountInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        lookupCustomer();
-    }
-});
-
-// Prevent form submit if button is disabled
-document.getElementById('add-form').addEventListener('submit', function(e) {
-    if (!hiddenId.value) {
-        e.preventDefault();
-    }
-});
+if(btnFetch)btnFetch.addEventListener('click',lookupCustomer);
+accountInput.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();lookupCustomer();}});
+document.getElementById('add-form').addEventListener('submit',function(e){if(!hiddenId.value)e.preventDefault();});
 </script>
 {% endblock %}

@@ -2,17 +2,12 @@
 import os
 import platform
 import json
-import requests
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, redirect, url_for,
                    send_file, flash, jsonify, session, has_request_context)
 from werkzeug.utils import secure_filename
 import io
-from flask import stream_with_context, Response
-from ollama_config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
-from data_agent_orchestrator import process_agent_turn
 
-from agent_orchestrator import AnalysisOrchestrator
 # ── App Setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = "customer-tracker-secret-key-2026"
@@ -383,12 +378,10 @@ def set_user():
         try:
             session["surname"] = user["surname"] or ""
             session["lang"] = user["default_language"] if user["default_language"] is not None else 0
-            session["theme"] = user["default_theme"] or "dark" # Use DB default
         except Exception:
             # Fallback if columns don't exist during transition
             session["surname"] = ""
             session["lang"] = 0
-            session["theme"] = "dark"
             
         return redirect(url_for("env_login"))
     return redirect(url_for("user_login"))
@@ -432,7 +425,6 @@ def disconnect():
     session.pop("username", None)
     session.pop("surname", None)
     session.pop("lang", None)
-    session.pop("theme", None)
     return redirect(url_for("user_login"))
 
 
@@ -450,17 +442,7 @@ def set_language(lang_id):
             conn.close()
     return redirect(request.referrer or url_for("dashboard"))
 
-@app.route("/set_theme/<theme>")
-def set_theme(theme):
-    if theme in ("light", "dark"):
-        session["theme"] = theme
-        user_id = session.get("user_id")
-        if user_id:
-            conn = get_db()
-            conn.execute("UPDATE BOA.ZZZ.[User] SET default_theme = ? WHERE id = ?", (theme, user_id))
-            conn.commit()
-            conn.close()
-    return redirect(request.referrer or url_for("dashboard"))
+
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
@@ -989,7 +971,6 @@ def overview_detail(customer_id):
     total_cust   = conn.execute(load_query("overview_total_customers")).fetchone()["cnt"]
 
     lang_id      = session.get("lang", 0)
-    analysis_row = conn.execute(load_query("overview_latest_analysis"), (customer_id, lang_id)).fetchone()
 
     status_map    = get_param_map("Status",   conn)
     deal_type_map = get_param_map("DealType", conn)
@@ -1092,7 +1073,6 @@ def overview_detail(customer_id):
         total_customers = total_cust,
         same_sector     = same_sector,
         total_deal_size = total_deal_size,
-        analysis        = analysis_row,
         fin_nodes       = ordered_fin_nodes,
         periods         = periods,
         chart_periods   = chart_periods,
@@ -1100,137 +1080,7 @@ def overview_detail(customer_id):
     )
 
 
-# ── AI Analysis ────────────────────────────────────────────────────────────────
 
-@app.route("/api/analysis/generate/<int:customer_id>", methods=["POST"])
-def generate_analysis(customer_id):
-    conn     = get_db()
-    customer = conn.execute(load_query("mgmt_get_customer"), (customer_id,)).fetchone()
-    if not customer:
-        conn.close()
-        return {"error": "Customer not found"}, 404
-
-    deals    = conn.execute(load_query("analysis_get_deals"), (customer_id,)).fetchall()
-    lang_id  = session.get("lang", 0)
-    sector_map  = get_param_map("Sector", conn)
-    sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
-
-    same_sector_count = conn.execute(
-        "SELECT COUNT(*) as c FROM Customer WHERE sector = ?",
-        (customer["sector"],)
-    ).fetchone()["c"]
-
-    customer_data = {
-        "customer": dict(customer),
-        "deals": [dict(d) for d in deals],
-        "sector_desc": sector_desc,
-        "same_sector_count": same_sector_count
-    }
-
-    try:
-        from agent_orchestrator import AnalysisOrchestrator
-        target_lang = "Turkish" if lang_id == 1 else "English"
-        orchestrator = AnalysisOrchestrator(BASE_DIR, language=target_lang)
-        result = orchestrator.run(customer_data)
-        analysis_text = result.get("final", "ERROR: Multi-Agent generation failed.")
-    except Exception as e:
-        analysis_text = f"Ollama Error: {str(e)[:50]}"
-
-    analysis_text = analysis_text[:1000]
-    conn.execute(load_query("analysis_insert"), (customer_id, analysis_text, lang_id))
-    conn.commit()
-    latest = conn.execute(load_query("analysis_latest"), (customer_id, lang_id)).fetchone()
-    conn.close()
-    return {"status": "success", "analysis": latest["analysis_text"], "created_at": to_tr_time(latest["created_at"])}
-
-
-# ── Multi-Agent Streaming Analysis ─────────────────────────────────────────────────────
-
-@app.route("/api/analyze/<int:customer_id>")
-def analyze_stream(customer_id):
-    """SSE endpoint: runs the 3-stage orchestrator and streams events to the browser."""
-    conn = get_db()
-    customer = conn.execute(load_query("mgmt_get_customer"), (customer_id,)).fetchone()
-    if not customer:
-        conn.close()
-        return jsonify({"error": "Customer not found"}), 404
-
-    deals      = conn.execute(load_query("analysis_get_deals"), (customer_id,)).fetchall()
-    lang_id    = session.get("lang", 0)
-    sector_map = get_param_map("Sector", conn)
-    sector_desc = sector_map.get(str(customer["sector"] or ""), {}).get("description", customer["sector"])
-    same_sector = conn.execute(load_query("overview_same_sector"), (customer["sector"],)).fetchone()["cnt"]
-
-    customer_data = {
-        "customer":         dict(customer),
-        "deals":            [dict(d) for d in deals],
-        "sector_desc":      sector_desc,
-        "same_sector_count": same_sector,
-    }
-    conn.close()
-
-    target_lang = "Turkish" if session.get("lang") == 1 else "English"
-    orchestrator = AnalysisOrchestrator(BASE_DIR, language=target_lang)
-
-    def generate():
-        nonlocal_holder = [None]   # list trick avoids nonlocal scoping issue
-        for event_str in orchestrator.run_stream(customer_data):
-            yield event_str
-            # Capture the final report from the done event
-            if event_str.startswith("event: done"):
-                import json as _json
-                data_line = [l for l in event_str.splitlines() if l.startswith("data: ")]
-                if data_line:
-                    payload = _json.loads(data_line[0][6:])
-                    nonlocal_holder[0] = payload.get("final", "")
-
-        # Persist to DB after streaming completes
-        final_text = nonlocal_holder[0]
-        if final_text:
-            with get_db() as save_conn:
-                save_conn.execute(load_query("analysis_insert"), (customer_id, final_text[:1000], lang_id))
-                save_conn.commit()
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control":  "no-cache",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-
-
-@app.route("/api/agent/chat", methods=["POST"])
-def api_agent_chat():
-    """
-    Data Agent HTTP endpoint — thin controller.
-    All business logic lives in data_agent_orchestrator.process_agent_turn().
-    """
-    body        = request.get_json(silent=True) or {}
-    author      = session.get("username", "Agent")
-
-    agent_state = session.get("agent_state", {})
-
-    conn = get_db()
-    try:
-        new_state, response = process_agent_turn(
-            agent_state, body, conn, BASE_DIR, author
-        )
-    finally:
-        conn.close()
-
-    session["agent_state"] = new_state
-    session.modified = True
-    return jsonify(response)
-
-
-@app.route("/api/agent/reset", methods=["POST"])
-def api_agent_reset():
-    """Reset the agent conversation state."""
-    session.pop("agent_state", None)
-    return jsonify({"status": "ok"})
 
 
 
@@ -1913,7 +1763,11 @@ def api_subitem_delete(sid):
     return jsonify({"ok": True})
 
 
+
+
+
 # ── Global Backlog ────────────────────────────────────────────────────────────────────
+
 
 @app.route("/backlog")
 def global_backlog():

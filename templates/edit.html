@@ -1,155 +1,90 @@
 {% extends "base.html" %}
-{% block title %}Edit {{ customer['CustomerName'] }} — Customer Tracker{% endblock %}
+{% block title %}EDIT {{ customer['CustomerName'] | upper }} — CUSTOMER TRACKER{% endblock %}
 
 {% block content %}
-<div class="space-y-8 max-w-4xl mx-auto">
-    <div>
-        <a href="/management" class="text-brand-600 dark:text-brand-400 hover:text-brand-300 text-sm transition">&larr; {{ lang_dict.get('edit_back', 'Back to Management') }}</a>
-        <h1 class="text-2xl font-bold tracking-tight mt-2">{{ lang_dict.get('edit_title', 'Edit Customer: {}').format(customer['CustomerName']) }}</h1>
-    </div>
+<div style="margin-bottom:4px;">
+    <a href="/management" style="font-size:10px;color:var(--on-surface-3);text-transform:uppercase;">← {{ lang_dict.get('edit_back', 'BACK TO MANAGEMENT') }}</a>
+</div>
+<div class="t-page-title" style="margin-bottom:8px;">{{ lang_dict.get('edit_title', 'EDIT: {}').format(customer['CustomerName']) }}</div>
 
-    <!-- Flash messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <div class="space-y-2">
-        {% for category, message in messages %}
-        <div class="px-4 py-3 rounded-lg text-sm {% if category == 'error' %}bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30{% else %}bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30{% endif %}">
-            {{ message }}
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+    {% for category, message in messages %}
+    <div class="t-flash {{ 't-flash-error' if category == 'error' else 't-flash-success' }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+{% endwith %}
+
+<!-- Core Info -->
+<div class="t-section-header">{{ lang_dict.get('edit_section_core', 'CORE CUSTOMER INFORMATION') }}</div>
+<div class="t-panel" style="border-top:none;margin-bottom:8px;">
+    <form action="/management/edit/{{ customer['Customerid'] }}" method="POST" enctype="multipart/form-data">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <div style="flex-shrink:0;">
+                {% if customer['LogoFilename'] %}
+                <img src="{{ url_for('static', filename='logos/' + customer['LogoFilename']) }}" alt="" style="width:48px;height:48px;object-fit:contain;border:1px solid var(--border);" id="logo-preview">
+                {% else %}
+                <div style="width:48px;height:48px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;" id="logo-preview-empty">
+                    <span style="font-size:16px;font-weight:700;color:var(--amber);">{{ customer['CustomerName'][0] }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <div style="flex:1;">
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('edit_logo_label', 'UPLOAD LOGO') }}</label>
+                <input type="file" name="logo" accept=".png,.jpg,.jpeg,.gif,.svg" onchange="previewLogo(this)" style="font-size:10px;color:var(--on-surface-3);">
+                <div style="font-size:9px;color:var(--on-surface-3);margin-top:2px;">MAX 2MB · PNG, JPG, GIF, SVG</div>
+            </div>
         </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-    {% endwith %}
-
-    <!-- Editable Customer Info -->
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4 border-b border-gray-200 dark:border-gray-800 pb-3">{{ lang_dict.get('edit_section_core', 'Core Customer Information') }}</h2>
-        <form action="/management/edit/{{ customer['Customerid'] }}" method="POST" enctype="multipart/form-data" class="space-y-6">
-
-            <!-- Logo Section -->
-            <div class="flex items-center gap-6">
-                <div class="flex-shrink-0">
-                    {% if customer['LogoFilename'] %}
-                    <div class="relative group">
-                        <img src="{{ url_for('static', filename='logos/' + customer['LogoFilename']) }}"
-                             alt="{{ customer['CustomerName'] }} logo"
-                             class="w-20 h-20 object-contain rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 p-2"
-                             id="logo-preview">
-                        <div class="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none"></div>
-                    </div>
-                    {% else %}
-                    <div class="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-100/50 dark:bg-gray-800/50 flex items-center justify-center" id="logo-preview-empty">
-                        <span class="text-2xl font-bold text-gray-700 dark:text-gray-500">{{ customer['CustomerName'][0] }}</span>
-                    </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px;">
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_company_col', 'COMPANY') }} <span style="color:var(--on-surface-3);">(SYNCED)</span></label>
+                <input type="text" name="CustomerName" value="{{ customer['CustomerName'] }}" readonly class="t-input" style="cursor:not-allowed;color:var(--on-surface-3);">
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sector_col', 'SECTOR') }} <span style="color:var(--on-surface-3);">(SYNCED)</span></label>
+                <select name="sector" disabled class="t-input" style="cursor:not-allowed;color:var(--on-surface-3);">
+                    <option value="">N/A</option>
+                    {% if customer['sector'] and (customer['sector']|string not in sector_map) %}
+                    <option value="{{ customer['sector'] }}" selected>{{ customer['sector'] }}</option>
                     {% endif %}
-                </div>
-                <div class="flex-1">
-                    <label for="logo" class="block text-xs font-medium text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-2">{{ lang_dict.get('edit_logo_label', 'Upload or Change Logo') }}</label>
-                    <input type="file" name="logo" id="logo" accept=".png,.jpg,.jpeg,.gif,.svg"
-                        class="block w-full text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-600 file:text-white hover:file:bg-brand-700 file:cursor-pointer file:transition-all cursor-pointer"
-                        onchange="previewLogo(this)">
-                    <p class="text-xs text-gray-700 dark:text-gray-500 mt-2">{{ lang_dict.get('edit_logo_hint', 'Max 2 MB · PNG, JPG, GIF, or SVG') }}</p>
-                </div>
+                    {% for s_code, s_info in sector_map.items()|sort %}
+                    <option value="{{ s_code }}" {% if customer['sector']|string == s_code %}selected{% endif %}>{{ s_info['description'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
-
-            <!-- Editable Fields: Name, Sector, PM -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label for="CustomerName" class="block text-xs font-medium text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_company_col', 'Company Name') }} <span class="text-xs text-gray-700 dark:text-gray-500">(Synced)</span></label>
-                    <input type="text" name="CustomerName" id="CustomerName" required value="{{ customer['CustomerName'] }}" readonly title="Managed via SRVDNZ Update"
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 cursor-not-allowed focus:outline-none transition">
-                </div>
-                <div>
-                    <label for="sector" class="block text-xs font-medium text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_sector_col', 'Sector') }} <span class="text-xs text-gray-700 dark:text-gray-500">(Synced)</span></label>
-                    <select name="sector" id="sector" disabled title="Managed via SRVDNZ Update"
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-400 cursor-not-allowed focus:outline-none transition appearance-none">
-                        <option value="" class="text-gray-700 dark:text-gray-500">{{ lang_dict.get('list_filter_all', 'N/A') }}</option>
-                        {% if customer['sector'] and (customer['sector']|string not in sector_map) %}
-                        <option value="{{ customer['sector'] }}" selected>{{ customer['sector'] }}</option>
-                        {% endif %}
-                        {% for s_code, s_info in sector_map.items()|sort %}
-                        <option value="{{ s_code }}" {% if customer['sector']|string == s_code %}selected{% endif %}>{{ s_info['description'] }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label for="portfolio_manager" class="block text-xs font-medium text-gray-700 dark:text-gray-400 dark:text-gray-400 mb-1">{{ lang_dict.get('mgmt_pm_col', 'Portfolio Manager') }} <span class="text-xs text-gray-700 dark:text-gray-500">(Synced)</span></label>
-                    <input type="text" name="portfolio_manager" id="portfolio_manager" value="{{ customer['portfolio_manager'] or '' }}" readonly title="Managed via SRVDNZ Update"
-                        class="w-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-300/50 dark:border-gray-700/50 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-400 dark:text-gray-400 cursor-not-allowed focus:outline-none transition">
-                </div>
-            </div>
-
-            <div class="flex gap-3 pt-2">
-                <button type="submit"
-                    class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/25">
-                    {{ lang_dict.get('edit_btn_save', 'Save Customer Info') }}
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Read-Only Financial Information from DB -->
-    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-        <h2 class="text-lg font-semibold mb-4 border-b border-gray-200 dark:border-gray-800 pb-3 text-gray-700 dark:text-gray-300">{{ lang_dict.get('edit_section_fin', 'Financial Data') }} <span class="text-xs font-normal text-gray-700 dark:text-gray-500 ml-2">{{ lang_dict.get('edit_fin_hint', '(read from database)') }}</span></h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_credit_limit', 'Credit Limit') }}</span>
-                <p class="text-lg font-bold text-violet-600 dark:text-violet-400 mt-1 font-mono">₺{{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</p>
-            </div>
-            <div class="bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('detail_segment', 'Value Segment') }}</span>
-                <p class="text-lg font-bold text-gray-900 dark:text-white mt-1">
-                    {% if customer['value_segment'] %}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-sm font-semibold {% if customer['value_segment'] == 'A+' %}bg-purple-500/20 text-purple-600 dark:text-purple-400 {% elif customer['value_segment'] == 'A' %}bg-blue-500/20 text-blue-600 dark:text-blue-400 {% elif customer['value_segment'] == 'B' %}bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 {% else %}bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-400 dark:text-gray-400 {% endif %}">
-                        {{ customer['value_segment'] }}
-                    </span>
-                    {% else %}—{% endif %}
-                </p>
-            </div>
-            <div class="bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('detail_branch', 'Branch') }}</span>
-                <p class="text-lg font-bold text-gray-700 dark:text-gray-300 mt-1">{{ customer['branch'] or '—' }}</p>
-            </div>
-            <div class="bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('detail_region', 'Region') }}</span>
-                <p class="text-lg font-bold text-gray-700 dark:text-gray-300 mt-1">{{ customer['region'] or '—' }}</p>
-            </div>
-            <div class="bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_foreign_trade', 'Foreign Trade Vol.') }}</span>
-                <p class="text-lg font-bold text-cyan-600 dark:text-cyan-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</p>
-            </div>
-            <div class="bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_151_vol', 'Memzuc 151 Vol.') }}</span>
-                <p class="text-lg font-bold text-amber-600 dark:text-amber-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['memzuc_151_volume'] or 0) }}</p>
-            </div>
-            <div class="bg-gray-100/30 dark:bg-gray-800/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-800/50">
-                <span class="text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">{{ lang_dict.get('dash_152_vol', 'Memzuc 152 Vol.') }}</span>
-                <p class="text-lg font-bold text-rose-400 mt-1 font-mono">${{ "{:,.0f}".format(customer['memzuc_152_volume'] or 0) }}</p>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_pm_col', 'PM') }} <span style="color:var(--on-surface-3);">(SYNCED)</span></label>
+                <input type="text" name="portfolio_manager" value="{{ customer['portfolio_manager'] or '' }}" readonly class="t-input" style="cursor:not-allowed;color:var(--on-surface-3);">
             </div>
         </div>
-    </div>
+        <button type="submit" class="t-btn t-btn-green">{{ lang_dict.get('edit_btn_save', 'SAVE') }}</button>
+    </form>
+</div>
+
+<!-- Financial Data -->
+<div class="t-section-header">{{ lang_dict.get('edit_section_fin', 'FINANCIAL DATA') }} <span style="color:var(--on-surface-3);font-size:9px;margin-left:6px;">READ-ONLY</span></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
+    <div class="t-kpi"><span class="t-kpi-label">CREDIT LIMIT</span><span style="font-size:12px;color:var(--amber);">₺{{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</span></div>
+    <div class="t-kpi"><span class="t-kpi-label">SEGMENT</span><span style="font-size:12px;">{% if customer['value_segment'] %}<span class="t-chip t-chip-amber">{{ customer['value_segment'] }}</span>{% else %}—{% endif %}</span></div>
+    <div class="t-kpi"><span class="t-kpi-label">BRANCH</span><span style="font-size:12px;color:var(--on-surface-2);">{{ customer['branch'] or '—' }}</span></div>
+    <div class="t-kpi"><span class="t-kpi-label">REGION</span><span style="font-size:12px;color:var(--on-surface-2);">{{ customer['region'] or '—' }}</span></div>
+    <div class="t-kpi"><span class="t-kpi-label">FOREIGN TRADE</span><span style="font-size:12px;color:var(--cyan);">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</span></div>
+    <div class="t-kpi"><span class="t-kpi-label">MEMZUC 151</span><span style="font-size:12px;color:var(--amber);">${{ "{:,.0f}".format(customer['memzuc_151_volume'] or 0) }}</span></div>
+    <div class="t-kpi"><span class="t-kpi-label">MEMZUC 152</span><span style="font-size:12px;color:var(--red-dim);">${{ "{:,.0f}".format(customer['memzuc_152_volume'] or 0) }}</span></div>
 </div>
 
 <script>
 function previewLogo(input) {
     if (input.files && input.files[0]) {
-        const file = input.files[0];
-        if (file.size > 2 * 1024 * 1024) {
-            alert('Logo file is too large. Maximum size is 2 MB.');
-            input.value = '';
-            return;
-        }
-        const reader = new FileReader();
+        if (input.files[0].size > 2*1024*1024) { alert('Max 2MB'); input.value=''; return; }
+        var reader = new FileReader();
         reader.onload = function(e) {
-            const preview = document.getElementById('logo-preview');
-            const emptyPreview = document.getElementById('logo-preview-empty');
-            if (preview) {
-                preview.src = e.target.result;
-            } else if (emptyPreview) {
-                emptyPreview.innerHTML = '<img src="' + e.target.result + '" class="w-20 h-20 object-contain rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 p-2" id="logo-preview">';
-            }
+            var p = document.getElementById('logo-preview');
+            var pe = document.getElementById('logo-preview-empty');
+            if (p) p.src = e.target.result;
+            else if (pe) pe.innerHTML = '<img src="'+e.target.result+'" style="width:48px;height:48px;object-fit:contain;border:1px solid var(--border);" id="logo-preview">';
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(input.files[0]);
     }
 }
 </script>

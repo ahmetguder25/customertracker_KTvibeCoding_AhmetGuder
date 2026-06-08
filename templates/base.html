@@ -1,150 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Customer Tracker{% endblock %}</title>
     <meta name="description" content="Structured Finance Customer Tracking System">
-    <!-- MUST be first: apply saved theme before any render to prevent flash -->
-    <script>
-        (function() {
-            var sessionTheme = "{{ session.get('theme') }}";
-            var localTheme = localStorage.getItem('theme');
-            
-            var targetTheme = 'dark';
-            if (sessionTheme && sessionTheme !== 'None') {
-                targetTheme = sessionTheme;
-                localStorage.setItem('theme', targetTheme);
-            } else if (localTheme) {
-                targetTheme = localTheme;
-            }
-
-            if (targetTheme === 'light') {
-                document.documentElement.classList.remove('dark');
-            } else {
-                document.documentElement.classList.add('dark');
-            }
-        })();
-    </script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        brand: {
-                            50:  '#eef6ff',
-                            100: '#d9eaff',
-                            200: '#bcdbff',
-                            300: '#8ec5ff',
-                            400: '#59a4ff',
-                            500: '#3381fc',
-                            600: '#1d62f1',
-                            700: '#154dde',
-                            800: '#1840b4',
-                            900: '#19398e',
-                            950: '#142456',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans min-h-screen flex flex-col">
-    <!-- Navbar (only when a user session is active) -->
+<body>
     {% if session.get('user_id') %}
-    <nav class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <a href="/" class="flex items-center gap-2 text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-                    <span class="bg-brand-600 rounded-lg p-1.5">
-                        <svg class="w-5 h-5 text-gray-900 dark:text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h4l3-4h4l3 4h4v13H3V7z"/>
-                        </svg>
-                    </span>
-                    {{ lang_dict.get('nav_brand', 'Customer Tracker') }}
-                </a>
-                <div class="flex items-center gap-1">
-                    <a href="/dashboard"   id="nav-dashboard"   class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-brand-600/20 hover:text-brand-600 dark:text-brand-400 {% if request.path == '/dashboard' %}bg-brand-600/20 text-brand-600 dark:text-brand-400{% else %}text-gray-400{% endif %}">{{ lang_dict.get('nav_dashboard', 'Dashboard') }}</a>
-                    <a href="/list"        id="nav-list"        class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-brand-600/20 hover:text-brand-600 dark:text-brand-400 {% if request.path == '/list' %}bg-brand-600/20 text-brand-600 dark:text-brand-400{% else %}text-gray-400{% endif %}">{{ lang_dict.get('nav_deals', 'Deals') }}</a>
-                    <a href="/overview"    id="nav-overview"    class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-brand-600/20 hover:text-brand-600 dark:text-brand-400 {% if '/overview' in request.path %}bg-brand-600/20 text-brand-600 dark:text-brand-400{% else %}text-gray-400{% endif %}">{{ lang_dict.get('nav_overview', 'Overview') }}</a>
-                    <a href="/products"    id="nav-products"    class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-brand-600/20 hover:text-brand-600 dark:text-brand-400 {% if '/products' in request.path %}bg-brand-600/20 text-brand-600 dark:text-brand-400{% else %}text-gray-400{% endif %}">Products</a>
-                    <a href="/okrs"        id="nav-okrs"        class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-brand-600/20 hover:text-brand-600 dark:text-brand-400 {% if '/okrs' in request.path %}bg-brand-600/20 text-brand-600 dark:text-brand-400{% else %}text-gray-400{% endif %}">OKRs</a>
-                    <a href="/projects"    id="nav-projects"    class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-brand-600/20 hover:text-brand-600 dark:text-brand-400 {% if '/projects' in request.path %}bg-brand-600/20 text-brand-600 dark:text-brand-400{% else %}text-gray-400{% endif %}">Projects</a>
-                    <a href="/management"  id="nav-management"  class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-brand-600/20 hover:text-brand-600 dark:text-brand-400 {% if '/management' in request.path %}bg-brand-600/20 text-brand-600 dark:text-brand-400{% else %}text-gray-400{% endif %}">{{ lang_dict.get('nav_management', 'Management') }}</a>
+    <!-- ═══ TERMINAL NAV BAR ═══ -->
+    <nav class="t-nav">
+        <a href="/" class="t-nav-brand" style="text-decoration:none;">
+            <span style="color:var(--green);">▶</span> {{ lang_dict.get('nav_brand', 'CUSTOMER TRACKER') }}
+        </a>
 
-                    <!-- User Menu Dropdown -->
-                    <div class="relative ml-4 group">
-                        <button type="button" class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition overflow-hidden">
-                            <div class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-sm shadow-sm scale-100 group-active:scale-95 transition-transform">
-                                {{ session['username'][0]|upper if session.get('username') else 'U' }}
-                            </div>
-                            <div class="hidden md:flex flex-col text-left pr-2">
-                                <span class="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
-                                    {{ session.get('username', 'User') }} {{ session.get('surname', '') }}
-                                </span>
-                                <span class="text-[10px] text-gray-500 font-medium tracking-wide">{{ lang_dict.get('nav_settings', 'Settings & Profile') }}</span>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-400 mr-1 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
-                        </button>
-                        
-                        <!-- Dropdown panel -->
-                        <div class="absolute right-0 mt-3 w-60 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.3)] opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 z-50 overflow-hidden text-sm">
-                            <div class="p-4 border-b border-gray-100 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-800/20">
-                                <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2.5">{{ lang_dict.get('nav_language', 'Language Preference') }}</p>
-                                <div class="flex bg-gray-100 dark:bg-gray-800 rounded-[10px] p-1 border border-gray-200 dark:border-gray-700">
-                                    <a href="/set_language/0" class="flex-1 text-center py-1.5 text-xs font-bold rounded-lg transition-all {{ 'bg-brand-600 text-white shadow-md' if current_lang == 0 else 'text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white' }}">ENG</a>
-                                    <a href="/set_language/1" class="flex-1 text-center py-1.5 text-xs font-bold rounded-lg transition-all {{ 'bg-brand-600 text-white shadow-md' if current_lang == 1 else 'text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white' }}">TR</a>
-                                </div>
-                            </div>
-                            
-                            <div class="p-4 border-b border-gray-100 dark:border-gray-800/60">
-                                <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2.5">{{ lang_dict.get('nav_theme', 'Display Theme') }}</p>
-                                <div class="flex bg-gray-100 dark:bg-gray-800 rounded-[10px] p-1 border border-gray-200 dark:border-gray-700">
-                                    <a href="/set_theme/light" class="flex-1 flex gap-2 justify-center items-center py-1.5 text-xs font-bold rounded-lg transition-all {{ 'bg-white text-gray-900 shadow border-gray-200' if session.get('theme') == 'light' else 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700 dark:hover:text-white' }}">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                                        {{ lang_dict.get('nav_light', 'Light') }}
-                                    </a>
-                                    <a href="/set_theme/dark" class="flex-1 flex gap-2 justify-center items-center py-1.5 text-xs font-bold rounded-lg transition-all {{ 'bg-gray-700 text-white shadow border-gray-600' if session.get('theme') != 'light' else 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white' }}">
-                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                                        {{ lang_dict.get('nav_dark', 'Dark') }}
-                                    </a>
-                                </div>
-                            </div>
+        <div class="t-nav-links">
+            <a href="/dashboard" class="t-nav-link {% if request.path == '/dashboard' %}active{% endif %}">{{ lang_dict.get('nav_dashboard', 'Dashboard') }}</a>
+            <a href="/backlog" class="t-nav-link {% if request.path == '/backlog' %}active{% endif %}">{{ lang_dict.get('nav_backlog', 'Backlog') }}</a>
+            <a href="/list" class="t-nav-link {% if request.path == '/list' %}active{% endif %}">{{ lang_dict.get('nav_deals', 'Deals') }}</a>
+            <a href="/products" class="t-nav-link {% if '/products' in request.path %}active{% endif %}">Products</a>
+            <a href="/okrs" class="t-nav-link {% if '/okrs' in request.path %}active{% endif %}">OKRs</a>
+            <a href="/projects" class="t-nav-link {% if '/projects' in request.path %}active{% endif %}">Projects</a>
+            <a href="/management" class="t-nav-link {% if '/management' in request.path %}active{% endif %}">{{ lang_dict.get('nav_management', 'Mgmt') }}</a>
+            <a href="/overview" class="t-nav-link {% if '/overview' in request.path %}active{% endif %}">{{ lang_dict.get('nav_overview', 'Overview') }}</a>
+        </div>
 
-                            <div class="p-2">
-                                <a href="/disconnect" class="flex items-center gap-3 w-full text-left px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                                    {{ lang_dict.get('nav_signout', 'Sign Out') }}
-                                </a>
-                            </div>
-                        </div>
+        <div class="t-nav-right">
+            <div class="t-user-menu">
+                <button type="button" class="t-user-btn">
+                    {{ session.get('username', 'USER') | upper }}<span style="color:var(--on-surface-3);">▼</span>
+                </button>
+                <div class="t-user-dropdown">
+                    <div style="padding:4px 10px;font-size:10px;color:var(--on-surface-3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.06em;">LANG</div>
+                    <div class="t-lang-row">
+                        <a href="/set_language/0" class="{% if current_lang == 0 %}active{% endif %}">ENG</a>
+                        <a href="/set_language/1" class="{% if current_lang == 1 %}active{% endif %}">TR</a>
                     </div>
+                    <a href="/disconnect" class="t-signout">⏻ {{ lang_dict.get('nav_signout', 'SIGN OUT') | upper }}</a>
                 </div>
             </div>
         </div>
     </nav>
     {% endif %}
 
-    <!-- Main content -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- ═══ MAIN CONTENT ═══ -->
+    <main class="t-page">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="border-t bg-white border-gray-200 dark:bg-gray-950 dark:border-gray-800 py-4 text-center text-xs text-gray-700 dark:text-gray-500 dark:text-gray-600">
-        {{ lang_dict.get('nav_footer', '&copy; 2026 Structured Finance &mdash; Customer Tracker MVP') | safe }}
+    <!-- ═══ FOOTER ═══ -->
+    <footer class="t-footer">
+        {{ lang_dict.get('nav_footer', '&copy; 2026 STRUCTURED FINANCE — CUSTOMER TRACKER') | safe }}
     </footer>
 
-    <script>
-        // No client-side theme toggle logic needed; theme changes are saved via standard link navigation.
-    </script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>
