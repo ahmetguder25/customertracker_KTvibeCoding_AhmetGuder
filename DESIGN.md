@@ -15,63 +15,53 @@ The style is a modern evolution of **Brutalism** mixed with **Retro-Futuristic**
 
 ## Color Palette
 
-### Core Colors
+### Core Colors (Bloomberg-Accurate)
 
 | Role            | Hex       | Usage                                                    |
 |-----------------|-----------|----------------------------------------------------------|
-| **Background**  | `#181309` | Primary canvas — near-black warm tone                    |
-| **Surface**     | `#181309` | App background                                           |
-| **Surface Dim** | `#181309` | Recessed areas                                           |
-| **Surface Bright** | `#3F382C` | Elevated surfaces                                     |
-| **On Surface**  | `#ECE1D0` | Primary text on dark backgrounds                         |
-| **On Surface Variant** | `#D4C5AB` | Secondary / muted text                            |
-| **Outline**     | `#9C8F78` | Borders, dividers                                        |
-| **Outline Variant** | `#4F4632` | Subtle borders, separators                           |
+| **Background**  | `#101014` | Primary canvas — cool neutral black                      |
+| **Surface**     | `#18181c` | App panels, sidebars                                     |
+| **Surface Dim** | `#131316` | Recessed areas                                           |
+| **Surface Bright** | `#3a3a3e` | Elevated surfaces, hover states                      |
+| **On Surface**  | `#d4d4d4` | Primary text — clean white/gray                          |
+| **On Surface 2** | `#a8a8a8` | Secondary text                                          |
+| **On Surface 3** | `#6e6e72` | Muted text, labels                                      |
+| **Outline**     | `#2a2a2e` | Borders, dividers — subtle                               |
+| **Outline Hi**  | `#3a3a3e` | Highlighted borders                                      |
 
 ### Surface Container Stack (Elevation Tiers)
 
 | Tier                   | Hex       | Description                          |
 |------------------------|-----------|--------------------------------------|
-| Container Lowest       | `#120E05` | Deepest recessed areas               |
-| Container Low          | `#201B11` | Sidebar backgrounds, inset panels    |
-| Container (Default)    | `#241F14` | Standard card / panel surface        |
-| Container High         | `#2F291E` | Focused / active cards               |
-| Container Highest      | `#3A3428` | Topmost elevation, modals            |
+| Container Lowest       | `#101014` | Deepest — matches background         |
+| Container Low          | `#18181c` | Default surface                      |
+| Container (Default)    | `#1e1e22` | Cards, elevated panels               |
+| Container High         | `#252528` | Table headers, section headers       |
+| Container Highest      | `#2e2e32` | Active states, modals                |
 
 ### Signal Colors
 
 | Role                  | Hex       | Usage                                          |
 |-----------------------|-----------|-------------------------------------------------|
-| **Primary**           | `#FFE4AE` | Primary text, highlights                        |
-| **Primary Container** | `#FFC100` | CTAs, badges, active indicators (**Amber**)     |
-| **On Primary**        | `#3F2E00` | Text on primary surfaces                        |
-| **On Primary Container** | `#6D5100` | Text on amber containers                    |
-| **Secondary**         | `#EDFFE1` | Live data, positive states                      |
-| **Secondary Container** | `#28FF1D` | Active feeds, success (**Neon Green**)        |
-| **On Secondary**      | `#013A00` | Text on green surfaces                          |
-| **Tertiary**          | `#34FFFF` | Interactive elements, links (**Cyan**)          |
-| **Tertiary Container** | `#00E1E1` | Command-line indicators                        |
-| **On Tertiary**       | `#003737` | Text on cyan surfaces                           |
-| **Error**             | `#FFB4AB` | Alerts, negative values                         |
-| **Error Container**   | `#93000A` | Critical error backgrounds                      |
-| **Surface Tint**      | `#FABD00` | Tint overlay for active states                  |
-
-### Custom Override Colors
-
-| Name       | Hex       | Purpose                              |
-|------------|-----------|--------------------------------------|
-| Primary    | `#FFC100` | Amber — structural labels, CTAs      |
-| Secondary  | `#00FF00` | Neon Green — live data, positive     |
-| Tertiary   | `#00FFFF` | Cyan — commands, links, interactive  |
+| **Amber (Primary)**   | `#FF8C00` | Headers, active tabs, CTAs (burnt orange)       |
+| **Amber Dim**         | `#CC7000` | Dimmed amber for borders                        |
+| **Amber Text**        | `#FFBB66` | Highlighted data on hover                       |
+| **Green**             | `#00CC00` | Positive values, success states                 |
+| **Green Dim**         | `#33DD33` | Lighter green variant                           |
+| **Red**               | `#EE3333` | Negative values, alerts, errors                 |
+| **Red Dim**           | `#FF6666` | Lighter red for secondary alerts                |
+| **Cyan**              | `#33BBFF` | Links, interactive elements (steel blue)        |
+| **Cyan Dim**          | `#66CCFF` | Hover state for links                           |
 
 ### Functional Color Rules
 
-- **Background:** Solid `#000000` / `#181309` for maximum contrast
-- **Primary / Labels:** Amber `#FFC100` for all structural text, field labels
-- **Active Data:** Neon Green `#00FF00` for live feeds, positive yields
-- **Warning / Alert:** Red `#FF0000` for negative movement, system alerts
-- **Commands / Links:** Cyan `#00FFFF` for interactive elements, shortcuts
-- **Borders:** Dark Grey `#333333` defines the grid without competing with data
+- **Background:** Solid `#101014` — cool neutral black for maximum readability
+- **Primary / Labels:** Burnt Orange `#FF8C00` for headers, active tabs (Bloomberg-style)
+- **Body Text:** Clean gray `#d4d4d4` — NOT amber-tinted (key Bloomberg trait)
+- **Active Data:** Green `#00CC00` for positive values
+- **Warning / Alert:** Red `#EE3333` for negative values, system alerts
+- **Links:** Steel Blue `#33BBFF` for interactive elements
+- **Borders:** Subtle `#2a2a2e` — defines grid without competing with data
 
 ---
 

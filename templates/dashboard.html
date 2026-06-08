@@ -68,16 +68,16 @@
 {% block scripts %}
 <script>
     // ── Terminal Chart Defaults ──
-    Chart.defaults.color = '#9C8F78';
-    Chart.defaults.borderColor = '#333333';
+    Chart.defaults.color = '#a8a8a8';
+    Chart.defaults.borderColor = '#2a2a2e';
     Chart.defaults.font.family = "'JetBrains Mono', monospace";
     Chart.defaults.font.size = 10;
 
     var tooltipStyle = {
-        backgroundColor: '#1a1a12',
-        titleColor: '#FFC100',
-        bodyColor: '#ECE1D0',
-        borderColor: '#FFC100',
+        backgroundColor: '#18181c',
+        titleColor: '#FF8C00',
+        bodyColor: '#d4d4d4',
+        borderColor: '#FF8C00',
         borderWidth: 1,
         cornerRadius: 0,
         padding: 8,
@@ -102,7 +102,7 @@
     document.getElementById("kpi-active").textContent = active;
     document.getElementById("kpi-winrate").textContent = winRate + "%";
 
-    var terminalColors = ['#FFC100','#00FF00','#00FFFF','#FF4444','#34FFFF','#CC9A00'];
+    var terminalColors = ['#FF8C00','#00CC00','#33BBFF','#EE3333','#66CCFF','#CC7000'];
 
     new Chart(document.getElementById("statusChart"), {
         type: "bar",
@@ -137,8 +137,8 @@
             labels: segLabels,
             datasets: [{
                 data: segValues,
-                backgroundColor: ['#FFC100','#00FF00','#00FFFF','#FF4444','#34FFFF'],
-                borderColor: '#111109',
+                backgroundColor: ['#FF8C00','#00CC00','#33BBFF','#EE3333','#66CCFF'],
+                borderColor: '#18181c',
                 borderWidth: 2,
             }]
         },

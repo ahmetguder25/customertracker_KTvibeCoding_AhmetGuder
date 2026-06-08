@@ -7,31 +7,35 @@
 
 /* ── CSS Custom Properties ──────────────────────────────────────── */
 :root {
-  --bg:            #0a0a08;
-  --surface:       #111109;
-  --surface-dim:   #0e0e08;
-  --surface-1:     #1a1a12;
-  --surface-2:     #222218;
-  --surface-3:     #2a2a20;
-  --surface-4:     #333328;
+  /* Backgrounds — cool neutral blacks like real Bloomberg */
+  --bg:            #101014;
+  --surface:       #18181c;
+  --surface-dim:   #131316;
+  --surface-1:     #1e1e22;
+  --surface-2:     #252528;
+  --surface-3:     #2e2e32;
+  --surface-4:     #3a3a3e;
 
-  --on-surface:    #ECE1D0;
-  --on-surface-2:  #D4C5AB;
-  --on-surface-3:  #9C8F78;
+  /* Text — clean white/gray, NOT amber-tinted */
+  --on-surface:    #d4d4d4;
+  --on-surface-2:  #a8a8a8;
+  --on-surface-3:  #6e6e72;
 
-  --amber:         #FFC100;
-  --amber-dim:     #CC9A00;
-  --amber-text:    #FFE4AE;
-  --green:         #00FF00;
-  --green-dim:     #28FF1D;
-  --red:           #FF4444;
-  --red-dim:       #FF6B6B;
-  --cyan:          #00FFFF;
-  --cyan-dim:      #34FFFF;
+  /* Accent — burnt orange like Bloomberg, not golden yellow */
+  --amber:         #FF8C00;
+  --amber-dim:     #CC7000;
+  --amber-text:    #FFBB66;
+  --green:         #00CC00;
+  --green-dim:     #33DD33;
+  --red:           #EE3333;
+  --red-dim:       #FF6666;
+  --cyan:          #33BBFF;
+  --cyan-dim:      #66CCFF;
 
-  --border:        #333333;
-  --border-hi:     #4F4632;
-  --border-amber:  rgba(255,193,0,0.3);
+  /* Borders — subtle neutral gray */
+  --border:        #2a2a2e;
+  --border-hi:     #3a3a3e;
+  --border-amber:  rgba(255,140,0,0.25);
 
   --font-head:     'Archivo Narrow', 'Arial Narrow', sans-serif;
   --font-mono:     'JetBrains Mono', 'Consolas', monospace;
@@ -43,7 +47,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-  font-size: 12px;
+  font-size: 11px;
   background: var(--bg);
   color: var(--on-surface);
   scroll-behavior: smooth;
@@ -51,8 +55,8 @@ html {
 
 body {
   font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 11px;
+  line-height: 1.35;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -116,10 +120,10 @@ a:hover { color: var(--cyan-dim); }
 
 /* ── Navbar ──────────────────────────────────────────────────────── */
 .t-nav {
-  background: var(--surface);
-  border-bottom: 1px solid var(--amber);
-  padding: 0 12px;
-  height: 32px;
+  background: #1a1a1e;
+  border-bottom: 2px solid var(--amber);
+  padding: 0 8px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -148,10 +152,10 @@ a:hover { color: var(--cyan-dim); }
 
 .t-nav-link {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  color: var(--on-surface-3);
-  padding: 6px 10px;
+  color: var(--on-surface-2);
+  padding: 5px 8px;
   border-left: 1px solid var(--border);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -279,7 +283,7 @@ a:hover { color: var(--cyan-dim); }
 .t-panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 8px;
+  padding: 6px 8px;
 }
 
 .t-panel-header {
@@ -297,16 +301,16 @@ a:hover { color: var(--cyan-dim); }
 .t-kpi {
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 6px 10px;
+  padding: 4px 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .t-kpi-label {
   font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 9px;
+  font-weight: 600;
   color: var(--on-surface-3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -314,9 +318,10 @@ a:hover { color: var(--cyan-dim); }
 
 .t-kpi-value {
   font-family: var(--font-mono);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.2;
+  color: var(--on-surface);
 }
 
 /* ── Data Table ─────────────────────────────────────────────────── */
@@ -330,19 +335,21 @@ a:hover { color: var(--cyan-dim); }
 .t-table thead th {
   background: var(--surface-2);
   color: var(--amber);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 4px 8px;
+  padding: 3px 6px;
   text-align: left;
   border: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .t-table tbody td {
-  padding: 4px 8px;
-  border: 1px solid var(--border);
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  border-left: none;
+  border-right: none;
   color: var(--on-surface);
   vertical-align: middle;
   white-space: nowrap;
@@ -352,21 +359,21 @@ a:hover { color: var(--cyan-dim); }
 }
 
 .t-table tbody tr:hover {
-  background: rgba(255,193,0,0.03);
+  background: rgba(51,187,255,0.04);
 }
 
 .t-table tbody tr:hover td {
-  color: var(--amber-text);
+  color: #ffffff;
 }
 
 /* ── Buttons ────────────────────────────────────────────────────── */
 .t-btn {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border: 1px solid var(--amber);
   background: transparent;
   color: var(--amber);
@@ -418,9 +425,9 @@ a:hover { color: var(--cyan-dim); }
 /* ── Form Inputs ────────────────────────────────────────────────── */
 .t-input {
   font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 4px 8px;
-  background: var(--surface);
+  font-size: 11px;
+  padding: 3px 6px;
+  background: var(--bg);
   border: 1px solid var(--border);
   color: var(--on-surface);
   outline: none;
@@ -430,7 +437,7 @@ a:hover { color: var(--cyan-dim); }
 
 .t-input:focus {
   border-color: var(--amber);
-  color: var(--green);
+  color: #ffffff;
   box-shadow: none;
 }
 
@@ -440,7 +447,7 @@ a:hover { color: var(--cyan-dim); }
 
 select.t-input {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239C8F78' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236e6e72' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 6px center;
   padding-right: 24px;
@@ -468,34 +475,38 @@ textarea.t-input {
 .t-chip-cyan   { color: var(--bg); background: var(--cyan); }
 .t-chip-dim    { color: var(--on-surface-2); background: var(--surface-3); }
 
-/* ── Tabs ───────────────────────────────────────────────────────── */
+/* ── Tabs — Bloomberg-style numbered tab bar ───────────────────── */
 .t-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  gap: 0;
 }
 
 .t-tab {
   font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 600;
   color: var(--on-surface-3);
-  padding: 6px 14px;
+  padding: 4px 10px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  background: none;
+  background: var(--surface-2);
   border-top: none;
-  border-left: none;
+  border-left: 1px solid var(--border);
   border-right: none;
   transition: all 0.1s;
 }
 
-.t-tab:hover { color: var(--amber); }
+.t-tab:first-child { border-left: none; }
+.t-tab:hover { color: var(--on-surface); background: var(--surface-3); }
 .t-tab.active {
-  color: var(--amber);
-  border-bottom-color: var(--amber);
+  color: #000000;
+  background: var(--amber);
+  font-weight: 700;
+  border-bottom-color: transparent;
 }
 
 /* ── Modals ─────────────────────────────────────────────────────── */
@@ -524,15 +535,15 @@ textarea.t-input {
 /* ── Section Headers ────────────────────────────────────────────── */
 .t-section-header {
   font-family: var(--font-head);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--amber);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 4px 8px;
+  padding: 3px 8px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-bottom: 1px solid var(--amber-dim);
+  border-bottom: 1px solid var(--border-hi);
 }
 
 /* ── Utilities ──────────────────────────────────────────────────── */
@@ -564,7 +575,7 @@ textarea.t-input {
 
 .t-page-title {
   font-family: var(--font-head);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--amber);
   text-transform: uppercase;
@@ -572,7 +583,7 @@ textarea.t-input {
 }
 
 .t-page-subtitle {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--on-surface-3);
   margin-top: 1px;
 }
@@ -613,7 +624,7 @@ textarea.t-input {
 .t-login-box {
   width: 100%;
   max-width: 420px;
-  border: 1px solid var(--amber);
+  border: 2px solid var(--amber);
   background: var(--surface);
   padding: 16px;
 }
@@ -654,7 +665,7 @@ textarea.t-input {
 }
 
 .t-radio-option:hover { background: var(--surface-2); }
-.t-radio-option:has(input:checked) { background: rgba(255,193,0,0.08); border-left: 2px solid var(--amber); }
+.t-radio-option:has(input:checked) { background: rgba(255,140,0,0.1); border-left: 2px solid var(--amber); }
 
 .t-radio-option input[type="radio"] {
   accent-color: var(--amber);

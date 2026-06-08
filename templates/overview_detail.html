@@ -221,8 +221,8 @@ var ctx = document.getElementById('assetChart');
 if (ctx) {
     new Chart(ctx, {
         type: 'bar',
-        data: { labels: {{ chart_periods | tojson }}, datasets: [{ label: 'Total Assets', data: {{ chart_asset_data | tojson }}, backgroundColor: 'rgba(0,255,0,0.2)', borderColor: '#00FF00', borderWidth: 1 }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(51,51,51,0.5)' }, ticks: { callback: function(v) { return v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v; } } }, x: { grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a12', titleColor: '#FFC100', bodyColor: '#ECE1D0', borderColor: '#FFC100', borderWidth: 1, cornerRadius: 0 } } }
+        data: { labels: {{ chart_periods | tojson }}, datasets: [{ label: 'Total Assets', data: {{ chart_asset_data | tojson }}, backgroundColor: 'rgba(0,204,0,0.15)', borderColor: '#00CC00', borderWidth: 1 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(42,42,46,0.7)' }, ticks: { callback: function(v) { return v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v; } } }, x: { grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#18181c', titleColor: '#FF8C00', bodyColor: '#d4d4d4', borderColor: '#FF8C00', borderWidth: 1, cornerRadius: 0 } } }
     });
 }
 </script>
