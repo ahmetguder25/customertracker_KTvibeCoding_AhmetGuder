@@ -1,13 +1,13 @@
-{% extends "base.html" %}
-{% block title %}OKRs — CUSTOMER TRACKER{% endblock %}
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('nav_okrs', 'OKRS') | upper }} — CUSTOMER TRACKER{% endblock %}
 {% block content %}
 
 <div class="t-page-header">
     <div>
-        <div class="t-page-title">OKRs</div>
-        <div class="t-page-subtitle">OBJECTIVES AND KEY RESULTS — STRATEGIC GOALS</div>
+        <div class="t-page-title">{{ lang_dict.get('okr_title', 'OKRs') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('okr_subtitle', 'OBJECTIVES AND KEY RESULTS — STRATEGIC GOALS') }}</div>
     </div>
-    <button onclick="document.getElementById('modal-obj').classList.add('open')" class="t-btn">+ ADD OBJECTIVE</button>
+    <button onclick="document.getElementById('modal-obj').classList.add('open')" class="t-btn">{{ lang_dict.get('okr_btn_add_obj', '+ ADD OBJECTIVE') }}</button>
 </div>
 
 {% set kr_map = {} %}
@@ -59,26 +59,26 @@
         </div>
     </div>
     {% else %}
-    <div class="t-panel" style="border-top:none;padding:8px;color:var(--on-surface-3);font-size:10px;">NO KEY RESULTS YET.</div>
+    <div class="t-panel" style="border-top:none;padding:8px;color:var(--on-surface-3);font-size:10px;">{{ lang_dict.get('okr_no_krs', 'NO KEY RESULTS YET.') }}</div>
     {% endfor %}
 </div>
 {% endfor %}
 {% else %}
-<div class="t-panel" style="text-align:center;padding:24px;color:var(--on-surface-3);">NO OBJECTIVES YET.</div>
+<div class="t-panel" style="text-align:center;padding:24px;color:var(--on-surface-3);">{{ lang_dict.get('okr_no_objs', 'NO OBJECTIVES YET.') }}</div>
 {% endif %}
 
 <!-- Add Objective Modal -->
 <div id="modal-obj" class="t-modal-backdrop">
     <div class="t-modal" style="max-width:420px;">
-        <div class="t-panel-header" style="border:none;margin-bottom:8px;padding:0;">NEW OBJECTIVE</div>
+        <div class="t-panel-header" style="border:none;margin-bottom:8px;padding:0;">{{ lang_dict.get('okr_modal_obj', 'NEW OBJECTIVE') }}</div>
         <div style="display:grid;gap:6px;">
             <div><label class="t-label" style="display:block;margin-bottom:2px;">TITLE *</label><input id="obj-title" type="text" placeholder="Objective title" class="t-input"></div>
             <div><label class="t-label" style="display:block;margin-bottom:2px;">PERIOD</label><input id="obj-period" type="text" placeholder="2025-Annual" class="t-input"></div>
             <div><label class="t-label" style="display:block;margin-bottom:2px;">DESCRIPTION</label><textarea id="obj-desc" rows="2" class="t-input"></textarea></div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
-            <button onclick="document.getElementById('modal-obj').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">CANCEL</button>
-            <button onclick="saveObjective()" class="t-btn t-btn-green">CREATE</button>
+            <button onclick="document.getElementById('modal-obj').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">{{ lang_dict.get('okr_btn_cancel', 'CANCEL') }}</button>
+            <button onclick="saveObjective()" class="t-btn t-btn-green">{{ lang_dict.get('okr_btn_create', 'CREATE') }}</button>
         </div>
     </div>
 </div>
@@ -87,7 +87,7 @@
 <div id="modal-kr" class="t-modal-backdrop">
     <input type="hidden" id="kr-obj-id">
     <div class="t-modal" style="max-width:420px;">
-        <div class="t-panel-header" style="border:none;margin-bottom:8px;padding:0;">ADD KEY RESULT</div>
+        <div class="t-panel-header" style="border:none;margin-bottom:8px;padding:0;">{{ lang_dict.get('okr_modal_kr', 'ADD KEY RESULT') }}</div>
         <div style="display:grid;gap:6px;">
             <div><label class="t-label" style="display:block;margin-bottom:2px;">TITLE *</label><input id="kr-title" type="text" placeholder="Key result" class="t-input"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
@@ -99,8 +99,8 @@
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
-            <button onclick="document.getElementById('modal-kr').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">CANCEL</button>
-            <button onclick="saveKR()" class="t-btn t-btn-green">ADD KR</button>
+            <button onclick="document.getElementById('modal-kr').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">{{ lang_dict.get('okr_btn_cancel', 'CANCEL') }}</button>
+            <button onclick="saveKR()" class="t-btn t-btn-green">{{ lang_dict.get('okr_btn_add_kr_submit', 'ADD KR') }}</button>
         </div>
     </div>
 </div>

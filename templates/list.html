@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% block title %}DEALS — CUSTOMER TRACKER{% endblock %}
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('nav_deals', 'DEALS') | upper }} — CUSTOMER TRACKER{% endblock %}
 
 {% block content %}
 <div class="t-page-header">
@@ -69,7 +69,7 @@
             </div>
             <div style="grid-column:span 4;display:flex;gap:4px;padding-top:4px;">
                 <button type="submit" class="t-btn t-btn-green">{{ lang_dict.get('list_btn_add_deal', 'ADD DEAL') }}</button>
-                <button type="button" onclick="document.getElementById('add-deal-panel').style.display='none'" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">CANCEL</button>
+                <button type="button" onclick="document.getElementById('add-deal-panel').style.display='none'" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">{{ lang_dict.get('list_btn_cancel', 'CANCEL') }}</button>
             </div>
         </form>
     </div>
@@ -97,9 +97,9 @@
                     <th style="text-align:right;">{{ lang_dict.get('list_deal_size', 'SIZE') }}</th>
                     <th style="text-align:right;">{{ lang_dict.get('list_exp_pricing', 'PRICING') }}</th>
                     <th>{{ lang_dict.get('list_currency', 'CCY') }}</th>
-                    <th>SEG</th>
-                    <th>BRANCH</th>
-                    <th style="text-align:center;">ACTIONS</th>
+                    <th>{{ lang_dict.get('list_tbl_seg', 'SEG') }}</th>
+                    <th>{{ lang_dict.get('list_tbl_branch', 'BRANCH') }}</th>
+                    <th style="text-align:center;">{{ lang_dict.get('list_tbl_actions', 'ACTIONS') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -122,10 +122,10 @@
                     </td>
                     <td style="color:var(--on-surface-3);">{{ d['branch'] or '—' }}</td>
                     <td style="text-align:center;" onclick="event.stopPropagation()">
-                        <a href="/overview/{{ d['customerid'] }}" class="t-btn t-btn-sm t-btn-cyan" style="margin-right:2px;">CUST</a>
-                        <a href="/deals/edit/{{ d['id'] }}" class="t-btn t-btn-sm" style="text-decoration:none;margin-right:2px;">EDIT</a>
-                        <form action="/deals/delete/{{ d['id'] }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this deal?')">
-                            <button type="submit" class="t-btn t-btn-sm t-btn-danger">DEL</button>
+                        <a href="/overview/{{ d['customerid'] }}" class="t-btn t-btn-sm t-btn-cyan" style="margin-right:2px;">{{ lang_dict.get('list_btn_cust', 'CUST') }}</a>
+                        <a href="/deals/edit/{{ d['id'] }}" class="t-btn t-btn-sm" style="text-decoration:none;margin-right:2px;">{{ lang_dict.get('list_btn_edit', 'EDIT') }}</a>
+                        <form action="/deals/delete/{{ d['id'] }}" method="POST" style="display:inline;" onsubmit="return confirm('{{ lang_dict.get('list_confirm_delete', 'Delete this deal?') }}')">
+                            <button type="submit" class="t-btn t-btn-sm t-btn-danger">{{ lang_dict.get('list_btn_del', 'DEL') }}</button>
                         </form>
                     </td>
                 </tr>

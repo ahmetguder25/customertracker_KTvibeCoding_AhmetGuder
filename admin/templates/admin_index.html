@@ -4,44 +4,44 @@
 {% block topbar_actions %}{% endblock %}
 
 {% block content %}
-<div style="max-width:800px;margin:0 auto;padding-top:16px;">
-    <div style="text-align:center;margin-bottom:16px;">
-        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">MANAGEMENT CONSOLE</div>
-        <div style="font-size:10px;color:var(--on-surface-3);text-transform:uppercase;">SELECT TABLE TO INSPECT · WRITE OPS RESTRICTED TO TEST ENV</div>
+<div style="max-width:900px;margin:0 auto;padding-top:24px;">
+    <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-family:var(--font-head);font-size:20px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">MANAGEMENT CONSOLE</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);text-transform:uppercase;letter-spacing:0.04em;">Select table to inspect · Write ops restricted to local env</div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);">
         <!-- Parameter -->
         <a href="/admin/edit/Parameter" style="text-decoration:none;">
-            <div style="background:var(--surface);padding:12px;transition:background 0.1s;cursor:pointer;" onmouseenter="this.style.background='#1a1a12'" onmouseleave="this.style.background='var(--surface)'">
-                <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">STATUS · DEALTYPE · FEC · SECTOR</div>
-                <div style="font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--on-surface);text-transform:uppercase;margin-bottom:4px;">PARAMETER TABLE</div>
-                <div style="font-size:10px;color:var(--on-surface-3);line-height:1.5;">Lookup values, labels, badge colors, logos.</div>
-                <div style="margin-top:6px;"><span style="display:inline-block;background:var(--cyan);color:var(--bg);font-size:9px;font-weight:700;padding:1px 6px;text-transform:uppercase;">PARAMETER</span></div>
+            <div style="background:var(--surface);padding:20px;transition:background 0.15s,border-color 0.15s;cursor:pointer;border-left:3px solid transparent;" onmouseenter="this.style.background='var(--surface-high)';this.style.borderLeftColor='var(--primary)'" onmouseleave="this.style.background='var(--surface)';this.style.borderLeftColor='transparent'">
+                <div style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">STATUS · DEALTYPE · FEC · SECTOR</div>
+                <div style="font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--on-surface);text-transform:uppercase;margin-bottom:6px;">Parameter Table</div>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);line-height:1.6;">Lookup values, labels, badge colors, logos.</div>
+                <div style="margin-top:10px;"><span style="display:inline-block;background:var(--primary);color:var(--bg);font-family:var(--font-mono);font-size:9px;font-weight:700;padding:2px 8px;text-transform:uppercase;letter-spacing:0.06em;">PARAMETER</span></div>
             </div>
         </a>
 
         <!-- Dictionary -->
         <a href="/admin/dictionary-editor" style="text-decoration:none;">
-            <div style="background:var(--surface);padding:12px;transition:background 0.1s;cursor:pointer;" onmouseenter="this.style.background='#1a1a12'" onmouseleave="this.style.background='var(--surface)'">
-                <div style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">EN · TR · I18N</div>
-                <div style="font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--on-surface);text-transform:uppercase;margin-bottom:4px;">LANGUAGE TABLE</div>
-                <div style="font-size:10px;color:var(--on-surface-3);line-height:1.5;">UI text labels, navigation, buttons.</div>
-                <div style="margin-top:6px;"><span style="display:inline-block;background:var(--amber);color:var(--bg);font-size:9px;font-weight:700;padding:1px 6px;text-transform:uppercase;">DICTIONARY</span></div>
+            <div style="background:var(--surface);padding:20px;transition:background 0.15s,border-color 0.15s;cursor:pointer;border-left:3px solid transparent;" onmouseenter="this.style.background='var(--surface-high)';this.style.borderLeftColor='var(--tertiary)'" onmouseleave="this.style.background='var(--surface)';this.style.borderLeftColor='transparent'">
+                <div style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--tertiary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">EN · TR · I18N</div>
+                <div style="font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--on-surface);text-transform:uppercase;margin-bottom:6px;">Language Table</div>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);line-height:1.6;">UI text labels, navigation, buttons.</div>
+                <div style="margin-top:10px;"><span style="display:inline-block;background:var(--tertiary);color:var(--bg);font-family:var(--font-mono);font-size:9px;font-weight:700;padding:2px 8px;text-transform:uppercase;letter-spacing:0.06em;">DICTIONARY</span></div>
             </div>
         </a>
 
         <!-- User -->
         <a href="/admin/edit/User" style="text-decoration:none;">
-            <div style="background:var(--surface);padding:12px;transition:background 0.1s;cursor:pointer;" onmouseenter="this.style.background='#1a1a12'" onmouseleave="this.style.background='var(--surface)'">
-                <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">USERS · PREFS</div>
-                <div style="font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--on-surface);text-transform:uppercase;margin-bottom:4px;">USER MANAGEMENT</div>
-                <div style="font-size:10px;color:var(--on-surface-3);line-height:1.5;">Profiles, auth, language defaults.</div>
-                <div style="margin-top:6px;"><span style="display:inline-block;background:var(--green);color:var(--bg);font-size:9px;font-weight:700;padding:1px 6px;text-transform:uppercase;">USER</span></div>
+            <div style="background:var(--surface);padding:20px;transition:background 0.15s,border-color 0.15s;cursor:pointer;border-left:3px solid transparent;" onmouseenter="this.style.background='var(--surface-high)';this.style.borderLeftColor='var(--green)'" onmouseleave="this.style.background='var(--surface)';this.style.borderLeftColor='transparent'">
+                <div style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">USERS · PREFS</div>
+                <div style="font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--on-surface);text-transform:uppercase;margin-bottom:6px;">User Management</div>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);line-height:1.6;">Profiles, auth, language defaults.</div>
+                <div style="margin-top:10px;"><span style="display:inline-block;background:var(--green);color:var(--bg);font-family:var(--font-mono);font-size:9px;font-weight:700;padding:2px 8px;text-transform:uppercase;letter-spacing:0.06em;">USER</span></div>
             </div>
         </a>
     </div>
 
-    <div style="margin-top:8px;text-align:center;font-size:9px;color:var(--on-surface-3);text-transform:uppercase;">ADMIN CONSOLE · INTERNAL USE · TEST ENV WRITES ONLY</div>
+    <div style="margin-top:12px;text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--on-surface-3);text-transform:uppercase;letter-spacing:0.04em;">Admin Console · Internal Use · Local Env Writes Only</div>
 </div>
 {% endblock %}

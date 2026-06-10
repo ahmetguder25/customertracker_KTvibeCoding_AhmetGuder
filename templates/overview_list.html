@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% block title %}OVERVIEW — CUSTOMER TRACKER{% endblock %}
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('nav_overview', 'OVERVIEW') | upper }} — CUSTOMER TRACKER{% endblock %}
 
 {% block content %}
 <div class="t-page-header">

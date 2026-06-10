@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" class="{{ session.get('theme', 'dark') }}-theme">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CUSTOMER TRACKER{% endblock %}</title>
+    <meta name="description" content="Structured Finance Customer Tracking System">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body class="frame-mode">
+    <main class="t-page" style="overflow-y:auto;height:100vh;">
+        {% block content %}{% endblock %}
+    </main>
+    {% block scripts %}{% endblock %}
+    <script>
+    /* ── Frame Navigation: keep _frame=1 on ALL navigation ── */
+    (function(){
+        function addF(url) {
+            if (!url) return url;
+            if (url.indexOf('_frame=1') >= 0) return url;
+            return url + (url.indexOf('?') >= 0 ? '&' : '?') + '_frame=1';
+        }
+        function patchOnclicks(root) {
+            root.querySelectorAll('[onclick]').forEach(function(el) {
+                var oc = el.getAttribute('onclick');
+                if (oc && oc.indexOf('location') >= 0 && oc.indexOf('_frame') < 0) {
+                    var patched = oc.replace(
+                        /(location\s*(?:\.href)?\s*=\s*['"])([^'"]+)(['"])/g,
+                        function(m, pre, url, post) { return pre + addF(url) + post; }
+                    );
+                    el.setAttribute('onclick', patched);
+                }
+            });
+        }
+        function patchHrefs(root) {
+            root.querySelectorAll('a[href]').forEach(function(a) {
+                var h = a.getAttribute('href');
+                if (h && h.startsWith('/') && h.indexOf('_frame') < 0) {
+                    a.setAttribute('href', addF(h));
+                }
+            });
+        }
+        patchOnclicks(document);
+        patchHrefs(document);
+        var obs = new MutationObserver(function(muts) {
+            muts.forEach(function(m) {
+                m.addedNodes.forEach(function(n) {
+                    if (n.nodeType === 1) { patchOnclicks(n); patchHrefs(n); }
+                });
+            });
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+        document.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (!form.querySelector('input[name="_frame"]')) {
+                var inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = '_frame'; inp.value = '1';
+                form.appendChild(inp);
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

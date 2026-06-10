@@ -4,7 +4,8 @@ import platform
 import json
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, redirect, url_for,
-                   send_file, flash, jsonify, session, has_request_context)
+                   send_file, flash, jsonify, session, has_request_context,
+                   Response, stream_with_context)
 from werkzeug.utils import secure_filename
 import io
 
@@ -335,6 +336,18 @@ def require_env_selection():
     if "env" not in session:
         return redirect(url_for("env_login"))
 
+# ── Frame-mode redirect passthrough ───────────────────────────────────────────
+
+@app.after_request
+def preserve_frame_on_redirect(response):
+    """If the request came from an iframe (_frame=1), keep it on redirects."""
+    is_frame = request.args.get('_frame') == '1' or request.form.get('_frame') == '1'
+    if is_frame and response.status_code in (301, 302, 303, 307, 308):
+        loc = response.headers.get('Location', '')
+        if loc and '_frame=1' not in loc:
+            sep = '&' if '?' in loc else '?'
+            response.headers['Location'] = loc + sep + '_frame=1'
+    return response
 
 # ── Authentication Routes ───────────────────────────────────────────────
 
@@ -378,10 +391,12 @@ def set_user():
         try:
             session["surname"] = user["surname"] or ""
             session["lang"] = user["default_language"] if user["default_language"] is not None else 0
+            session["theme"] = user["default_theme"] if user.get("default_theme") else "dark"
         except Exception:
             # Fallback if columns don't exist during transition
             session["surname"] = ""
             session["lang"] = 0
+            session["theme"] = "dark"
             
         return redirect(url_for("env_login"))
     return redirect(url_for("user_login"))
@@ -440,6 +455,24 @@ def set_language(lang_id):
             conn.execute("UPDATE BOA.ZZZ.[User] SET default_language = ? WHERE id = ?", (lang_id, user_id))
             conn.commit()
             conn.close()
+    return redirect(request.referrer or url_for("dashboard"))
+
+
+# ── Theme ──────────────────────────────────────────────────────────────────────
+
+@app.route("/set_theme/<theme>")
+def set_theme(theme):
+    if theme in ("dark", "light"):
+        session["theme"] = theme
+        user_id = session.get("user_id")
+        if user_id:
+            try:
+                conn = get_db()
+                conn.execute("UPDATE BOA.ZZZ.[User] SET default_theme = ? WHERE id = ?", (theme, user_id))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass # Ignore if column doesn't exist yet
     return redirect(request.referrer or url_for("dashboard"))
 
 
@@ -1763,10 +1796,7 @@ def api_subitem_delete(sid):
     return jsonify({"ok": True})
 
 
-
-
-
-# ── Global Backlog ────────────────────────────────────────────────────────────────────
+# ── Global Backlog ────────────────────────────────────────────────────────────────────────────────────
 
 
 @app.route("/backlog")
@@ -1795,6 +1825,110 @@ def global_backlog():
     conn.close()
     from datetime import datetime as _dt
     return render_template("backlog.html", items=items, stakeholders=stakeholders, now=_dt.utcnow())
+
+
+try:
+    from rag import search_document_hybrid as _rag_search
+    _RAG_AVAILABLE = True
+except ImportError:
+    _RAG_AVAILABLE = False
+
+# Expert structured finance analyst — system prompt
+_RAG_SYSTEM_PROMPT = (
+    "You are an expert structured finance analyst and Islamic finance compliance "
+    "specialist. You must respond strictly in ENGLISH ONLY, regardless of the "
+    "language the user types in.\n\n"
+    "Read the provided document excerpts carefully. Your task is to synthesize "
+    "the rules, conditions, and exceptions found across the excerpts to form a "
+    "single, comprehensive compliance opinion.\n\n"
+    "Walk through your reasoning step-by-step using this structure:\n"
+    "1. GENERAL PRINCIPLE — State the governing rule or principle.\n"
+    "2. CONDITIONS FOR PERMISSIBILITY — List the specific requirements that must "
+    "be satisfied.\n"
+    "3. PROHIBITIONS & DISQUALIFYING FACTORS — Note anything that would render "
+    "the transaction impermissible.\n"
+    "4. EXCEPTIONS & SPECIAL CIRCUMSTANCES — Identify any exceptions or edge "
+    "cases that apply.\n"
+    "5. CONCLUSION — Apply the above to the question and give a clear, direct "
+    "compliance opinion.\n\n"
+    "If you cannot determine the answer from the provided text, explain precisely "
+    "which specific rule, parameter, or contract detail is missing from the "
+    "context. Do not speculate or guess beyond what the excerpts state."
+)
+
+
+@app.route("/api/ask-document", methods=["POST"])
+def ask_document():
+    """Hybrid RAG endpoint with SSE streaming generation.
+
+    Pipeline:
+      1. BM25 + multi-query semantic search with RRF fusion (synchronous)
+      2. qwen3.5:9b generation streamed token-by-token via SSE
+
+    Request body (JSON):
+        { "prompt": "user question" }
+
+    Response: text/event-stream
+        data: {"token": "..."}                       <- one per token
+        data: {"done": true, "queries_used": [...]}  <- final event
+        data: {"error": "..."}                       <- on failure
+    """
+    try:
+        import ollama as _ollama
+    except ImportError:
+        return jsonify({"error": "ollama not installed"}), 500
+
+    data   = request.get_json(silent=True) or {}
+    prompt = (data.get("prompt") or "").strip()
+
+    if not prompt:
+        return jsonify({"error": "No prompt provided."}), 400
+
+    if not _RAG_AVAILABLE:
+        return jsonify({"error": "RAG module unavailable."}), 500
+
+    # ── Phase 1+2: Hybrid retrieval (synchronous before streaming starts) ───────
+    try:
+        result  = _rag_search(prompt, n_results=20)
+        chunks  = result["chunks"]
+        queries = result["queries_used"]
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 503
+    except Exception as exc:
+        app.logger.error(f"[ask_document] retrieval error: {exc}")
+        return jsonify({"error": f"Retrieval failed: {exc}"}), 500
+
+    context      = "\n\n---\n\n".join(chunks) if chunks else "(No relevant context found.)"
+    user_message = (
+        f"Document excerpts ({len(chunks)} sections retrieved):\n\n"
+        f"{context}\n\n---\n\nQuestion: {prompt}"
+    )
+
+    # ── Phase 3: Streaming generation ────────────────────────────────────────────
+    def generate():
+        try:
+            stream = _ollama.chat(
+                model="qwen3.5:9b",
+                messages=[
+                    {"role": "system", "content": _RAG_SYSTEM_PROMPT},
+                    {"role": "user",   "content": user_message},
+                ],
+                stream=True,
+            )
+            for chunk in stream:
+                token = chunk["message"]["content"]
+                if token:
+                    yield f"data: {json.dumps({'token': token})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'queries_used': queries})}\n\n"
+        except Exception as exc:
+            app.logger.error(f"[ask_document] stream error: {exc}")
+            yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 if __name__ == "__main__":

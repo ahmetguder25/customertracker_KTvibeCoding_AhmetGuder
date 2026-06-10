@@ -4,3 +4,8 @@ requests
 openpyxl
 pyodbc
 pymssql
+# RAG dependencies
+pymupdf
+langchain-text-splitters
+ollama
+numpy

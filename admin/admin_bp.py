@@ -45,7 +45,7 @@ def get_table_columns(table_name: str) -> list[str]:
     """Return editable column names (excluding the PK and hidden cols) via INFORMATION_SCHEMA."""
     pk_col = get_pk_column(table_name)
     # Columns that exist in the DB but should not appear in the admin editor
-    hidden = {"default_theme"}
+    hidden = set()
     conn = get_db()
     rows = conn.execute(
         "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "

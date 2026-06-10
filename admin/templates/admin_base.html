@@ -1,55 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="{{ session.get('theme', 'dark') }}-theme">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ADMIN — CUSTOMER TRACKER{% endblock %}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
-        :root {
-            --bg:#101014; --surface:#18181c; --surface-2:#252528; --surface-3:#2e2e32;
-            --on-surface:#d4d4d4; --on-surface-2:#a8a8a8; --on-surface-3:#6e6e72;
-            --amber:#FF8C00; --amber-dim:#CC7000; --amber-text:#FFBB66;
-            --green:#00CC00; --red:#EE3333; --cyan:#33BBFF;
-            --border:#2a2a2e;
-            --font-head:'Archivo Narrow','Arial Narrow',sans-serif;
-            --font-mono:'JetBrains Mono','Consolas',monospace;
-        }
-        html,body { min-height:100vh; font-family:var(--font-mono); font-size:11px; background:var(--bg); color:var(--on-surface); }
-        body { display:flex; flex-direction:column; -webkit-font-smoothing:antialiased; }
-        a { color:var(--cyan); text-decoration:none; }
-        a:hover { color:#66CCFF; }
-        ::-webkit-scrollbar { width:6px; height:6px; }
-        ::-webkit-scrollbar-track { background:var(--bg); }
-        ::-webkit-scrollbar-thumb { background:var(--border); }
+        body { min-height:100vh; display:flex; flex-direction:column; }
 
+        /* ── Admin Top Bar ── */
         .admin-topbar {
-            background:#1a1a1e; border-bottom:2px solid var(--red); padding:0 8px; height:28px;
-            display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100;
+            background: var(--surface-lowest);
+            border-bottom: 2px solid var(--red);
+            padding: 0 16px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         .admin-brand {
-            font-family:var(--font-head); font-size:13px; font-weight:700; color:var(--red);
-            text-transform:uppercase; letter-spacing:0.06em; display:flex; align-items:center; gap:6px;
+            font-family: var(--font-head);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--red);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .admin-badge { background:var(--red); color:var(--bg); font-size:9px; font-weight:700; padding:1px 6px; text-transform:uppercase; letter-spacing:0.06em; }
+        .admin-badge {
+            background: var(--red);
+            color: var(--bg);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
         .admin-links { display:flex; align-items:center; gap:0; }
         .admin-link {
-            font-family:var(--font-mono); font-size:11px; font-weight:500; color:var(--on-surface-3);
-            padding:6px 10px; border-left:1px solid var(--border); text-transform:uppercase; letter-spacing:0.04em;
-            transition:color 0.1s,background 0.1s; text-decoration:none; white-space:nowrap;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--on-surface-3);
+            padding: 8px 14px;
+            border-left: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            transition: color 0.15s, background 0.15s;
+            text-decoration: none;
+            white-space: nowrap;
+            cursor: pointer;
         }
-        .admin-link:hover { color:var(--amber); background:rgba(255,193,0,0.05); }
-        .admin-content { flex:1; padding:8px 12px; max-width:1400px; margin:0 auto; width:100%; }
+        .admin-link:hover { color: var(--primary); background: rgba(47,111,219,0.08); }
 
-        .flash-success { padding:4px 8px; border:1px solid var(--green); color:var(--green); background:rgba(0,255,0,0.05); margin-bottom:4px; font-size:11px; }
-        .flash-error { padding:4px 8px; border:1px solid var(--red); color:var(--red); background:rgba(255,68,68,0.05); margin-bottom:4px; font-size:11px; }
+        /* ── Content Area ── */
+        .admin-content {
+            flex: 1;
+            padding: 16px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* ── Flash Messages ── */
+        .flash-success {
+            padding: 8px 12px;
+            border: 1px solid var(--green);
+            color: var(--green);
+            background: rgba(123,219,135,0.06);
+            margin-bottom: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+        .flash-error {
+            padding: 8px 12px;
+            border: 1px solid var(--red);
+            color: var(--red);
+            background: rgba(223,35,43,0.06);
+            margin-bottom: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        /* ── Admin Footer ── */
+        .admin-footer {
+            height: var(--statusbar-h);
+            border-top: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--on-surface-3);
+            background: var(--surface-lowest);
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
 <div style="display:flex;flex-direction:column;min-height:100vh;">
+    <!-- Admin Top Bar -->
     <div class="admin-topbar">
         <div class="admin-brand">
             <span class="admin-badge">ADMIN</span>
@@ -57,12 +114,13 @@
         </div>
         <div class="admin-links">
             {% block topbar_actions %}
-            <a href="/admin" class="admin-link">← CONSOLE</a>
+            <a href="/admin" class="admin-link">← Console</a>
             {% endblock %}
-            <a href="/user-login" class="admin-link" style="color:var(--red);">EXIT ADMIN</a>
+            <a href="/user-login" class="admin-link" style="color:var(--red);">Exit Admin</a>
         </div>
     </div>
 
+    <!-- Flash Messages + Content -->
     <div class="admin-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
@@ -73,6 +131,12 @@
         {% endwith %}
 
         {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <div class="admin-footer">
+        <span class="t-footer-led">ADMIN MODE</span>
+        <span>&copy; 2026 CUSTOMER TRACKER — MANAGEMENT CONSOLE</span>
     </div>
 </div>
 {% block scripts %}{% endblock %}

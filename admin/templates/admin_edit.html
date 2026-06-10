@@ -3,83 +3,83 @@
 
 {% block head %}
 <style>
-    .a-filter { display:flex; align-items:center; gap:6px; padding:4px 8px; background:var(--surface); border:1px solid var(--border); margin-bottom:4px; flex-wrap:wrap; }
-    .a-filter label { font-size:10px; color:var(--on-surface-3); font-weight:700; text-transform:uppercase; letter-spacing:0.06em; }
-    .a-filter select, .a-filter input { background:var(--surface-2); border:1px solid var(--border); color:var(--on-surface); font-family:var(--font-mono); font-size:11px; padding:2px 8px; outline:none; }
-    .a-filter select:focus, .a-filter input:focus { border-color:var(--amber); }
-    .a-filter .a-btn-filter { background:transparent; border:1px solid var(--amber); color:var(--amber); font-family:var(--font-mono); font-size:10px; font-weight:700; padding:2px 10px; cursor:pointer; text-transform:uppercase; }
-    .a-filter .a-btn-filter:hover { background:var(--amber); color:var(--bg); }
-    .a-clear { font-size:10px; color:var(--on-surface-3); }
+    .a-filter { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--surface); border:1px solid var(--border); margin-bottom:8px; flex-wrap:wrap; }
+    .a-filter label { font-family:var(--font-mono); font-size:10px; color:var(--on-surface-3); font-weight:700; text-transform:uppercase; letter-spacing:0.06em; }
+    .a-filter select, .a-filter input { background:var(--surface-high); border:1px solid var(--border); color:var(--on-surface); font-family:var(--font-mono); font-size:12px; padding:4px 10px; outline:none; }
+    .a-filter select:focus, .a-filter input:focus { border-color:var(--primary); }
+    .a-filter .a-btn-filter { background:transparent; border:1px solid var(--primary); color:var(--primary); font-family:var(--font-mono); font-size:10px; font-weight:700; padding:4px 12px; cursor:pointer; text-transform:uppercase; }
+    .a-filter .a-btn-filter:hover { background:var(--primary); color:var(--bg); }
+    .a-clear { font-family:var(--font-mono); font-size:10px; color:var(--on-surface-3); }
     .a-clear:hover { color:var(--red); }
 
-    .prod-warn { padding:4px 8px; border:1px solid var(--amber); color:var(--amber); background:rgba(255,140,0,0.05); font-size:10px; margin-bottom:4px; }
+    .prod-warn { padding:8px 12px; border:1px solid var(--tertiary); color:var(--tertiary); background:rgba(255,140,0,0.06); font-family:var(--font-mono); font-size:11px; margin-bottom:8px; }
 
-    .a-add-panel { display:none; background:var(--surface); border:1px solid var(--amber); padding:8px; margin-bottom:4px; }
+    .a-add-panel { display:none; background:var(--surface); border:1px solid var(--green); padding:12px; margin-bottom:8px; }
     .a-add-panel.open { display:block; }
-    .a-add-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:4px; margin-bottom:6px; }
-    .a-field label { display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--on-surface-3); margin-bottom:1px; }
-    .a-field input { width:100%; background:var(--surface-2); border:1px solid var(--border); color:var(--on-surface); font-family:var(--font-mono); font-size:11px; padding:3px 6px; outline:none; }
-    .a-field input:focus { border-color:var(--amber); }
+    .a-add-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; margin-bottom:10px; }
+    .a-field label { display:block; font-family:var(--font-mono); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--on-surface-3); margin-bottom:2px; }
+    .a-field input { width:100%; background:var(--surface-high); border:1px solid var(--border); color:var(--on-surface); font-family:var(--font-mono); font-size:12px; padding:5px 8px; outline:none; }
+    .a-field input:focus { border-color:var(--primary); }
 
-    .a-table { width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:11px; }
-    .a-table thead th { background:var(--surface-2); color:var(--amber); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:4px 8px; text-align:left; border:1px solid var(--border); white-space:nowrap; }
-    .a-table tbody td { padding:3px 8px; border:1px solid var(--border); color:var(--on-surface); vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
-    .a-table tbody tr:hover { background:rgba(255,193,0,0.03); }
-    .a-table tbody tr:hover td { color:var(--amber-text); }
-    .a-table .rowid-col { color:var(--on-surface-3); font-size:10px; }
-    .a-table .actions-col { white-space:nowrap; text-align:right; min-width:100px; }
+    .a-table { width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:12px; }
+    .a-table thead th { background:var(--surface-high); color:var(--primary); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:6px 10px; text-align:left; border:1px solid var(--border); white-space:nowrap; }
+    .a-table tbody td { padding:5px 10px; border:1px solid var(--border); color:var(--on-surface); vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
+    .a-table tbody tr:hover { background:rgba(47,111,219,0.05); }
+    .a-table tbody tr:hover td { color:var(--primary-fixed); }
+    .a-table .rowid-col { color:var(--on-surface-3); font-size:11px; }
+    .a-table .actions-col { white-space:nowrap; text-align:right; min-width:110px; }
 
-    .btn-edit { background:transparent; border:1px solid var(--cyan); color:var(--cyan); font-family:var(--font-mono); font-size:9px; font-weight:700; padding:1px 6px; cursor:pointer; text-transform:uppercase; margin-right:2px; }
-    .btn-edit:hover { background:var(--cyan); color:var(--bg); }
-    .btn-del { background:transparent; border:1px solid var(--red); color:var(--red); font-family:var(--font-mono); font-size:9px; font-weight:700; padding:1px 6px; cursor:pointer; text-transform:uppercase; }
+    .btn-edit { background:transparent; border:1px solid var(--primary); color:var(--primary); font-family:var(--font-mono); font-size:10px; font-weight:700; padding:2px 8px; cursor:pointer; text-transform:uppercase; margin-right:4px; }
+    .btn-edit:hover { background:var(--primary); color:var(--bg); }
+    .btn-del { background:transparent; border:1px solid var(--red); color:var(--red); font-family:var(--font-mono); font-size:10px; font-weight:700; padding:2px 8px; cursor:pointer; text-transform:uppercase; }
     .btn-del:hover { background:var(--red); color:var(--bg); }
-    .btn-add { background:transparent; border:1px solid var(--green); color:var(--green); font-family:var(--font-mono); font-size:10px; font-weight:700; padding:2px 10px; cursor:pointer; text-transform:uppercase; }
+    .btn-add { background:transparent; border:1px solid var(--green); color:var(--green); font-family:var(--font-mono); font-size:11px; font-weight:700; padding:4px 14px; cursor:pointer; text-transform:uppercase; }
     .btn-add:hover { background:var(--green); color:var(--bg); }
-    .btn-cancel { background:transparent; border:1px solid var(--border); color:var(--on-surface-3); font-family:var(--font-mono); font-size:10px; padding:2px 10px; cursor:pointer; text-transform:uppercase; margin-left:4px; }
+    .btn-cancel { background:transparent; border:1px solid var(--border); color:var(--on-surface-3); font-family:var(--font-mono); font-size:11px; padding:4px 14px; cursor:pointer; text-transform:uppercase; margin-left:6px; }
     .btn-cancel:hover { color:var(--on-surface); border-color:var(--on-surface-3); }
 
     .modal-backdrop { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; }
     .modal-backdrop.open { display:flex; }
-    .modal-card { background:var(--surface); border:1px solid var(--amber); padding:12px; width:90%; max-width:640px; max-height:80vh; overflow-y:auto; }
-    .modal-title { font-family:var(--font-head); font-size:13px; font-weight:700; color:var(--amber); text-transform:uppercase; margin-bottom:8px; }
-    .modal-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px; margin-bottom:8px; }
-    .btn-save-modal { background:transparent; border:1px solid var(--green); color:var(--green); font-family:var(--font-mono); font-size:11px; font-weight:700; padding:4px 14px; cursor:pointer; text-transform:uppercase; }
+    .modal-card { background:var(--surface); border:1px solid var(--primary); padding:16px; width:90%; max-width:680px; max-height:80vh; overflow-y:auto; }
+    .modal-title { font-family:var(--font-head); font-size:14px; font-weight:700; color:var(--primary); text-transform:uppercase; margin-bottom:12px; }
+    .modal-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:6px; margin-bottom:12px; }
+    .btn-save-modal { background:transparent; border:1px solid var(--green); color:var(--green); font-family:var(--font-mono); font-size:12px; font-weight:700; padding:6px 18px; cursor:pointer; text-transform:uppercase; }
     .btn-save-modal:hover { background:var(--green); color:var(--bg); }
 
-    .table-footer { padding:4px 8px; color:var(--on-surface-3); font-size:10px; border-top:1px solid var(--border); background:var(--surface); }
-    .row-hint { font-size:9px; color:var(--on-surface-3); }
+    .table-footer { padding:6px 10px; color:var(--on-surface-3); font-family:var(--font-mono); font-size:11px; border-top:1px solid var(--border); background:var(--surface); }
+    .row-hint { font-size:10px; color:var(--on-surface-3); }
 </style>
 {% endblock %}
 
 {% block topbar_actions %}
-<a href="/admin" class="admin-link">← CONSOLE</a>
+<a href="/admin" class="admin-link">← Console</a>
 {% endblock %}
 
 {% block content %}
 <!-- Header -->
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
     <div>
-        <div style="font-size:10px;color:var(--on-surface-3);">
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);">
             <a href="/admin" style="color:var(--on-surface-3);">ADMIN</a> › <span style="color:var(--on-surface);">{{ table_name | upper }}</span>
-            {% if filter_col and filter_val %} › <span style="color:var(--cyan);">{{ filter_col }}={{ filter_val }}</span>{% endif %}
+            {% if filter_col and filter_val %} › <span style="color:var(--primary);">{{ filter_col }}={{ filter_val }}</span>{% endif %}
         </div>
-        <div style="font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--amber);text-transform:uppercase;">{{ table_name }}</div>
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--primary);text-transform:uppercase;">{{ table_name }}</div>
     </div>
     {% if is_test %}
-    <button class="btn-add" onclick="toggleAddPanel()" id="addToggleBtn">+ ADD ROW</button>
+    <button class="btn-add" onclick="toggleAddPanel()" id="addToggleBtn">+ Add Row</button>
     {% endif %}
 </div>
 
 <!-- PROD warning -->
 {% if not is_test %}
-<div class="prod-warn">⚠ READ-ONLY — Switch to TEST environment for write operations.</div>
+<div class="prod-warn">⚠ READ-ONLY — Switch to LOCAL environment for write operations.</div>
 {% endif %}
 
 <!-- Filter -->
 {% if filter_options %}
 {% set filter_keys = filter_options.keys() | list %}
 <form class="a-filter" method="GET" action="/admin/edit/{{ table_name }}">
-    <label>FILTER:</label>
+    <label>Filter:</label>
     <select name="filter_col" onchange="this.form.submit()">
         <option value="">-- COL --</option>
         {% for key in filter_keys %}
@@ -98,9 +98,9 @@
             {% endfor %}
         {% endif %}
     </select>
-    <button type="submit" class="a-btn-filter">APPLY</button>
+    <button type="submit" class="a-btn-filter">Apply</button>
     {% if filter_col or filter_val %}
-    <a href="/admin/edit/{{ table_name }}" class="a-clear">✕ CLEAR</a>
+    <a href="/admin/edit/{{ table_name }}" class="a-clear">✕ Clear</a>
     {% endif %}
 </form>
 {% endif %}
@@ -108,7 +108,7 @@
 <!-- Add Row Panel -->
 {% if is_test %}
 <div class="a-add-panel" id="addRowPanel">
-    <div style="font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:6px;">+ NEW ROW</div>
+    <div style="font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:8px;">+ New Row</div>
     <form method="POST" action="/admin/edit/{{ table_name }}/add">
         <div class="a-add-grid">
             {% for col in columns %}
@@ -118,8 +118,8 @@
             </div>
             {% endfor %}
         </div>
-        <button type="submit" class="btn-add">INSERT</button>
-        <button type="button" class="btn-cancel" onclick="toggleAddPanel()">CANCEL</button>
+        <button type="submit" class="btn-add">Insert</button>
+        <button type="button" class="btn-cancel" onclick="toggleAddPanel()">Cancel</button>
     </form>
 </div>
 {% endif %}
@@ -132,7 +132,7 @@
             <thead><tr>
                 <th style="width:40px;">#</th>
                 {% for col in columns %}<th>{{ col }}</th>{% endfor %}
-                <th style="text-align:right;">ACTIONS</th>
+                <th style="text-align:right;">Actions</th>
             </tr></thead>
             <tbody>
                 {% for row in rows %}
@@ -143,9 +143,9 @@
                     {% endfor %}
                     <td class="actions-col">
                         {% if is_test %}
-                        <button class="btn-edit" data-rowid="{{ row.rowid }}" data-row="{{ row | tojson | forceescape }}" onclick="openEditModal(this)">EDIT</button>
+                        <button class="btn-edit" data-rowid="{{ row.rowid }}" data-row="{{ row | tojson | forceescape }}" onclick="openEditModal(this)">Edit</button>
                         <form method="POST" action="/admin/edit/{{ table_name }}/delete/{{ row.rowid }}" style="display:inline;" onsubmit="return confirm('Delete row {{ row.rowid }}?');">
-                            <button type="submit" class="btn-del">DEL</button>
+                            <button type="submit" class="btn-del">Del</button>
                         </form>
                         {% else %}
                         <span class="row-hint">READ-ONLY</span>
@@ -158,19 +158,19 @@
     </div>
     <div class="table-footer">{{ rows | length }} ROW{{ 'S' if rows | length != 1 }}</div>
     {% else %}
-    <div style="padding:16px;text-align:center;color:var(--on-surface-3);font-size:11px;">NO ROWS{% if filter_col %} FOR THIS FILTER{% endif %}.</div>
+    <div style="padding:24px;text-align:center;color:var(--on-surface-3);font-family:var(--font-mono);font-size:12px;">NO ROWS{% if filter_col %} FOR THIS FILTER{% endif %}.</div>
     {% endif %}
 </div>
 
 <!-- Edit Modal -->
 <div class="modal-backdrop" id="editModal" onclick="if(event.target===this)closeEditModal();">
     <div class="modal-card">
-        <div class="modal-title">EDIT ROW <span id="modalRowId" style="color:var(--on-surface-3);font-weight:400;font-size:11px;"></span></div>
+        <div class="modal-title">Edit Row <span id="modalRowId" style="color:var(--on-surface-3);font-weight:400;font-size:12px;"></span></div>
         <form id="editForm" method="POST">
             <div class="modal-grid" id="modalGrid"></div>
-            <div style="display:flex;gap:4px;">
-                <button type="submit" class="btn-save-modal">SAVE</button>
-                <button type="button" class="btn-cancel" onclick="closeEditModal()">CANCEL</button>
+            <div style="display:flex;gap:6px;">
+                <button type="submit" class="btn-save-modal">Save</button>
+                <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
             </div>
         </form>
     </div>

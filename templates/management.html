@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% block title %}MANAGEMENT — CUSTOMER TRACKER{% endblock %}
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('nav_management', 'MANAGEMENT') | upper }} — CUSTOMER TRACKER{% endblock %}
 
 {% block content %}
 <style>
@@ -19,8 +19,8 @@ input[type=number] { -moz-appearance: textfield; }
 
 <!-- Tabs -->
 <div class="t-tabs">
-    <button class="t-tab active" onclick="switchMgmtTab('customers', this)">CUSTOMERS</button>
-    <button class="t-tab" onclick="switchMgmtTab('stakeholders', this)">STAKEHOLDERS</button>
+    <button class="t-tab active" onclick="switchMgmtTab('customers', this)">{{ lang_dict.get('mgmt_tab_customers', 'CUSTOMERS') }}</button>
+    <button class="t-tab" onclick="switchMgmtTab('stakeholders', this)">{{ lang_dict.get('mgmt_tab_stakeholders', 'STAKEHOLDERS') }}</button>
 </div>
 
 <!-- ═══ CUSTOMERS TAB ═══ -->
@@ -38,7 +38,7 @@ input[type=number] { -moz-appearance: textfield; }
                     </label>
                     <div style="position:relative;display:flex;align-items:center;">
                         <input type="number" id="accountNumber" required {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-input" placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Account #') }}" style="padding-right:50px;">
-                        <button type="button" id="btn-fetch" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-btn t-btn-sm" style="position:absolute;right:2px;">FETCH</button>
+                        <button type="button" id="btn-fetch" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-btn t-btn-sm" style="position:absolute;right:2px;">{{ lang_dict.get('mgmt_btn_fetch', 'FETCH') }}</button>
                     </div>
                     <div style="margin-top:2px;">
                         <p id="lookup-empty" class="hidden" style="font-size:10px;color:var(--red);">Enter account number.</p>
@@ -71,7 +71,7 @@ input[type=number] { -moz-appearance: textfield; }
                     <input type="text" id="portfolio_manager" disabled class="t-input" placeholder="—">
                 </div>
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:2px;">CLASS</label>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_class_col', 'CLASS') }}</label>
                     <input type="text" id="customer_class" disabled class="t-input" placeholder="—">
                 </div>
             </div>
@@ -128,35 +128,35 @@ input[type=number] { -moz-appearance: textfield; }
 
 <!-- ═══ STAKEHOLDERS TAB ═══ -->
 <div id="tab-stakeholders" class="tab-panel">
-    <div class="t-section-header">ADD STAKEHOLDER</div>
+    <div class="t-section-header">{{ lang_dict.get('mgmt_sh_add_title', 'ADD STAKEHOLDER') }}</div>
     <div class="t-panel" style="border-top:none;margin-bottom:8px;">
         <form id="add-stakeholder-form" onsubmit="addStakeholder(event)" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
             <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">NAME *</label>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sh_name', 'NAME') }} *</label>
                 <input type="text" id="sh_name" required class="t-input" placeholder="Jane Doe">
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">ORG</label>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sh_org', 'ORG') }}</label>
                 <input type="text" id="sh_org" class="t-input" placeholder="Acme Corp">
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">DEPT</label>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sh_dept', 'DEPT') }}</label>
                 <input type="text" id="sh_dept" class="t-input" placeholder="Engineering">
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">EMAIL</label>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sh_email', 'EMAIL') }}</label>
                 <input type="email" id="sh_email" class="t-input" placeholder="jane@example.com">
             </div>
             <div style="grid-column:span 4;padding-top:4px;">
-                <button type="submit" class="t-btn t-btn-green">+ ADD STAKEHOLDER</button>
+                <button type="submit" class="t-btn t-btn-green">{{ lang_dict.get('mgmt_sh_btn_add', '+ ADD STAKEHOLDER') }}</button>
             </div>
         </form>
     </div>
 
-    <div class="t-section-header">TRACKED STAKEHOLDERS</div>
+    <div class="t-section-header">{{ lang_dict.get('mgmt_sh_title', 'TRACKED STAKEHOLDERS') }}</div>
     <div style="overflow-x:auto;">
         <table class="t-table">
-            <thead><tr><th>NAME</th><th>ORG</th><th>DEPT</th><th>EMAIL</th><th style="text-align:center;">ACTIONS</th></tr></thead>
+            <thead><tr><th>{{ lang_dict.get('mgmt_sh_name', 'NAME') }}</th><th>{{ lang_dict.get('mgmt_sh_org', 'ORG') }}</th><th>{{ lang_dict.get('mgmt_sh_dept', 'DEPT') }}</th><th>{{ lang_dict.get('mgmt_sh_email', 'EMAIL') }}</th><th style="text-align:center;">{{ lang_dict.get('mgmt_tbl_actions', 'ACTIONS') }}</th></tr></thead>
             <tbody>
                 {% for s in stakeholders %}
                 <tr>
@@ -165,7 +165,7 @@ input[type=number] { -moz-appearance: textfield; }
                     <td>{{ s.Department or '—' }}</td>
                     <td style="color:var(--cyan);">{{ s.Email or '—' }}</td>
                     <td style="text-align:center;">
-                        <button onclick="deleteStakeholder({{ s.StakeholderID }}, '{{ s.FullName|replace("'", "\\'") }}')" class="t-btn t-btn-sm t-btn-danger">DEL</button>
+                        <button onclick="deleteStakeholder({{ s.StakeholderID }}, '{{ s.FullName|replace("'", "\\'") }}')" class="t-btn t-btn-sm t-btn-danger">{{ lang_dict.get('mgmt_btn_remove', 'DEL') }}</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -173,7 +173,7 @@ input[type=number] { -moz-appearance: textfield; }
         </table>
     </div>
     {% if not stakeholders %}
-    <div class="t-panel" style="text-align:center;padding:16px;color:var(--on-surface-3);">NO STAKEHOLDERS.</div>
+    <div class="t-panel" style="text-align:center;padding:16px;color:var(--on-surface-3);">{{ lang_dict.get('mgmt_sh_empty', 'NO STAKEHOLDERS.') }}</div>
     {% endif %}
 </div>
 

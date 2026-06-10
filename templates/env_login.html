@@ -1,102 +1,177 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light-theme">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ lang_dict.get('env_title', 'CUSTOMER TRACKER — CONNECT') }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        html,body{min-height:100vh;font-family:'JetBrains Mono',monospace;font-size:11px;background:#101014;color:#d4d4d4;}
-        body{display:flex;align-items:center;justify-content:center;padding:20px;}
-        .container{width:100%;max-width:600px;border:2px solid #FF8C00;background:#18181c;padding:16px;}
-        .header{text-align:center;margin-bottom:16px;}
-        .header h1{font-family:'Archivo Narrow',sans-serif;font-size:22px;font-weight:700;color:#FF8C00;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px;}
-        .header p{font-size:10px;color:#6e6e72;text-transform:uppercase;}
-        .flash{padding:4px 8px;border:1px solid #EE3333;color:#EE3333;background:rgba(238,51,51,0.05);margin-bottom:8px;font-size:11px;}
-        .cards{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#2a2a2e;margin-bottom:8px;}
-        .env-card{background:#18181c;padding:12px;cursor:pointer;border:1px solid transparent;transition:all 0.1s;}
-        .env-card:hover{background:#1e1e22;}
-        .env-card.selected{border-color:#FF8C00;background:#1e1e22;}
-        .env-card.selected.prod{border-color:#EE3333;}
-        .env-card input[type="radio"]{display:none;}
-        .card-server{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;}
-        .test .card-server{color:#33BBFF;}
-        .prod .card-server{color:#FF8C00;}
-        .card-title{font-family:'Archivo Narrow',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;color:#d4d4d4;margin-bottom:4px;}
-        .card-desc{font-size:10px;color:#6e6e72;line-height:1.5;}
-        .card-badge{display:inline-block;margin-top:6px;padding:1px 6px;font-size:9px;font-weight:700;text-transform:uppercase;}
-        .test .card-badge{color:#101014;background:#33BBFF;}
-        .prod .card-badge{color:#101014;background:#FF8C00;}
-        .check{position:absolute;top:8px;right:8px;width:14px;height:14px;border:1px solid #2a2a2e;display:flex;align-items:center;justify-content:center;font-size:9px;color:#101014;}
-        .selected .check{background:#FF8C00;border-color:#FF8C00;}
-        .selected.prod .check{background:#EE3333;border-color:#EE3333;}
-        .env-card{position:relative;}
-        .prod-warning{display:none;padding:4px 8px;border:1px solid #FF8C00;color:#FF8C00;font-size:10px;margin-bottom:8px;background:rgba(255,140,0,0.05);}
-        .prod-warning.visible{display:block;}
-        .btn-connect{display:block;width:100%;padding:8px;border:1px solid #33BBFF;background:transparent;color:#33BBFF;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;cursor:pointer;transition:all 0.1s;}
-        .btn-connect:hover{background:#33BBFF;color:#101014;}
-        .btn-connect.prod-mode{border-color:#FF8C00;color:#FF8C00;}
-        .btn-connect.prod-mode:hover{background:#FF8C00;color:#101014;}
-        .footnote{text-align:center;margin-top:8px;font-size:9px;color:#6e6e72;text-transform:uppercase;}
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>CUSTOMER TRACKER</h1>
-            <p>{{ lang_dict.get('env_subtitle', 'SELECT ENVIRONMENT') }}</p>
+<style>
+  body { background: transparent !important; }
+  html { background: #f8f9fa; }
+</style>
+<canvas id="particles-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:2;pointer-events:none;"></canvas>
+<div class="t-login-wrap" style="position:relative;z-index:10;">
+    <main class="t-login-box" style="max-width:640px;">
+        <!-- Header -->
+        <div class="t-login-header">
+            <div class="t-login-brand">
+                <span class="material-symbols-outlined t-login-brand-icon">terminal</span>
+                <span class="t-login-brand-title">CUSTOMER TRACKER</span>
+            </div>
+            <div class="t-login-brand-sub">{{ lang_dict.get('env_subtitle', 'SELECT TARGET ENVIRONMENT') }}</div>
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-        <div class="flash">⚠ {{ message }}</div>
-        {% endfor %}
-        {% endwith %}
+        <!-- Form -->
+        <form method="POST" action="/set-env" id="envForm" class="t-login-form">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="t-flash t-flash-error">⚠ {{ message }}</div>
+            {% endfor %}
+            {% endwith %}
 
-        <form method="POST" action="/set-env" id="envForm">
-            <div class="cards">
-                <label class="env-card test selected" id="card-local" for="env-local">
-                    <input type="radio" name="env" id="env-local" value="local" checked>
-                    <div class="check">✓</div>
-                    <div class="card-server">{{ lang_dict.get('env_local_server', 'LOCALHOST:1433') }}</div>
-                    <div class="card-title">{{ lang_dict.get('env_local_title', 'LOCAL') }}</div>
-                    <div class="card-desc">{{ lang_dict.get('env_local_desc', 'Docker / Express — safe for dev/test.') }}</div>
-                    <div class="card-badge">{{ lang_dict.get('env_local_badge', 'DEV') }}</div>
-                </label>
+            <!-- Environment Cards -->
+            <fieldset style="border:none;padding:0;">
+                <div class="t-login-title">TARGET_ENVIRONMENT</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--surface-bright);">
+                    <label class="env-card test selected" id="card-local" for="env-local">
+                        <input type="radio" name="env" id="env-local" value="local" checked>
+                        <div class="env-check">✓</div>
+                        <div class="env-server">{{ lang_dict.get('env_local_server', 'LOCALHOST:1433') }}</div>
+                        <div class="env-title">{{ lang_dict.get('env_local_title', 'LOCAL') }}</div>
+                        <div class="env-desc">{{ lang_dict.get('env_local_desc', 'Docker / Express — safe for dev/test.') }}</div>
+                        <div class="env-badge test">{{ lang_dict.get('env_local_badge', 'DEV') }}</div>
+                    </label>
 
-                <label class="env-card prod" id="card-prod" for="env-prod">
-                    <input type="radio" name="env" id="env-prod" value="prod">
-                    <div class="check"></div>
-                    <div class="card-server">{{ lang_dict.get('env_prod_server', 'SRVDNZ') }}</div>
-                    <div class="card-title">{{ lang_dict.get('env_prod_title', 'PROD') }}</div>
-                    <div class="card-desc">{{ lang_dict.get('env_prod_desc', 'Production SQL Server — live data, permanent changes.') }}</div>
-                    <div class="card-badge">{{ lang_dict.get('env_prod_badge', 'WIN AUTH') }}</div>
-                </label>
+                    <label class="env-card prod" id="card-prod" for="env-prod">
+                        <input type="radio" name="env" id="env-prod" value="prod">
+                        <div class="env-check"></div>
+                        <div class="env-server">{{ lang_dict.get('env_prod_server', 'SRVDNZ') | safe }}</div>
+                        <div class="env-title">{{ lang_dict.get('env_prod_title', 'PROD') }}</div>
+                        <div class="env-desc">{{ lang_dict.get('env_prod_desc', 'Production SQL Server — live data, permanent changes.') | safe }}</div>
+                        <div class="env-badge prod">{{ lang_dict.get('env_prod_badge', 'WIN AUTH') }}</div>
+                    </label>
+                </div>
+            </fieldset>
+
+            <div class="env-prod-warning" id="prodWarning">⚠ {{ lang_dict.get('env_warning', 'PRODUCTION DATA — changes are permanent.') }}</div>
+
+            <!-- Actions -->
+            <div style="display:flex;justify-content:flex-end;">
+                <button type="submit" class="t-btn" id="connectBtn">
+                    {{ lang_dict.get('env_connect_test', 'CONNECT TO LOCAL') | safe }}
+                    <span class="material-symbols-outlined" style="font-size:14px;">arrow_forward</span>
+                </button>
             </div>
-
-            <div class="prod-warning" id="prodWarning">⚠ {{ lang_dict.get('env_warning', 'PRODUCTION DATA — changes are permanent.') }}</div>
-
-            <button type="submit" class="btn-connect" id="connectBtn">{{ lang_dict.get('env_connect_test', 'CONNECT TO LOCAL →') }}</button>
         </form>
 
-        <p class="footnote">{{ lang_dict.get('env_footer', 'CUSTOMER TRACKER · INTERNAL USE') }}</p>
-    </div>
+        <!-- Footer -->
+        <div class="t-login-footer">
+            <div></div>
+            <span>CUSTOMER TRACKER · INTERNAL USE</span>
+        </div>
+    </main>
+</div>
 
-    <script>
-    var cards = document.querySelectorAll('.env-card');
-    var radios = document.querySelectorAll('input[type="radio"]');
-    var warning = document.getElementById('prodWarning');
-    var btn = document.getElementById('connectBtn');
-    function update() {
-        var val = document.querySelector('input[name="env"]:checked').value;
-        cards.forEach(function(c){c.classList.remove('selected');});
-        document.getElementById('card-'+val).classList.add('selected');
-        if (val==='prod') { warning.classList.add('visible'); btn.innerHTML='{{ lang_dict.get("env_connect_prod", "CONNECT TO PROD →") }}'; btn.classList.add('prod-mode'); }
-        else { warning.classList.remove('visible'); btn.innerHTML='{{ lang_dict.get("env_connect_local", "CONNECT TO LOCAL →") }}'; btn.classList.remove('prod-mode'); }
+<style>
+    .env-card {
+        position: relative;
+        background: var(--surface);
+        padding: 16px;
+        cursor: pointer;
+        border: 1px solid transparent;
     }
-    radios.forEach(function(r){r.addEventListener('change',update);});
-    update();
-    </script>
+    .env-card:hover { background: var(--surface-high); }
+    .env-card.selected { border-color: var(--primary-ctr); background: var(--surface-high); }
+    .env-card.selected.prod { border-color: var(--red-dim); }
+    .env-card input[type="radio"] { display: none; }
+    .env-check {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 16px;
+        height: 16px;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: var(--on-primary-ctr);
+    }
+    .selected .env-check { background: var(--primary-ctr); border-color: var(--primary-ctr); }
+    .selected.prod .env-check { background: var(--red-dim); border-color: var(--red-dim); }
+    .env-server {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 4px;
+    }
+    .test .env-server { color: var(--primary); }
+    .prod .env-server { color: var(--tertiary); }
+    .env-title {
+        font-family: var(--font-head);
+        font-size: 16px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--on-surface);
+        margin-bottom: 4px;
+    }
+    .env-desc {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--on-surface-3);
+        line-height: 1.5;
+    }
+    .env-badge {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 2px 8px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .env-badge.test { color: var(--on-primary-ctr); background: var(--primary-ctr); }
+    .env-badge.prod { color: var(--on-primary-ctr); background: var(--red-dim); }
+    .env-prod-warning {
+        display: none;
+        padding: 8px 12px;
+        border: 1px solid var(--tertiary);
+        color: var(--tertiary);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        background: rgba(223,35,43,0.05);
+    }
+    .env-prod-warning.visible { display: block; }
+</style>
+
+<script>
+var cards = document.querySelectorAll('.env-card');
+var radios = document.querySelectorAll('input[type="radio"]');
+var warning = document.getElementById('prodWarning');
+var btn = document.getElementById('connectBtn');
+function update() {
+    var val = document.querySelector('input[name="env"]:checked').value;
+    cards.forEach(function(c){c.classList.remove('selected');});
+    document.getElementById('card-'+val).classList.add('selected');
+    if (val==='prod') {
+        warning.classList.add('visible');
+        btn.firstChild.textContent = '{{ lang_dict.get("env_connect_prod", "CONNECT TO PROD") }}';
+        btn.style.background = 'var(--red-dim)';
+        btn.style.borderColor = 'var(--red-dim)';
+    } else {
+        warning.classList.remove('visible');
+        btn.firstChild.textContent = '{{ lang_dict.get("env_connect_local", "CONNECT TO LOCAL") }}';
+        btn.style.background = '';
+        btn.style.borderColor = '';
+    }
+}
+radios.forEach(function(r){r.addEventListener('change',update);});
+update();
+</script>
+    <script src="{{ url_for('static', filename='particles.js') }}"></script>
 </body>
 </html>

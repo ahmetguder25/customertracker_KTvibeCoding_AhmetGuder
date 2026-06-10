@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
 {% block title %}{{ product.ProductName | upper }} — PRODUCTS{% endblock %}
 {% block content %}
 

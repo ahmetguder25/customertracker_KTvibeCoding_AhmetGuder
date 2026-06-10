@@ -1,25 +1,25 @@
-{% extends "base.html" %}
-{% block title %}PRODUCTS — CUSTOMER TRACKER{% endblock %}
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('nav_products', 'PRODUCTS') | upper }} — CUSTOMER TRACKER{% endblock %}
 {% block content %}
 
 <div class="t-page-header">
     <div>
-        <div class="t-page-title">PRODUCTS</div>
-        <div class="t-page-subtitle">FINANCING PRODUCTS AVAILABLE TO STRUCTURE DEALS</div>
+        <div class="t-page-title">{{ lang_dict.get('prod_title', 'PRODUCTS') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('prod_subtitle', 'FINANCING PRODUCTS AVAILABLE TO STRUCTURE DEALS') }}</div>
     </div>
-    <button onclick="document.getElementById('modal-add-product').classList.add('open')" class="t-btn">+ ADD PRODUCT</button>
+    <button onclick="document.getElementById('modal-add-product').classList.add('open')" class="t-btn">{{ lang_dict.get('prod_btn_add', '+ ADD PRODUCT') }}</button>
 </div>
 
 {% if products %}
 <table class="t-table">
     <thead>
         <tr>
-            <th>PRODUCT</th>
-            <th>CODE</th>
-            <th>TYPE</th>
-            <th>CONTRACT</th>
-            <th>PARTNER</th>
-            <th style="text-align:center;">DEALS</th>
+            <th>{{ lang_dict.get('prod_col_product', 'PRODUCT') }}</th>
+            <th>{{ lang_dict.get('prod_col_code', 'CODE') }}</th>
+            <th>{{ lang_dict.get('prod_col_type', 'TYPE') }}</th>
+            <th>{{ lang_dict.get('prod_col_contract', 'CONTRACT') }}</th>
+            <th>{{ lang_dict.get('prod_col_partner', 'PARTNER') }}</th>
+            <th style="text-align:center;">{{ lang_dict.get('prod_col_deals', 'DEALS') }}</th>
             <th style="text-align:center;">→</th>
         </tr>
     </thead>
@@ -38,14 +38,14 @@
     </tbody>
 </table>
 {% else %}
-<div class="t-panel" style="text-align:center;padding:24px;color:var(--on-surface-3);">NO PRODUCTS YET.</div>
+<div class="t-panel" style="text-align:center;padding:24px;color:var(--on-surface-3);">{{ lang_dict.get('prod_empty', 'NO PRODUCTS YET.') }}</div>
 {% endif %}
 
 <!-- Add Product Modal -->
 <div id="modal-add-product" class="t-modal-backdrop">
     <div class="t-modal">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div class="t-panel-header" style="border:none;margin:0;padding:0;">NEW PRODUCT</div>
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('prod_modal_title', 'NEW PRODUCT') }}</div>
             <button onclick="document.getElementById('modal-add-product').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:14px;">✕</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
@@ -83,8 +83,8 @@
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
-            <button onclick="document.getElementById('modal-add-product').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">CANCEL</button>
-            <button onclick="saveProduct()" class="t-btn t-btn-green">CREATE</button>
+            <button onclick="document.getElementById('modal-add-product').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">{{ lang_dict.get('prod_btn_cancel', 'CANCEL') }}</button>
+            <button onclick="saveProduct()" class="t-btn t-btn-green">{{ lang_dict.get('prod_btn_create', 'CREATE') }}</button>
         </div>
     </div>
 </div>

@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% block title %}DASHBOARD — CUSTOMER TRACKER{% endblock %}
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('nav_dashboard', 'DASHBOARD') | upper }} — CUSTOMER TRACKER{% endblock %}
 
 {% block content %}
 <div class="t-page-header">
@@ -63,21 +63,58 @@
     <div style="position:relative;height:280px;"><canvas id="regionChart"></canvas></div>
 </div>
 
+<!-- AAOIFI AI Assistant Panel -->
+<div class="t-panel rag-panel" style="margin-top:1px;">
+    <div class="t-panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>&#9670; {{ lang_dict.get('dash_chatbot_title', 'AAOIFI STANDARDS — AI ASSISTANT') }}</span>
+        <span id="rag-meta" style="font-size:9px;color:var(--on-surface-3);font-family:var(--font-mono);">
+            MODEL: qwen3.5:9b &nbsp;|&nbsp; DOC: Shariaa-Standards-ENG.pdf &nbsp;|&nbsp; MODE: DEEP ANALYSIS
+        </span>
+    </div>
+
+    <!-- Message History -->
+    <div id="rag-messages" class="rag-messages">
+        <div class="rag-bubble-ai">
+            <span class="rag-role">AI &#9656;</span>
+            <span class="rag-text">{{ lang_dict.get('dash_chatbot_ready', 'Ready. Ask me anything about AAOIFI Sharia Standards — I will answer strictly in English using the document context.') }}</span>
+        </div>
+    </div>
+
+    <!-- Input Row -->
+    <div class="rag-input-row">
+        <span class="rag-prompt-prefix">&#62;</span>
+        <input
+            id="rag-input"
+            class="rag-input"
+            type="text"
+            placeholder="{{ lang_dict.get('dash_chatbot_placeholder', 'Type your question about AAOIFI standards...') }}"
+            autocomplete="off"
+            spellcheck="false"
+        >
+        <button id="rag-send-btn" class="t-btn t-btn-cyan rag-send-btn" onclick="ragSend()">{{ lang_dict.get('dash_chatbot_send', 'SEND') }}</button>
+    </div>
+
+    <!-- Status bar -->
+    <div id="rag-status" class="rag-status"></div>
+    <!-- Queries panel (shown after response) -->
+    <div id="rag-queries" class="rag-queries-bar" style="display:none;"></div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
     // ── Terminal Chart Defaults ──
-    Chart.defaults.color = '#a8a8a8';
-    Chart.defaults.borderColor = '#2a2a2e';
+    Chart.defaults.color = '#c2c6d5';
+    Chart.defaults.borderColor = '#343a40';
     Chart.defaults.font.family = "'JetBrains Mono', monospace";
     Chart.defaults.font.size = 10;
 
     var tooltipStyle = {
-        backgroundColor: '#18181c',
-        titleColor: '#FF8C00',
-        bodyColor: '#d4d4d4',
-        borderColor: '#FF8C00',
+        backgroundColor: '#1a2026',
+        titleColor: '#afc6ff',
+        bodyColor: '#dde3eb',
+        borderColor: '#2f6fdb',
         borderWidth: 1,
         cornerRadius: 0,
         padding: 8,
@@ -102,7 +139,10 @@
     document.getElementById("kpi-active").textContent = active;
     document.getElementById("kpi-winrate").textContent = winRate + "%";
 
-    var terminalColors = ['#FF8C00','#00CC00','#33BBFF','#EE3333','#66CCFF','#CC7000'];
+    var terminalColors = ['#2f6fdb','#7bdb87','#afc6ff','#df232b','#ffb3ad','#00732d'];
+
+    var chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--on-surface-3').trim() || '#8c909f';
+    var chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#343a40';
 
     new Chart(document.getElementById("statusChart"), {
         type: "bar",
@@ -120,8 +160,15 @@
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: tooltipStyle },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(51,51,51,0.5)' } },
-                x: { grid: { display: false } }
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { stepSize: 1, color: chartTextColor }, 
+                    grid: { color: chartGridColor } 
+                },
+                x: { 
+                    ticks: { color: chartTextColor },
+                    grid: { display: false } 
+                }
             }
         }
     });
@@ -137,8 +184,8 @@
             labels: segLabels,
             datasets: [{
                 data: segValues,
-                backgroundColor: ['#FF8C00','#00CC00','#33BBFF','#EE3333','#66CCFF'],
-                borderColor: '#18181c',
+                backgroundColor: ['#2f6fdb','#7bdb87','#afc6ff','#df232b','#ffb3ad'],
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#0e1419',
                 borderWidth: 2,
             }]
         },
@@ -172,9 +219,219 @@
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: tooltipStyle },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(51,51,51,0.5)' } },
-                x: { grid: { display: false } }
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { stepSize: 1, color: chartTextColor }, 
+                    grid: { color: chartGridColor } 
+                },
+                x: { 
+                    ticks: { color: chartTextColor },
+                    grid: { display: false } 
+                }
             }
+        }
+    });
+
+    // ── RAG Chatbot Logic ──────────────────────────────────────────────────────
+
+    var ragMessages  = document.getElementById("rag-messages");
+    var ragInput     = document.getElementById("rag-input");
+    var ragSendBtn   = document.getElementById("rag-send-btn");
+    var ragStatus    = document.getElementById("rag-status");
+    var ragQueriesEl = document.getElementById("rag-queries");
+    var ragBusy      = false;
+    var ragPhaseTimer = null;
+
+    // Phase definitions: [label, approximate duration ms before moving to next]
+    var RAG_PHASES = [
+        { msg: "\u25cf Phase 1/3 \u00b7 EXPANDING QUERY \u2014 Generating semantic sub-queries via qwen3.5:9b...",  duration: 6000  },
+        { msg: "\u25cf Phase 2/3 \u00b7 RETRIEVING CONTEXT \u2014 Scanning 4,333 document chunks across all queries...", duration: 12000 },
+        { msg: "\u25cf Phase 3/3 \u00b7 SYNTHESIZING ANALYSIS \u2014 Deep compliance reasoning in progress...",           duration: 99999 }
+    ];
+
+    function ragScrollBottom() {
+        ragMessages.scrollTop = ragMessages.scrollHeight;
+    }
+
+    function ragAppend(role, html, isTyping) {
+        var div = document.createElement("div");
+        div.className = role === "user" ? "rag-bubble-user" : "rag-bubble-ai";
+        if (isTyping) div.id = "rag-typing-bubble";
+
+        var roleSpan = document.createElement("span");
+        roleSpan.className = "rag-role";
+        roleSpan.textContent = role === "user" ? "YOU \u25b8" : "AI \u25b8";
+
+        var textSpan = document.createElement("span");
+        textSpan.className = "rag-text";
+        if (isTyping) {
+            textSpan.innerHTML = '<span id="rag-phase-text" class="rag-typing">EXPANDING QUERY<span class="rag-dots">...</span></span>';
+        } else {
+            // Render newlines and basic structure
+            textSpan.innerHTML = html
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                .replace(/\n/g, "<br>");
+        }
+
+        div.appendChild(roleSpan);
+        div.appendChild(textSpan);
+        ragMessages.appendChild(div);
+        ragScrollBottom();
+        return div;
+    }
+
+    function ragStartPhases() {
+        var phaseIndex = 0;
+        ragStatus.textContent = RAG_PHASES[0].msg;
+        ragStatus.style.color = "var(--amber)";
+
+        ragPhaseTimer = setInterval(function() {
+            phaseIndex++;
+            if (phaseIndex >= RAG_PHASES.length) {
+                clearInterval(ragPhaseTimer);
+                ragPhaseTimer = null;
+                return;
+            }
+            ragStatus.textContent = RAG_PHASES[phaseIndex].msg;
+
+            // Also update the typing bubble text if still visible
+            var phaseText = document.getElementById("rag-phase-text");
+            if (phaseText) {
+                var labels = ["EXPANDING QUERY", "RETRIEVING CONTEXT", "SYNTHESIZING"];
+                phaseText.innerHTML = (labels[phaseIndex] || "PROCESSING") + '<span class="rag-dots">...</span>';
+            }
+        }, RAG_PHASES[phaseIndex].duration);
+    }
+
+    function ragStopPhases() {
+        if (ragPhaseTimer) { clearInterval(ragPhaseTimer); ragPhaseTimer = null; }
+        ragStatus.textContent = "";
+    }
+
+    function ragSetBusy(busy) {
+        ragBusy = busy;
+        window._tabBusy = busy;
+        ragInput.disabled = busy;
+        ragSendBtn.disabled = busy;
+        ragSendBtn.textContent = busy ? "..." : "SEND";
+        if (busy) {
+            ragStartPhases();
+        } else {
+            ragStopPhases();
+        }
+    }
+
+    function ragShowQueries(queries) {
+        if (!queries || !queries.length) { ragQueriesEl.style.display = "none"; return; }
+        ragQueriesEl.style.display = "block";
+        ragQueriesEl.innerHTML =
+            '<span class="rag-q-label">&#9670; QUERIES USED (' + queries.length + '):</span> ' +
+            queries.map(function(q, i) {
+                return '<span class="rag-q-item">[' + (i+1) + '] ' +
+                    q.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") +
+                    '</span>';
+            }).join('');
+    }
+
+    function ragSend() {
+        if (ragBusy) return;
+
+        var prompt = ragInput.value.trim();
+        if (!prompt) return;
+
+        ragInput.value = "";
+        ragQueriesEl.style.display = "none";
+        ragAppend("user", prompt, false);
+        ragSetBusy(true);
+
+        var typingBubble = ragAppend("ai", "", true);
+        var answerBubble = null;
+        var answerText   = "";
+
+        function escHtml(s) {
+            return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        }
+
+        fetch("/api/ask-document", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ prompt: prompt })
+        })
+        .then(function(res) {
+            if (!res.ok || !res.body) {
+                return res.json().then(function(d) {
+                    throw new Error(d.error || "HTTP " + res.status);
+                });
+            }
+
+            // Remove typing bubble and create the streaming answer bubble
+            if (typingBubble && typingBubble.parentNode) {
+                typingBubble.parentNode.removeChild(typingBubble);
+            }
+            answerBubble = ragAppend("ai", "", false);
+            var textEl   = answerBubble.querySelector(".rag-text");
+
+            var reader  = res.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer  = "";
+
+            function pump() {
+                return reader.read().then(function(result) {
+                    if (result.done) {
+                        ragSetBusy(false);
+                        return;
+                    }
+
+                    buffer += decoder.decode(result.value, { stream: true });
+
+                    // SSE events are separated by double newline
+                    var parts = buffer.split("\n\n");
+                    buffer = parts.pop();   // keep incomplete last fragment
+
+                    parts.forEach(function(part) {
+                        if (!part.startsWith("data: ")) return;
+                        try {
+                            var data = JSON.parse(part.slice(6));
+                            if (data.token) {
+                                answerText += data.token;
+                                textEl.innerHTML = escHtml(answerText).replace(/\n/g, "<br>");
+                                ragScrollBottom();
+                            }
+                            if (data.done) {
+                                ragShowQueries(data.queries_used);
+                                ragSetBusy(false);
+                            }
+                            if (data.error) {
+                                if (answerBubble && answerBubble.parentNode) {
+                                    answerBubble.parentNode.removeChild(answerBubble);
+                                }
+                                ragAppend("ai", "\u26a0 ERROR: " + data.error, false);
+                                ragSetBusy(false);
+                            }
+                        } catch(e) { /* partial JSON, wait for next chunk */ }
+                    });
+
+                    return pump();
+                });
+            }
+
+            return pump();
+        })
+        .catch(function(err) {
+            if (typingBubble && typingBubble.parentNode) {
+                typingBubble.parentNode.removeChild(typingBubble);
+            }
+            ragAppend("ai", "\u26a0 Network error: " + err.message, false);
+            ragSetBusy(false);
+        });
+    }
+
+
+    // Enter key to send
+    ragInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            ragSend();
         }
     });
 </script>
