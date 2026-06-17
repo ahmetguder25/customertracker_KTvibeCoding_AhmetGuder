@@ -3,16 +3,16 @@
 {% block content %}
 
 <div style="margin-bottom:4px;">
-    <a href="/projects" style="font-size:10px;color:var(--on-surface-3);text-transform:uppercase;">← PROJECTS</a>
+    <a href="/projects" style="font-size:11px;color:var(--on-surface-3);text-transform:uppercase;">← PROJECTS</a>
 </div>
 
 <div class="t-panel" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1px;">
     <div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
-            <span class="t-display" style="font-size:16px;">{{ project.ProjectName }}</span>
+            <span class="t-display" style="font-size:17px;">{{ project.ProjectName }}</span>
             <span class="t-chip {% if project.Status == 'Active' %}t-chip-green{% elif project.Status == 'Completed' %}t-chip-cyan{% elif project.Status == 'On Hold' %}t-chip-amber{% else %}t-chip-dim{% endif %}">{{ project.Status | upper }}</span>
         </div>
-        <div style="font-size:10px;color:var(--on-surface-3);">
+        <div style="font-size:11px;color:var(--on-surface-3);">
             {% if project.ObjTitle %}📎 {{ project.ObjTitle }} · {% endif %}
             {% if project.Deadline %}DUE {{ project.Deadline }}{% endif %}
         </div>
@@ -21,15 +21,15 @@
 </div>
 
 {% if project.Description %}
-<div class="t-panel" style="border-top:none;padding:4px 8px;font-size:10px;color:var(--on-surface-3);margin-bottom:1px;">{{ project.Description }}</div>
+<div class="t-panel" style="border-top:none;padding:4px 8px;font-size:11px;color:var(--on-surface-3);margin-bottom:1px;">{{ project.Description }}</div>
 {% endif %}
 
 <!-- Backlog -->
 <div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;">
-    <span>BACKLOG <span style="font-size:10px;color:var(--on-surface-3);">[{{ items|length }}]</span></span>
+    <span>BACKLOG <span style="font-size:11px;color:var(--on-surface-3);">[{{ items|length }}]</span></span>
     {% if items %}
     {% set done = items | selectattr('Status','equalto','done') | list | length %}
-    <span style="font-size:10px;color:var(--on-surface-3);">{{ done }}/{{ items|length }} DONE</span>
+    <span style="font-size:11px;color:var(--on-surface-3);">{{ done }}/{{ items|length }} DONE</span>
     {% endif %}
 </div>
 
@@ -41,33 +41,35 @@
 <div class="t-panel" style="border-top:none;padding:4px 8px;{% if is_blocked %}opacity:0.5;{% endif %}" id="item-{{ item.ItemID }}">
     <div style="display:flex;align-items:flex-start;gap:6px;">
         <button onclick="toggleStatus({{ item.ItemID }}, '{{ item.Status }}')" {% if is_blocked %}disabled{% endif %}
-            style="flex-shrink:0;width:14px;height:14px;margin-top:1px;border:1px solid {% if item.Status == 'done' %}var(--green){% elif item.Status == 'in_progress' %}var(--amber){% elif is_blocked or item.Status == 'blocked' %}var(--red){% else %}var(--border){% endif %};background:{% if item.Status == 'done' %}var(--green){% else %}transparent{% endif %};cursor:pointer;font-size:9px;color:var(--bg);display:flex;align-items:center;justify-content:center;">{% if item.Status == 'done' %}✓{% endif %}</button>
+            style="flex-shrink:0;width:14px;height:14px;margin-top:1px;border:1px solid {% if item.Status == 'done' %}var(--green){% elif item.Status == 'in_progress' %}var(--amber){% elif is_blocked or item.Status == 'blocked' %}var(--red){% else %}var(--border){% endif %};background:{% if item.Status == 'done' %}var(--green){% else %}transparent{% endif %};cursor:pointer;font-size:10px;color:var(--bg);display:flex;align-items:center;justify-content:center;">{% if item.Status == 'done' %}✓{% endif %}</button>
         <div style="flex:1;min-width:0;">
             <div style="display:flex;justify-content:space-between;">
-                <span style="font-size:11px;font-weight:600;color:{% if item.Status == 'done' %}var(--on-surface-3){% else %}var(--amber-text){% endif %};{% if item.Status == 'done' %}text-decoration:line-through;{% endif %}">{{ item.Title }}</span>
+                <span style="font-size:12px;font-weight:700;color:{% if item.Status == 'done' %}var(--on-surface-3){% else %}var(--amber-text){% endif %};{% if item.Status == 'done' %}text-decoration:line-through;{% endif %}">{{ item.Title }}</span>
                 <div style="display:flex;align-items:center;gap:4px;">
-                    {% if item.Deadline %}<span style="font-size:9px;color:var(--on-surface-3);">{{ item.Deadline }}</span>{% endif %}
-                    <button onclick="deleteItem({{ item.ItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:10px;">✕</button>
+                    {% set item_assignees = assignees_map.get(item.ItemID, []) %}
+                    {% if item_assignees %}<span style="font-size:10px;color:var(--primary);margin-right:8px;" title="{{ item_assignees | join(', ') }}">👤 {{ item_assignees | join(', ') }}</span>{% endif %}
+                    {% if item.Deadline %}<span style="font-size:10px;color:var(--on-surface-3);">{{ item.Deadline }}</span>{% endif %}
+                    <button onclick="deleteItem({{ item.ItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:11px;">✕</button>
                 </div>
             </div>
-            {% if prereqs %}<div style="font-size:9px;color:var(--on-surface-3);">REQ: {% for rid in prereqs %}#{{ rid }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
-            {% if is_blocked %}<div style="font-size:9px;color:var(--red);">⊘ BLOCKED</div>{% endif %}
+            {% if prereqs %}<div style="font-size:10px;color:var(--on-surface-3);">REQ: {% for rid in prereqs %}#{{ rid }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+            {% if is_blocked %}<div style="font-size:10px;color:var(--red);">⊘ BLOCKED</div>{% endif %}
             {% if subs %}
-            <div style="margin-top:3px;margin-left:8px;border-left:1px solid var(--border);padding-left:6px;">
+            <div style="margin-top:4px;">
                 {% for s in subs %}
-                <div style="display:flex;align-items:center;gap:4px;padding:1px 0;">
-                    <button onclick="toggleSubStatus({{ s.SubItemID }}, '{{ s.Status }}')" style="width:10px;height:10px;border:1px solid {% if s.Status == 'done' %}var(--green){% else %}var(--border){% endif %};background:{% if s.Status == 'done' %}var(--green){% else %}transparent{% endif %};cursor:pointer;font-size:7px;color:var(--bg);display:flex;align-items:center;justify-content:center;">{% if s.Status == 'done' %}✓{% endif %}</button>
-                    <span style="font-size:10px;color:var(--on-surface-2);{% if s.Status == 'done' %}text-decoration:line-through;{% endif %}">{{ s.Title }}</span>
-                    {% if s.Deadline %}<span style="font-size:9px;color:var(--on-surface-3);margin-left:auto;">{{ s.Deadline }}</span>{% endif %}
-                    <button onclick="deleteSubItem({{ s.SubItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:8px;">✕</button>
+                <div class="t-nested-row" style="display:flex;align-items:center;gap:6px;padding:4px 8px;margin-bottom:2px;">
+                    <button onclick="toggleSubStatus({{ s.SubItemID }}, '{{ s.Status }}')" style="width:12px;height:12px;border:1px solid {% if s.Status == 'done' %}var(--green){% else %}var(--border){% endif %};background:{% if s.Status == 'done' %}var(--green){% else %}transparent{% endif %};cursor:pointer;font-size:9px;color:var(--bg);display:flex;align-items:center;justify-content:center;">{% if s.Status == 'done' %}✓{% endif %}</button>
+                    <span style="font-size:12px;color:var(--on-surface-2);{% if s.Status == 'done' %}text-decoration:line-through;{% endif %}">{{ s.Title }}</span>
+                    {% if s.Deadline %}<span class="t-num" style="font-size:11px;color:var(--on-surface-3);margin-left:auto;">{{ s.Deadline }}</span>{% endif %}
+                    <button onclick="deleteSubItem({{ s.SubItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:13px;" title="Delete Sub-item">✕</button>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
-            <button onclick="showAddSub({{ item.ItemID }})" style="font-size:9px;color:var(--on-surface-3);background:none;border:none;cursor:pointer;margin-top:2px;">+ SUB</button>
+            <button onclick="showAddSub({{ item.ItemID }})" style="font-size:10px;color:var(--on-surface-3);background:none;border:none;cursor:pointer;margin-top:2px;">+ SUB</button>
             <div id="sub-form-{{ item.ItemID }}" style="display:none;margin-top:3px;">
                 <div style="display:flex;gap:4px;">
-                    <input type="text" id="sub-title-{{ item.ItemID }}" placeholder="Sub-item..." class="t-input" style="flex:1;font-size:10px;padding:2px 6px;">
+                    <input type="text" id="sub-title-{{ item.ItemID }}" placeholder="Sub-item..." class="t-input" style="flex:1;font-size:11px;padding:2px 6px;">
                     <button onclick="saveSub({{ item.ItemID }})" class="t-btn t-btn-sm">ADD</button>
                 </div>
             </div>
@@ -76,7 +78,7 @@
 </div>
 {% endfor %}
 {% else %}
-<div class="t-panel" style="border-top:none;text-align:center;padding:12px;color:var(--on-surface-3);font-size:10px;">NO ITEMS YET.</div>
+<div class="t-panel" style="border-top:none;text-align:center;padding:12px;color:var(--on-surface-3);font-size:11px;">NO ITEMS YET.</div>
 {% endif %}
 
 <!-- Add Work Item Modal -->
@@ -87,6 +89,21 @@
             <div><label class="t-label" style="display:block;margin-bottom:2px;">TITLE *</label><input id="wi-title" type="text" placeholder="Work item title" class="t-input"></div>
             <div><label class="t-label" style="display:block;margin-bottom:2px;">DESCRIPTION</label><textarea id="wi-desc" rows="2" class="t-input"></textarea></div>
             <div><label class="t-label" style="display:block;margin-bottom:2px;">DEADLINE</label><input id="wi-deadline" type="date" class="t-input"></div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">ASSIGNED TO</label>
+                <select id="wi-assignees" multiple class="t-input" style="height:auto; min-height: 80px;">
+                    <optgroup label="Users">
+                        {% for u in users %}
+                        <option value="U-{{ u.id }}">{{ u.username }} {% if u.surname %}{{ u.surname }}{% endif %}</option>
+                        {% endfor %}
+                    </optgroup>
+                    <optgroup label="Stakeholders">
+                        {% for s in stakeholders %}
+                        <option value="S-{{ s.StakeholderID }}">{{ s.FullName }}</option>
+                        {% endfor %}
+                    </optgroup>
+                </select>
+            </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
             <button onclick="document.getElementById('modal-item').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">CANCEL</button>
@@ -100,7 +117,7 @@ var PROJECT_ID = {{ project.ProjectID }};
 var STATUS_CYCLE = {'not_started':'in_progress','in_progress':'done','done':'not_started','blocked':'in_progress'};
 async function toggleStatus(iid,current){await fetch('/api/workitems/'+iid+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:STATUS_CYCLE[current]||'in_progress'})});location.reload();}
 async function toggleSubStatus(sid,current){await fetch('/api/subitems/'+sid+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:current==='done'?'not_started':'done'})});location.reload();}
-async function saveItem(){var t=document.getElementById('wi-title').value.trim();if(!t)return;await fetch('/api/workitems',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({parent_type:'project',parent_id:PROJECT_ID,title:t,description:document.getElementById('wi-desc').value,deadline:document.getElementById('wi-deadline').value||null})});location.reload();}
+async function saveItem(){var t=document.getElementById('wi-title').value.trim();if(!t)return;var assigns=Array.from(document.getElementById('wi-assignees').selectedOptions).map(o=>o.value);await fetch('/api/workitems',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({parent_type:'project',parent_id:PROJECT_ID,title:t,description:document.getElementById('wi-desc').value,deadline:document.getElementById('wi-deadline').value||null,assignees:assigns})});location.reload();}
 async function deleteItem(iid){if(!confirm('Remove?'))return;await fetch('/api/workitems/'+iid,{method:'DELETE'});location.reload();}
 function showAddSub(iid){var el=document.getElementById('sub-form-'+iid);el.style.display=el.style.display==='none'?'block':'none';}
 async function saveSub(iid){var t=document.getElementById('sub-title-'+iid).value.trim();if(!t)return;await fetch('/api/subitems',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({parent_item_id:iid,title:t})});location.reload();}

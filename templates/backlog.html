@@ -52,35 +52,35 @@
             data-type="{{ item.ParentType }}" data-status="{{ item.Status }}"
             data-assignees="{{ item.AssigneeIDs or '' }}" data-deadline="{{ item.Deadline or '' }}">
             <td>
-                <div style="color:var(--on-surface);font-weight:500;font-family:var(--font-body);font-size:12px;">{{ item.Title }}</div>
+                <div style="color:var(--on-surface);font-weight:600;font-family:var(--font-body);font-size:13px;">{{ item.Title }}</div>
                 {% if item.Description %}
-                <div style="color:var(--on-surface-3);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;margin-top:2px;">{{ item.Description }}</div>
+                <div style="color:var(--on-surface-3);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;margin-top:2px;">{{ item.Description }}</div>
                 {% endif %}
                 {% if item.Assignees %}
-                <div style="color:var(--on-surface-2);margin-top:2px;font-family:var(--font-mono);font-size:11px;">→ {{ item.Assignees }}</div>
+                <div style="color:var(--on-surface-2);margin-top:2px;font-family:var(--font-mono);font-size:12px;">→ {{ item.Assignees }}</div>
                 {% endif %}
             </td>
             <td>
-                <a href="/{% if item.ParentType == 'project' %}projects{% else %}deals{% endif %}/{{ item.ParentID }}" style="color:var(--primary);font-family:var(--font-mono);font-size:11px;">
+                <a href="/{% if item.ParentType == 'project' %}projects{% else %}deals{% endif %}/{{ item.ParentID }}" style="color:var(--primary);font-family:var(--font-mono);font-size:12px;">
                     {{ item.ParentName or item.ParentType + ' #' + item.ParentID | string }}
                 </a>
             </td>
             <td style="text-align:center;">
                 <span class="t-chip">
                     <span class="t-led {% if item.ParentType == 'project' %}t-led-blue{% else %}t-led-green{% endif %}"></span>
-                    <span style="color:var(--on-surface-2);font-size:11px;">{{ item.ParentType | upper }}</span>
+                    <span style="color:var(--on-surface-2);font-size:12px;">{{ item.ParentType | upper }}</span>
                 </span>
             </td>
             <td style="text-align:center;">
                 <span class="t-chip">
                     <span class="t-led {% if item.Status == 'in_progress' %}t-led-green{% elif item.Status == 'blocked' %}t-led-red{% else %}t-led-gray{% endif %}"></span>
-                    <span class="{% if item.Status == 'in_progress' %}t-chip-green{% elif item.Status == 'blocked' %}t-chip-red{% else %}t-chip-dim{% endif %}" style="font-size:11px;">{{ item.Status.replace('_',' ') | upper }}</span>
+                    <span class="{% if item.Status == 'in_progress' %}t-chip-green{% elif item.Status == 'blocked' %}t-chip-red{% else %}t-chip-dim{% endif %}" style="font-size:12px;">{{ item.Status.replace('_',' ') | upper }}</span>
                 </span>
             </td>
-            <td style="text-align:center;font-family:var(--font-mono);font-size:11px;">
+            <td style="text-align:center;font-family:var(--font-mono);font-size:12px;">
                 {% if item.Deadline %}
                 {% set day_diff = (item.Deadline - now.date()).days if item.Deadline else None %}
-                <span style="{% if day_diff is not none and day_diff < 0 %}color:var(--red);font-weight:700;{% elif day_diff is not none and day_diff <= 7 %}color:var(--tertiary);font-weight:500;{% else %}color:var(--on-surface-3);{% endif %}">
+                <span style="{% if day_diff is not none and day_diff < 0 %}color:var(--red);font-weight:800;{% elif day_diff is not none and day_diff <= 7 %}color:var(--tertiary);font-weight:600;{% else %}color:var(--on-surface-3);{% endif %}">
                     {{ item.Deadline }}
                 </span>
                 {% else %}—{% endif %}

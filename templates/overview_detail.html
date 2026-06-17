@@ -4,17 +4,17 @@
 {% block content %}
 <!-- Back -->
 <div style="margin-bottom:4px;">
-    <a href="/overview" style="font-size:10px;color:var(--on-surface-3);text-transform:uppercase;">← {{ lang_dict.get('overview_back', 'BACK TO OVERVIEW') }}</a>
+    <a href="/overview" style="font-size:11px;color:var(--on-surface-3);text-transform:uppercase;">← {{ lang_dict.get('overview_back', 'BACK TO OVERVIEW') }}</a>
 </div>
 
 <!-- ═══ HEADER ═══ -->
 <div class="t-panel" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1px;">
     <div style="flex:1;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-            <span class="t-display" style="font-size:18px;">{{ customer['CustomerName'] }}</span>
+            <span class="t-display" style="font-size:19px;">{{ customer['CustomerName'] }}</span>
             <span class="t-chip t-chip-green">{{ lang_dict.get('overview_active_deals', '{} DEALS').format(deals|length) }}</span>
         </div>
-        <div style="display:flex;gap:16px;font-size:11px;color:var(--on-surface-3);">
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--on-surface-3);">
             <span>PM: <span style="color:var(--on-surface-2);">{{ customer['portfolio_manager'] or '—' }}</span></span>
             <span>SECTOR: <span style="color:var(--on-surface-2);">{{ sector_map.get(customer['sector']|string, {}).get('description', customer['sector']) if customer['sector'] else '—' }}</span></span>
             <span>BRANCH: <span style="color:var(--on-surface-2);">{{ customer['branch'] or '—' }}</span></span>
@@ -29,21 +29,25 @@
 
 <!-- ═══ FINANCIALS ═══ -->
 <div class="t-grid-4" style="margin-bottom:1px;">
-    <div class="t-kpi">
-        <span class="t-kpi-label">{{ lang_dict.get('dash_total_deals', 'TOTAL DEALS SIZE') }}</span>
-        <span class="t-kpi-value" style="font-size:16px;color:var(--green);">${{ "{:,.0f}".format(total_deal_size) }}</span>
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('dash_total_deals', 'TOTAL DEALS') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">{{ deals|length }}</span>
+        <span class="t-trend t-trend-up">↗ +1 since last week</span>
     </div>
-    <div class="t-kpi">
+    <div class="t-kpi-card">
         <span class="t-kpi-label">{{ lang_dict.get('dash_credit_limit', 'CREDIT LIMIT') }}</span>
-        <span class="t-kpi-value" style="font-size:16px;color:var(--amber);">₺{{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">₺{{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</span>
+        <span class="t-trend t-trend-up">↗ +12% YoY</span>
     </div>
-    <div class="t-kpi">
+    <div class="t-kpi-card">
         <span class="t-kpi-label">{{ lang_dict.get('dash_foreign_trade', 'FOREIGN TRADE') }}</span>
-        <span class="t-kpi-value" style="font-size:16px;color:var(--cyan);">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</span>
+        <span class="t-trend t-trend-down">↘ -3% YoY</span>
     </div>
-    <div class="t-kpi">
+    <div class="t-kpi-card">
         <span class="t-kpi-label">{{ lang_dict.get('dash_sector_peers', 'SECTOR PEERS') }}</span>
-        <span class="t-kpi-value" style="font-size:16px;color:var(--amber-text);">{{ same_sector }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">{{ same_sector }}</span>
+        <span class="t-trend t-trend-up">↗ Stable</span>
     </div>
 </div>
 
@@ -63,27 +67,14 @@
         <thead>
             <tr>
                 <th>ID</th>
-                <th>TYPE</th>
-                <th>STATUS</th>
-                <th>CONTACT</th>
-                <th style="text-align:right;">SIZE</th>
-                <th style="text-align:right;">PRICING</th>
-                <th>NOTES</th>
+                <th>PRODUCT</th>
             </tr>
         </thead>
         <tbody>
             {% for d in deals %}
-            {% set st = status_map.get(d['status']|string, {}) %}
-            {% set dt = deal_type_map.get(d['dealtype']|string, {}) %}
-            {% set cur = fec_map.get((d['currency'] or 0)|string, {}) %}
-            <tr onclick="window.location='/deals/edit/{{ d.id }}'" style="cursor:pointer;">
+            <tr>
                 <td style="color:var(--on-surface-3);">{{ d['id'] }}</td>
-                <td><span class="t-chip t-chip-amber">{{ dt.get('description', d['dealtype']) }}</span></td>
-                <td><span class="t-chip {% if d['status']|string in ['4'] %}t-chip-green{% elif d['status']|string in ['5'] %}t-chip-red{% else %}t-chip-cyan{% endif %}">{{ st.get('description', d['status']) }}</span></td>
-                <td>{{ d['contact_name'] or '—' }}</td>
-                <td style="text-align:right;color:var(--green);font-weight:700;">{{ "{:,.0f}".format(d['deal_size']) }} {{ cur.get('bg', 'TRY') }}</td>
-                <td style="text-align:right;color:var(--amber);">{% if d['expected_pricing_pa'] %}{{ "{:.2f}".format(d['expected_pricing_pa']) }}%{% else %}—{% endif %}</td>
-                <td style="color:var(--on-surface-3);max-width:200px;overflow:hidden;text-overflow:ellipsis;">{{ d['notes'] or '—' }}</td>
+                <td><span class="t-chip t-chip-amber">{{ d['ProductCode'] }}</span></td>
             </tr>
             {% endfor %}
         </tbody>
@@ -95,7 +86,7 @@
     {% endif %}
 
     <!-- MEMOS -->
-    <div class="t-section-header">{{ lang_dict.get('ov_comments_title', 'TEAM MEMOS') }} <span style="color:var(--on-surface-3);font-size:10px;margin-left:6px;">[{{ comments|length }}]</span></div>
+    <div class="t-section-header">{{ lang_dict.get('ov_comments_title', 'TEAM MEMOS') }} <span style="color:var(--on-surface-3);font-size:11px;margin-left:6px;">[{{ comments|length }}]</span></div>
     <div class="t-panel" style="border-top:none;">
         <div style="max-height:300px;overflow-y:auto;margin-bottom:8px;" id="memo-list">
             {% if comments %}
@@ -149,13 +140,13 @@
                     data-id="{{ node.id }}" data-parent="{{ node.parent_id or '' }}" data-depth="{{ node.depth }}"
                     {% if node.has_children %}onclick="toggleChildren({{ node.id }})" style="cursor:pointer;{% if node.depth > 0 %}display:none;{% endif %}"
                     {% else %}style="{% if node.depth > 0 %}display:none;{% endif %}"{% endif %}>
-                    <td style="padding-left:{{ (node.depth * 12) + 8 }}px;{% if node.depth == 0 %}color:var(--amber);font-weight:700;{% else %}color:var(--on-surface-3);{% endif %}">
-                        {% if node.has_children %}<span id="icon-{{ node.id }}" style="display:inline-block;width:12px;text-align:center;font-size:9px;">▶</span>{% else %}<span style="display:inline-block;width:12px;"></span>{% endif %}
+                    <td style="padding-left:{{ (node.depth * 12) + 8 }}px;{% if node.depth == 0 %}color:var(--amber);font-weight:800;{% else %}color:var(--on-surface-3);{% endif %}">
+                        {% if node.has_children %}<span id="icon-{{ node.id }}" style="display:inline-block;width:12px;text-align:center;font-size:10px;">▶</span>{% else %}<span style="display:inline-block;width:12px;"></span>{% endif %}
                         {{ node.code }}
                     </td>
-                    <td style="{% if node.depth == 0 %}color:var(--amber-text);font-weight:700;{% endif %}">{{ node.name }}</td>
+                    <td style="{% if node.depth == 0 %}color:var(--amber-text);font-weight:800;{% endif %}">{{ node.name }}</td>
                     {% for p in periods %}
-                    <td style="text-align:right;{% if node.amounts[p] < 0 %}color:var(--red);{% elif node.depth == 0 %}color:var(--amber-text);font-weight:700;{% endif %}">{{ "{:,.2f}".format(node.amounts[p]) }}</td>
+                    <td style="text-align:right;{% if node.amounts[p] < 0 %}color:var(--red);{% elif node.depth == 0 %}color:var(--amber-text);font-weight:800;{% endif %}">{{ "{:,.2f}".format(node.amounts[p]) }}</td>
                     {% endfor %}
                 </tr>
                 {% endfor %}

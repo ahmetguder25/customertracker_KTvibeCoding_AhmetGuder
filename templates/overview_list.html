@@ -29,10 +29,10 @@
                 {% if c['LogoFilename'] %}
                 <img src="{{ url_for('static', filename='logos/' + c['LogoFilename']) }}" alt="" style="width:20px;height:20px;object-fit:cover;">
                 {% else %}
-                <span style="color:var(--amber);font-weight:700;">{{ c['CustomerName'][0] }}</span>
+                <span style="color:var(--amber);font-weight:800;">{{ c['CustomerName'][0] }}</span>
                 {% endif %}
             </td>
-            <td style="color:var(--amber-text);font-weight:600;">{{ c['CustomerName'] }}</td>
+            <td style="color:var(--amber-text);font-weight:700;">{{ c['CustomerName'] }}</td>
             <td style="color:var(--on-surface-2);">{{ c['portfolio_manager'] or '—' }}</td>
             <td style="color:var(--on-surface-3);">{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
             <td style="text-align:center;"><span class="t-chip t-chip-cyan">{{ c['deal_count'] }}</span></td>

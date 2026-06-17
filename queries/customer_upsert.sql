@@ -13,7 +13,7 @@
 --   10 region                NVARCHAR
 --   11 portfolio_manager     NVARCHAR
 --   12 CustomerClassName     NVARCHAR
-MERGE INTO BOA.ZZZ.Customer AS target
+MERGE INTO BOA.CUS.Customer AS target
 USING (
     SELECT
         ?  AS Customerid,

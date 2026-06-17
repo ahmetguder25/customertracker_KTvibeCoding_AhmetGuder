@@ -1,0 +1,223 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('syn_title', 'SYNDICATIONS') }} — CUSTOMER TRACKER{% endblock %}
+
+{% block content %}
+<div class="t-page-header">
+    <div>
+        <div class="t-page-title">{{ lang_dict.get('syn_title', 'SYNDICATIONS') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('syn_subtitle', 'ALL TRACKED SYNDICATIONS ACROSS ACTIVE CUSTOMERS') }}</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('modal-add-syndication').classList.add('open')" class="t-btn" id="btn-new-syndication">
+            + {{ lang_dict.get('btn_new', 'NEW') }}
+        </button>
+        <a href="/syndications/export" class="t-btn t-btn-green" id="btn-export">{{ lang_dict.get('btn_export', '↓ EXPORT') }}</a>
+    </div>
+</div>
+
+{% if syndications %}
+<div class="t-panel" style="overflow-x:auto;padding:0;">
+    <table class="t-table">
+        <thead>
+            <tr>
+                <th>{{ lang_dict.get('col_id', 'ID') }}</th>
+                <th>{{ lang_dict.get('col_company', 'COMPANY') }}</th>
+                <th style="text-align:right;">{{ lang_dict.get('col_amount', 'AMOUNT') }}</th>
+                <th style="text-align:right;">{{ lang_dict.get('col_pricing', 'PRICING') }}</th>
+                <th>{{ lang_dict.get('col_ccy', 'CCY') }}</th>
+                <th>{{ lang_dict.get('col_status', 'STATUS') }}</th>
+                <th>{{ lang_dict.get('col_exp_date', 'EXPECTED DATE') }}</th>
+                <th style="text-align:center;width:90px;">{{ lang_dict.get('col_actions', 'ACTIONS') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in syndications %}
+            {% set cur = fec_map.get((s['FEC'] or 0)|string, {}) %}
+            {% set st = status_map.get(s['Status']|string, {}) %}
+            <tr onclick="window.location='/syndications/{{ s['DealId'] }}'" style="cursor:pointer;" id="syn-row-{{ s['DealId'] }}">
+                <td style="color:var(--on-surface-3);">{{ s['DealId'] }}</td>
+                <td style="color:var(--amber-text);font-weight:700;">{{ s['CustomerName'] }}</td>
+                <td style="text-align:right;color:var(--green);">{{ "{:,.0f}".format(s['Amount'] or 0) }} {{ cur.get('bg', 'TRY') }}</td>
+                <td style="text-align:right;color:var(--amber);">{% if s['Pricing'] %}{{ "{:.2f}".format(s['Pricing']) }}%{% else %}—{% endif %}</td>
+                <td><span class="t-chip t-chip-dim">{{ cur.get('bg', 'TRY') }}</span></td>
+                <td><span class="t-chip t-chip-cyan">{{ st.get('description', s['Status']) or '—' }}</span></td>
+                <td style="color:var(--on-surface-3);">{{ s['ExpectedDate'] or '—' }}</td>
+                <td style="text-align:center;white-space:nowrap;" onclick="event.stopPropagation()">
+                    <!-- Edit -->
+                    <button title="{{ lang_dict.get('btn_edit', 'Edit') }}"
+                            onclick="openEditModal({{ s['DealId'] }}, {{ s['Amount'] or 0 }}, {{ s['Pricing'] or 0 }}, '{{ s['FEC'] or '' }}', '{{ s['Status'] or '' }}', '{{ s['ExpectedDate'] or '' }}')"
+                            style="color:var(--amber);background:none;border:none;cursor:pointer;padding:4px 5px;border-radius:6px;display:inline-flex;align-items:center;"
+                            onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background='none'">
+                        <span class="material-symbols-outlined" style="font-size:17px;">edit</span>
+                    </button>
+                    <!-- Delete -->
+                    <button title="{{ lang_dict.get('btn_delete', 'Delete') }}"
+                            onclick="deleteSyndication({{ s['DealId'] }})"
+                            style="color:var(--red);background:none;border:none;cursor:pointer;padding:4px 5px;border-radius:6px;display:inline-flex;align-items:center;"
+                            onmouseover="this.style.background='rgba(248,113,113,0.1)'" onmouseout="this.style.background='none'">
+                        <span class="material-symbols-outlined" style="font-size:17px;">delete</span>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="t-panel" style="text-align:center;padding:24px;color:var(--on-surface-3);">
+    {{ lang_dict.get('msg_no_syn', 'NO SYNDICATIONS FOUND.') }}
+</div>
+{% endif %}
+
+<!-- ═══════ Add Syndication Modal ═══════ -->
+<div id="modal-add-syndication" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:600px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('modal_add_syn', 'ADD NEW SYNDICATION') }}</div>
+            <button onclick="document.getElementById('modal-add-syndication').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:15px;">✕</button>
+        </div>
+        <form action="/syndications/add" method="POST">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <div style="grid-column:span 2;">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_customer', 'CUSTOMER *') }}</label>
+                    <select name="customerid" required class="t-input">
+                        <option value="">{{ lang_dict.get('opt_select', 'SELECT') }}</option>
+                        {% for c in customers %}
+                        <option value="{{ c['Customerid'] }}">{{ c['CustomerName'] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_amount', 'AMOUNT *') }}</label>
+                    <input type="number" name="amount" required step="1" class="t-input" placeholder="1000000">
+                </div>
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_pricing_pct', 'PRICING (%)') }}</label>
+                    <input type="number" name="pricing" step="0.01" class="t-input" placeholder="3.50">
+                </div>
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_currency', 'CURRENCY') }}</label>
+                    <select name="fec" class="t-input">
+                        {% for code, info in fec_map.items() %}
+                        <option value="{{ code }}">{{ info.description }} ({{ info.bg }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_status', 'STATUS *') }}</label>
+                    <select name="status" required class="t-input">
+                        {% for code, info in status_map.items()|sort %}
+                        <option value="{{ code }}">{{ info.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="grid-column:span 2;">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_exp_date', 'EXPECTED DATE') }}</label>
+                    <input type="date" name="expected_date" class="t-input">
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:12px;">
+                <button type="button" onclick="document.getElementById('modal-add-syndication').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</button>
+                <button type="submit" class="t-btn t-btn-green">{{ lang_dict.get('btn_add_deal', 'ADD') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══════ Edit Syndication Modal ═══════ -->
+<div id="modal-edit-syndication" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:560px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('modal_edit_syn', 'EDIT SYNDICATION') }}</div>
+            <button onclick="document.getElementById('modal-edit-syndication').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:15px;">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <input type="hidden" id="edit-syn-id">
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_amount', 'AMOUNT') }}</label>
+                <input type="number" id="edit-syn-amount" step="1" class="t-input">
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_pricing_pct', 'PRICING (%)') }}</label>
+                <input type="number" id="edit-syn-pricing" step="0.01" class="t-input">
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_currency', 'CURRENCY') }}</label>
+                <select id="edit-syn-fec" class="t-input">
+                    {% for code, info in fec_map.items() %}
+                    <option value="{{ code }}">{{ info.description }} ({{ info.bg }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_status', 'STATUS') }}</label>
+                <select id="edit-syn-status" class="t-input">
+                    {% for code, info in status_map.items()|sort %}
+                    <option value="{{ code }}">{{ info.description }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="grid-column:span 2;">
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_exp_date', 'EXPECTED DATE') }}</label>
+                <input type="date" id="edit-syn-date" class="t-input">
+            </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:12px;">
+            <button onclick="document.getElementById('modal-edit-syndication').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</button>
+            <button onclick="saveEdit()" class="t-btn t-btn-cyan">
+                <span class="material-symbols-outlined" style="font-size:16px;">save</span>
+                {{ lang_dict.get('btn_save', 'SAVE') }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditModal(dealId, amount, pricing, fec, status, expectedDate) {
+    document.getElementById('edit-syn-id').value       = dealId;
+    document.getElementById('edit-syn-amount').value   = amount;
+    document.getElementById('edit-syn-pricing').value  = pricing;
+    document.getElementById('edit-syn-fec').value      = String(fec);
+    document.getElementById('edit-syn-status').value   = String(status);
+    document.getElementById('edit-syn-date').value     = expectedDate;
+    document.getElementById('modal-edit-syndication').classList.add('open');
+}
+
+async function saveEdit() {
+    var dealId = document.getElementById('edit-syn-id').value;
+    var payload = {
+        amount:        parseFloat(document.getElementById('edit-syn-amount').value)  || null,
+        pricing:       parseFloat(document.getElementById('edit-syn-pricing').value) || null,
+        fec:           parseInt(document.getElementById('edit-syn-fec').value)       || null,
+        status:        document.getElementById('edit-syn-status').value,
+        expected_date: document.getElementById('edit-syn-date').value || null,
+    };
+    var res = await fetch('/api/syndications/' + dealId, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    var data = await res.json();
+    if (data.ok) {
+        window.location.reload();
+    }
+}
+
+async function deleteSyndication(dealId) {
+    if (!confirm('{{ lang_dict.get("msg_confirm_delete_syn", "Delete this syndication and all its banks? This cannot be undone.") }}')) return;
+    var res = await fetch('/api/syndications/' + dealId, { method: 'DELETE' });
+    var data = await res.json();
+    if (data.ok) {
+        var row = document.getElementById('syn-row-' + dealId);
+        if (row) { row.style.opacity = '0'; row.style.transition = 'opacity 0.3s'; setTimeout(function(){ row.remove(); }, 320); }
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('modal-add-syndication').classList.remove('open');
+        document.getElementById('modal-edit-syndication').classList.remove('open');
+    }
+});
+</script>
+{% endblock %}

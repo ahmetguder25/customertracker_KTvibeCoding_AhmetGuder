@@ -16,9 +16,7 @@
         <tr>
             <th>{{ lang_dict.get('prod_col_product', 'PRODUCT') }}</th>
             <th>{{ lang_dict.get('prod_col_code', 'CODE') }}</th>
-            <th>{{ lang_dict.get('prod_col_type', 'TYPE') }}</th>
-            <th>{{ lang_dict.get('prod_col_contract', 'CONTRACT') }}</th>
-            <th>{{ lang_dict.get('prod_col_partner', 'PARTNER') }}</th>
+
             <th style="text-align:center;">{{ lang_dict.get('prod_col_deals', 'DEALS') }}</th>
             <th style="text-align:center;">→</th>
         </tr>
@@ -26,13 +24,15 @@
     <tbody>
         {% for p in products %}
         <tr onclick="window.location='/products/{{ p.ProductID }}'" style="cursor:pointer;">
-            <td style="color:var(--amber-text);font-weight:600;">{{ p.ProductName }}</td>
+            <td style="color:var(--primary);font-weight:600;">
+                <a href="/products/{{ p.ProductID }}" style="color:inherit;text-decoration:none;">{{ p.ProductName }}</a>
+            </td>
             <td style="color:var(--on-surface-3);">{{ p.ProductCode or '—' }}</td>
-            <td><span class="t-chip {% if p.ProductType == 'Sukuk' %}t-chip-amber{% elif p.ProductType == 'Syndication' %}t-chip-cyan{% else %}t-chip-dim{% endif %}">{{ p.ProductType or 'GEN' }}</span></td>
-            <td>{{ p.IslamicContractType or '—' }}</td>
-            <td>{{ p.PartnerInstitution or '—' }}</td>
+
             <td style="text-align:center;"><span class="t-chip t-chip-dim">{{ p.deal_count }}</span></td>
-            <td style="text-align:center;color:var(--cyan);">▶</td>
+            <td style="text-align:center;">
+                <button onclick="event.stopPropagation();deleteProduct({{ p.ProductID }})" style="background:none;border:none;color:var(--red);cursor:pointer;" title="{{ lang_dict.get('btn_delete', 'Delete') }}">✕</button>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
@@ -46,41 +46,18 @@
     <div class="t-modal">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('prod_modal_title', 'NEW PRODUCT') }}</div>
-            <button onclick="document.getElementById('modal-add-product').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:14px;">✕</button>
+            <button onclick="document.getElementById('modal-add-product').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:15px;">✕</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
             <div style="grid-column:span 2;">
-                <label class="t-label" style="display:block;margin-bottom:2px;">PRODUCT NAME *</label>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_prod_name', 'PRODUCT NAME *') }}</label>
                 <input id="np-name" type="text" placeholder="KT Bank AG EUR Facility" class="t-input">
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">CODE *</label>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_code', 'CODE *') }}</label>
                 <input id="np-code" type="text" placeholder="KTAG-EUR" class="t-input">
             </div>
-            <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">TYPE</label>
-                <select id="np-type" class="t-input">
-                    <option value="">Select…</option>
-                    <option>Syndication</option><option>Sukuk</option><option>Guaranteed Loan</option>
-                    <option>Bilateral Loan</option><option>Trade Finance</option><option>Other</option>
-                </select>
-            </div>
-            <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">ISLAMIC CONTRACT</label>
-                <select id="np-islamic" class="t-input">
-                    <option value="">Select…</option>
-                    <option>Murabaha</option><option>Wakala</option><option>Ijara</option>
-                    <option>Sukuk</option><option>Musharaka</option><option>Istisna</option><option>Other</option>
-                </select>
-            </div>
-            <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">PARTNER</label>
-                <input id="np-partner" type="text" placeholder="KT Bank AG" class="t-input">
-            </div>
-            <div style="grid-column:span 2;">
-                <label class="t-label" style="display:block;margin-bottom:2px;">DESCRIPTION</label>
-                <textarea id="np-desc" rows="2" placeholder="Brief description..." class="t-input"></textarea>
-            </div>
+
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
             <button onclick="document.getElementById('modal-add-product').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">{{ lang_dict.get('prod_btn_cancel', 'CANCEL') }}</button>
@@ -96,11 +73,19 @@ async function saveProduct() {
     if (!name || !code) { alert('Name and Code required.'); return; }
     var res = await fetch('/api/products', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ name:name, code:code, type:document.getElementById('np-type').value, islamic_contract:document.getElementById('np-islamic').value, partner:document.getElementById('np-partner').value, description:document.getElementById('np-desc').value })
+        body: JSON.stringify({ name:name, code:code })
     });
     var data = await res.json();
-    if (data.ok) window.location.href = '/products/' + data.product_id;
+    if (data.ok) window.location.reload();
 }
+
+async function deleteProduct(pid) {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    var res = await fetch('/api/products/' + pid, { method: 'DELETE' });
+    var data = await res.json();
+    if (data.ok) window.location.reload();
+}
+
 document.addEventListener('keydown', function(e) { if (e.key==='Escape') document.getElementById('modal-add-product').classList.remove('open'); });
 </script>
 {% endblock %}

@@ -6,7 +6,7 @@
     <title>{% block title %}CUSTOMER TRACKER{% endblock %}</title>
     <meta name="description" content="Structured Finance Customer Tracking System">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='4') }}">
     {% block head %}{% endblock %}
 </head>
 <body{% if session.get('user_id') %} class="has-sidebar"{% endif %}>
@@ -31,8 +31,9 @@
             <a data-href="/backlog" data-label="{{ lang_dict.get('nav_backlog', 'Backlog') }}" class="t-sidebar-link">
                 <span class="material-symbols-outlined">view_list</span> {{ lang_dict.get('nav_backlog', 'Backlog') }}
             </a>
-            <a data-href="/list" data-label="{{ lang_dict.get('nav_deals', 'Deals') }}" class="t-sidebar-link">
-                <span class="material-symbols-outlined">database</span> {{ lang_dict.get('nav_deals', 'Deals') }}
+
+            <a data-href="/syndications" data-label="{{ lang_dict.get('nav_syndications', 'Syndications') }}" class="t-sidebar-link">
+                <span class="material-symbols-outlined">account_balance</span> {{ lang_dict.get('nav_syndications', 'Syndications') }}
             </a>
             <a data-href="/products" data-label="{{ lang_dict.get('nav_products', 'Products') }}" class="t-sidebar-link">
                 <span class="material-symbols-outlined">inventory_2</span> {{ lang_dict.get('nav_products', 'Products') }}
@@ -67,12 +68,12 @@
                     <span style="color:var(--on-surface-3);">▼</span>
                 </button>
                 <div class="t-user-dropdown">
-                    <div style="padding:6px 12px;font-size:10px;color:var(--on-surface-3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_lang', 'LANG') }}</div>
+                    <div style="padding:6px 12px;font-size:11px;color:var(--on-surface-3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_lang', 'LANG') }}</div>
                     <div class="t-lang-row">
                         <a href="/set_language/0" class="{% if current_lang == 0 %}active{% endif %}">ENG</a>
                         <a href="/set_language/1" class="{% if current_lang == 1 %}active{% endif %}">TR</a>
                     </div>
-                    <div style="padding:6px 12px;font-size:10px;color:var(--on-surface-3);border-bottom:1px solid var(--border);border-top:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_theme', 'THEME') }}</div>
+                    <div style="padding:6px 12px;font-size:11px;color:var(--on-surface-3);border-bottom:1px solid var(--border);border-top:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_theme', 'THEME') }}</div>
                     <div class="t-lang-row">
                         <a href="/set_theme/light" class="{% if session.get('theme') == 'light' %}active{% endif %}">{{ lang_dict.get('menu_light', 'LIGHT') }}</a>
                         <a href="/set_theme/dark" class="{% if session.get('theme', 'dark') == 'dark' %}active{% endif %}">{{ lang_dict.get('menu_dark', 'DARK') }}</a>
@@ -103,8 +104,8 @@
     <!-- Close Warning Modal -->
     <div class="t-modal-backdrop" id="close-warn-modal">
         <div class="t-modal" style="max-width:420px;">
-            <div style="font-family:var(--font-head);font-size:14px;font-weight:600;color:var(--tertiary);margin-bottom:12px;text-transform:uppercase;">⚠ Page Processing</div>
-            <p style="font-size:13px;color:var(--on-surface-2);line-height:1.6;margin-bottom:16px;">This page is currently processing a request. Closing it will cancel the operation.</p>
+            <div style="font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--tertiary);margin-bottom:12px;text-transform:uppercase;">⚠ Page Processing</div>
+            <p style="font-size:14px;color:var(--on-surface-2);line-height:1.6;margin-bottom:16px;">This page is currently processing a request. Closing it will cancel the operation.</p>
             <div style="display:flex;gap:8px;justify-content:flex-end;">
                 <button class="t-btn t-btn-outline" onclick="closeWarnCancel()">Keep Open</button>
                 <button class="t-btn t-btn-danger" onclick="closeWarnConfirm()">Close Anyway</button>

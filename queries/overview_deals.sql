@@ -1,5 +1,4 @@
-SELECT *
-FROM BOA.ZZZ.CustomerDeals
-WHERE customerid = ?
-  AND IsActive = 1
-ORDER BY created_at DESC
+SELECT d.DealId AS id, d.ProductCode, NULL AS deal_size, NULL AS currency, NULL AS status, NULL AS created_at
+FROM BOA.STR.MainDeals d
+WHERE d.CustomerId = ?
+ORDER BY d.DealId DESC

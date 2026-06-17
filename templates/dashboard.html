@@ -9,65 +9,13 @@
     </div>
 </div>
 
-<!-- Pipeline KPI Row -->
-<div class="t-grid-3" style="margin-bottom:1px;">
-    <div class="t-kpi">
-        <span class="t-kpi-label">{{ lang_dict.get('dash_total_deals', 'TOTAL DEALS') }}</span>
-        <span class="t-kpi-value text-amber" id="kpi-total">—</span>
-    </div>
-    <div class="t-kpi">
-        <span class="t-kpi-label">{{ lang_dict.get('dash_active_pipeline', 'ACTIVE PIPELINE') }}</span>
-        <span class="t-kpi-value text-green" id="kpi-active">—</span>
-    </div>
-    <div class="t-kpi">
-        <span class="t-kpi-label">{{ lang_dict.get('dash_win_rate', 'WIN RATE') }}</span>
-        <span class="t-kpi-value text-cyan" id="kpi-winrate">—</span>
-    </div>
-</div>
 
-<!-- Volume KPIs -->
-<div class="t-grid-4" style="margin-bottom:8px;">
-    <div class="t-kpi">
-        <span class="t-kpi-label">{{ lang_dict.get('dash_credit_limit', 'CREDIT LIMIT') }}</span>
-        <span class="t-kpi-value" style="font-size:14px;color:var(--amber-text);">₺{{ "{:,.0f}".format(volume_totals.total_limit) }}</span>
-    </div>
-    <div class="t-kpi">
-        <span class="t-kpi-label">{{ lang_dict.get('dash_foreign_trade', 'FOREIGN TRADE VOL') }}</span>
-        <span class="t-kpi-value" style="font-size:14px;color:var(--cyan);">${{ "{:,.0f}".format(volume_totals.total_ft) }}</span>
-    </div>
-    <div class="t-kpi">
-        <span class="t-kpi-label">{{ lang_dict.get('dash_151_vol', 'MEMZUC 151 VOL') }}</span>
-        <span class="t-kpi-value" style="font-size:14px;color:var(--green);">${{ "{:,.0f}".format(volume_totals.total_151) }}</span>
-    </div>
-    <div class="t-kpi">
-        <span class="t-kpi-label">{{ lang_dict.get('dash_152_vol', 'MEMZUC 152 VOL') }}</span>
-        <span class="t-kpi-value" style="font-size:14px;color:var(--red-dim);">${{ "{:,.0f}".format(volume_totals.total_152) }}</span>
-    </div>
-</div>
-
-<!-- Charts Row -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:1px;">
-    <div class="t-panel">
-        <div class="t-panel-header">{{ lang_dict.get('dash_pipeline_title', 'CUSTOMERS BY DEAL STATUS') }}</div>
-        <div style="position:relative;height:280px;"><canvas id="statusChart"></canvas></div>
-    </div>
-    <div class="t-panel">
-        <div class="t-panel-header">{{ lang_dict.get('dash_segment_title', 'VALUE SEGMENT DISTRIBUTION') }}</div>
-        <div style="position:relative;height:280px;"><canvas id="segmentChart"></canvas></div>
-    </div>
-</div>
-
-<!-- Region Chart -->
-<div class="t-panel">
-    <div class="t-panel-header">{{ lang_dict.get('dash_region_title', 'CUSTOMERS BY REGION') }}</div>
-    <div style="position:relative;height:280px;"><canvas id="regionChart"></canvas></div>
-</div>
 
 <!-- AAOIFI AI Assistant Panel -->
 <div class="t-panel rag-panel" style="margin-top:1px;">
     <div class="t-panel-header" style="display:flex;align-items:center;justify-content:space-between;">
         <span>&#9670; {{ lang_dict.get('dash_chatbot_title', 'AAOIFI STANDARDS — AI ASSISTANT') }}</span>
-        <span id="rag-meta" style="font-size:9px;color:var(--on-surface-3);font-family:var(--font-mono);">
+        <span id="rag-meta" style="font-size:10px;color:var(--on-surface-3);font-family:var(--font-mono);">
             MODEL: qwen3.5:9b &nbsp;|&nbsp; DOC: Shariaa-Standards-ENG.pdf &nbsp;|&nbsp; MODE: DEEP ANALYSIS
         </span>
     </div>
@@ -104,133 +52,7 @@
 
 {% block scripts %}
 <script>
-    // ── Terminal Chart Defaults ──
-    Chart.defaults.color = '#c2c6d5';
-    Chart.defaults.borderColor = '#343a40';
-    Chart.defaults.font.family = "'JetBrains Mono', monospace";
-    Chart.defaults.font.size = 10;
 
-    var tooltipStyle = {
-        backgroundColor: '#1a2026',
-        titleColor: '#afc6ff',
-        bodyColor: '#dde3eb',
-        borderColor: '#2f6fdb',
-        borderWidth: 1,
-        cornerRadius: 0,
-        padding: 8,
-        titleFont: { family: "'JetBrains Mono'" },
-        bodyFont: { family: "'JetBrains Mono'" }
-    };
-
-    // ── Pipeline Status ──
-    var chartData = {{ chart_data | safe }};
-    var codeKeys = Object.keys(chartData);
-    var labels = codeKeys.map(function(k) { return chartData[k].label; });
-    var values = codeKeys.map(function(k) { return chartData[k].count; });
-
-    var total = values.reduce(function(a, b) { return a + b; }, 0);
-    var closedWon = (chartData["4"] && chartData["4"].count) ? chartData["4"].count : 0;
-    var closedLost = (chartData["5"] && chartData["5"].count) ? chartData["5"].count : 0;
-    var active = total - closedWon - closedLost;
-    var closedTotal = closedWon + closedLost;
-    var winRate = closedTotal > 0 ? Math.round((closedWon / closedTotal) * 100) : 0;
-
-    document.getElementById("kpi-total").textContent = total;
-    document.getElementById("kpi-active").textContent = active;
-    document.getElementById("kpi-winrate").textContent = winRate + "%";
-
-    var terminalColors = ['#2f6fdb','#7bdb87','#afc6ff','#df232b','#ffb3ad','#00732d'];
-
-    var chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--on-surface-3').trim() || '#8c909f';
-    var chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#343a40';
-
-    new Chart(document.getElementById("statusChart"), {
-        type: "bar",
-        data: {
-            labels: labels,
-            datasets: [{
-                label: "# of Customers",
-                data: values,
-                backgroundColor: codeKeys.map(function(_, i) { return terminalColors[i % terminalColors.length]; }),
-                borderWidth: 0,
-                barPercentage: 0.6,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: tooltipStyle },
-            scales: {
-                y: { 
-                    beginAtZero: true, 
-                    ticks: { stepSize: 1, color: chartTextColor }, 
-                    grid: { color: chartGridColor } 
-                },
-                x: { 
-                    ticks: { color: chartTextColor },
-                    grid: { display: false } 
-                }
-            }
-        }
-    });
-
-    // ── Segment Doughnut ──
-    var segmentData = {{ segment_data | safe }};
-    var segLabels = Object.keys(segmentData);
-    var segValues = Object.values(segmentData);
-
-    new Chart(document.getElementById("segmentChart"), {
-        type: "doughnut",
-        data: {
-            labels: segLabels,
-            datasets: [{
-                data: segValues,
-                backgroundColor: ['#2f6fdb','#7bdb87','#afc6ff','#df232b','#ffb3ad'],
-                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#0e1419',
-                borderWidth: 2,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: "55%",
-            plugins: {
-                legend: { position: "bottom", labels: { padding: 12, font: { size: 10 } } },
-                tooltip: tooltipStyle
-            }
-        }
-    });
-
-    // ── Region Bar ──
-    var regionData = {{ region_data | safe }};
-    var regLabels = Object.keys(regionData);
-    var regValues = Object.values(regionData);
-
-    new Chart(document.getElementById("regionChart"), {
-        type: "bar",
-        data: {
-            labels: regLabels,
-            datasets: [{
-                label: "# of Customers",
-                data: regValues,
-                backgroundColor: regLabels.map(function(_, i) { return terminalColors[i % terminalColors.length]; }),
-                borderWidth: 0,
-                barPercentage: 0.5,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: tooltipStyle },
-            scales: {
-                y: { 
-                    beginAtZero: true, 
-                    ticks: { stepSize: 1, color: chartTextColor }, 
-                    grid: { color: chartGridColor } 
-                },
-                x: { 
-                    ticks: { color: chartTextColor },
-                    grid: { display: false } 
-                }
-            }
-        }
-    });
 
     // ── RAG Chatbot Logic ──────────────────────────────────────────────────────
 

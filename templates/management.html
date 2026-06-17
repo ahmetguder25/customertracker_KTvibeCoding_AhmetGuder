@@ -34,20 +34,20 @@ input[type=number] { -moz-appearance: textfield; }
                 <div>
                     <label class="t-label" style="display:block;margin-bottom:2px;">
                         {{ lang_dict.get('mgmt_acc_label', 'ACCOUNT # *') }}
-                        {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:9px;margin-left:4px;">PROD ONLY</span>{% endif %}
+                        {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:10px;margin-left:4px;">PROD ONLY</span>{% endif %}
                     </label>
                     <div style="position:relative;display:flex;align-items:center;">
                         <input type="number" id="accountNumber" required {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-input" placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Account #') }}" style="padding-right:50px;">
                         <button type="button" id="btn-fetch" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-btn t-btn-sm" style="position:absolute;right:2px;">{{ lang_dict.get('mgmt_btn_fetch', 'FETCH') }}</button>
                     </div>
                     <div style="margin-top:2px;">
-                        <p id="lookup-empty" class="hidden" style="font-size:10px;color:var(--red);">Enter account number.</p>
-                        <p id="lookup-error" class="hidden" style="font-size:10px;color:var(--red);">{{ lang_dict.get('mgmt_err_notfound', 'Customer not found.') }}</p>
-                        <p id="lookup-conn-error" class="hidden" style="font-size:10px;color:var(--red);">⚠ Cannot connect to SRVDNZ.</p>
-                        <p id="lookup-query-error" class="hidden" style="font-size:10px;color:var(--amber);">⚠ Query error.</p>
-                        <p id="lookup-error-detail" class="hidden" style="font-size:9px;color:var(--on-surface-3);word-break:break-all;"></p>
-                        <p id="lookup-already" class="hidden" style="font-size:10px;color:var(--amber);">{{ lang_dict.get('mgmt_err_tracked', 'Already tracked.') }}</p>
-                        <p id="lookup-success" class="hidden" style="font-size:10px;color:var(--green);">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
+                        <p id="lookup-empty" class="hidden" style="font-size:11px;color:var(--red);">Enter account number.</p>
+                        <p id="lookup-error" class="hidden" style="font-size:11px;color:var(--red);">{{ lang_dict.get('mgmt_err_notfound', 'Customer not found.') }}</p>
+                        <p id="lookup-conn-error" class="hidden" style="font-size:11px;color:var(--red);">⚠ Cannot connect to SRVDNZ.</p>
+                        <p id="lookup-query-error" class="hidden" style="font-size:11px;color:var(--amber);">⚠ Query error.</p>
+                        <p id="lookup-error-detail" class="hidden" style="font-size:10px;color:var(--on-surface-3);word-break:break-all;"></p>
+                        <p id="lookup-already" class="hidden" style="font-size:11px;color:var(--amber);">{{ lang_dict.get('mgmt_err_tracked', 'Already tracked.') }}</p>
+                        <p id="lookup-success" class="hidden" style="font-size:11px;color:var(--green);">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
                     </div>
                 </div>
                 <div>
@@ -86,7 +86,7 @@ input[type=number] { -moz-appearance: textfield; }
             {% if session.get('env', 'test') != 'prod' %}disabled title="PROD ONLY"{% else %}onclick="startUpdateAll()"{% endif %}
             class="t-btn t-btn-sm t-btn-cyan" style="{% if session.get('env', 'test') != 'prod' %}opacity:0.4;cursor:not-allowed;{% endif %}">
             ↻ {{ lang_dict.get('mgmt_btn_sync', 'SYNC ALL') }}
-            {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:9px;margin-left:4px;">PROD</span>{% endif %}
+            {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:10px;margin-left:4px;">PROD</span>{% endif %}
         </button>
     </div>
     <div style="overflow-x:auto;">
@@ -104,7 +104,7 @@ input[type=number] { -moz-appearance: textfield; }
                 {% for c in customers %}
                 <tr>
                     <td style="color:var(--on-surface-3);">{{ c['Customerid'] }}</td>
-                    <td style="color:var(--amber-text);font-weight:600;">{{ c['CustomerName'] }}</td>
+                    <td style="color:var(--amber-text);font-weight:700;">{{ c['CustomerName'] }}</td>
                     <td>{{ sector_map.get(c['sector']|string, {}).get('description', c['sector'] or '—') }}</td>
                     <td>{{ c['portfolio_manager'] or '—' }}</td>
                     <td style="text-align:center;white-space:nowrap;">
@@ -160,7 +160,7 @@ input[type=number] { -moz-appearance: textfield; }
             <tbody>
                 {% for s in stakeholders %}
                 <tr>
-                    <td style="color:var(--amber-text);font-weight:600;">{{ s.FullName }}</td>
+                    <td style="color:var(--amber-text);font-weight:700;">{{ s.FullName }}</td>
                     <td>{{ s.Organization or '—' }}</td>
                     <td>{{ s.Department or '—' }}</td>
                     <td style="color:var(--cyan);">{{ s.Email or '—' }}</td>
@@ -180,17 +180,17 @@ input[type=number] { -moz-appearance: textfield; }
 <!-- Sync Overlay -->
 <div id="sync-overlay" class="t-modal-backdrop" style="flex-direction:column;">
     <div class="t-modal" style="max-width:420px;text-align:center;">
-        <h3 id="sync-title" style="color:var(--amber);font-family:var(--font-head);font-size:16px;font-weight:700;text-transform:uppercase;margin-bottom:12px;">SYNCHRONIZING...</h3>
+        <h3 id="sync-title" style="color:var(--amber);font-family:var(--font-head);font-size:17px;font-weight:800;text-transform:uppercase;margin-bottom:12px;">SYNCHRONIZING...</h3>
         <div class="t-progress" style="margin-bottom:4px;">
             <div id="sync-progress-bar" class="t-progress-bar" style="width:0%;"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--on-surface-3);margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--on-surface-3);margin-bottom:12px;">
             <span id="sync-stats">0 / 0</span>
             <span id="sync-percent">0%</span>
         </div>
         <div style="border:1px solid var(--border);padding:8px;display:flex;align-items:center;justify-content:center;min-height:40px;">
             <div id="sync-current-card" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
-                <span id="sync-customer-name" style="color:var(--on-surface-2);font-size:11px;"></span>
+                <span id="sync-customer-name" style="color:var(--on-surface-2);font-size:12px;"></span>
                 <span id="sync-status-icon" style="color:var(--amber);">⟳</span>
             </div>
         </div>

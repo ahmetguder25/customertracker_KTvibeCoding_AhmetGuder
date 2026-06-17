@@ -1,0 +1,244 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('syn_title_single', 'SYNDICATION') }} #{{ syn['DealId'] }} — {{ syn['CustomerName'] }}{% endblock %}
+
+{% block content %}
+{% set cur = fec_map.get((syn['FEC'] or 0)|string, {}) %}
+{% set cur_symbol = cur.get('bg', 'TRY') %}
+{% set total_syn_amount = syn['Amount'] or 0 %}
+{% set total_bank_amount = namespace(val=0) %}
+{% for d in details %}{% set total_bank_amount.val = total_bank_amount.val + (d['Amount'] or 0) %}{% endfor %}
+{% set bank_pct = (total_bank_amount.val / total_syn_amount * 100) if total_syn_amount > 0 else 0 %}
+
+<a href="/syndications" style="font-size:12px;color:var(--on-surface-3);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:12px;">
+    ← {{ lang_dict.get('lbl_back_syn', 'BACK TO SYNDICATIONS') }}
+</a>
+
+<!-- Header card -->
+<div class="t-panel" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+    <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="color:var(--on-surface-3);font-size:12px;">#{{ syn['DealId'] }}</span>
+            {% set st = status_map.get(syn['Status']|string, {}) %}
+            <span class="t-chip t-chip-cyan">{{ st.get('description', syn['Status']) or '—' }}</span>
+        </div>
+        <div style="display:flex;gap:20px;font-size:12px;color:var(--on-surface-3);">
+            <span>{{ lang_dict.get('col_company', 'COMPANY') }}: <span style="color:var(--amber-text);font-weight:600;">{{ syn['CustomerName'] }}</span></span>
+            <span>{{ lang_dict.get('col_exp_date', 'EXPECTED DATE') }}: <span style="color:var(--on-surface-2);">{{ syn['ExpectedDate'] or '—' }}</span></span>
+        </div>
+    </div>
+</div>
+
+<!-- KPI cards -->
+<div class="t-grid-4" style="margin-bottom:8px;">
+    <!-- Total Amount -->
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_total_amount', 'TOTAL AMOUNT') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">
+            {{ "{:,.0f}".format(total_syn_amount) }} {{ cur_symbol }}
+        </span>
+    </div>
+    <!-- Pricing -->
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_pricing_pa', 'PRICING P.A.') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">
+            {% if syn['Pricing'] %}{{ "{:,.2f}".format(syn['Pricing']) }}%{% else %}—{% endif %}
+        </span>
+    </div>
+    <!-- Currency -->
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_currency', 'CURRENCY') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">
+            {{ cur.get('description', '—') }} ({{ cur_symbol }})
+        </span>
+    </div>
+    <!-- Bank participation total -->
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_bank_total', 'BANK PARTICIPATIONS') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--primary);">
+            {{ "{:,.0f}".format(total_bank_amount.val) }} {{ cur_symbol }}
+        </span>
+    </div>
+    <!-- Bank coverage % (spans or sits as 5th card) -->
+    <div class="t-kpi-card" style="border-color:{% if bank_pct >= 100 %}rgba(52,211,153,0.35){% elif bank_pct >= 75 %}rgba(251,191,36,0.25){% else %}rgba(248,113,113,0.25){% endif %};">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_bank_coverage', 'BANK COVERAGE') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:{% if bank_pct >= 100 %}var(--green){% elif bank_pct >= 75 %}var(--amber){% else %}var(--red){% endif %};">
+            {{ "{:.1f}".format(bank_pct) }}%
+        </span>
+        <!-- Mini progress bar -->
+        <div style="margin-top:8px;height:4px;border-radius:2px;background:rgba(255,255,255,0.07);overflow:hidden;">
+            <div style="height:100%;width:{{ [bank_pct, 100]|min }}%;border-radius:2px;
+                background:{% if bank_pct >= 100 %}var(--green){% elif bank_pct >= 75 %}var(--amber){% else %}var(--red){% endif %};
+                transition:width 0.6s ease;"></div>
+        </div>
+        <span style="font-size:11px;color:var(--on-surface-3);margin-top:4px;display:block;">
+            {{ "{:,.0f}".format(total_bank_amount.val) }} / {{ "{:,.0f}".format(total_syn_amount) }} {{ cur_symbol }}
+        </span>
+    </div>
+</div>
+
+<!-- Participating Banks section -->
+<div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>
+        {{ lang_dict.get('lbl_part_banks', 'PARTICIPATING BANKS') }}
+        <span style="color:var(--on-surface-3);font-size:11px;">[{{ details|length }}]</span>
+    </span>
+    <button onclick="document.getElementById('modal-add-detail').classList.add('open')" class="t-btn t-btn-sm">
+        + {{ lang_dict.get('btn_add_bank', 'ADD BANK') }}
+    </button>
+</div>
+
+{% if details %}
+<div class="t-panel" style="overflow-x:auto;padding:0;">
+    <table class="t-table">
+        <thead>
+            <tr>
+                <th>{{ lang_dict.get('col_bank_name', 'BANK NAME') }}</th>
+                <th style="text-align:right;">{{ lang_dict.get('col_amount', 'AMOUNT') }} ({{ cur_symbol }})</th>
+                <th style="text-align:right;">{{ lang_dict.get('col_offer_pricing', 'OFFER PRICING (%)') }}</th>
+                <th style="text-align:center;width:80px;">{{ lang_dict.get('col_actions', 'ACTIONS') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in details %}
+            <tr id="bank-row-{{ d['DealDetailId'] }}">
+                <td style="color:var(--amber-text);font-weight:600;">{{ d['BankName'] }}</td>
+                <td style="text-align:right;color:var(--green);">{{ "{:,.0f}".format(d['Amount'] or 0) }}</td>
+                <td style="text-align:right;color:var(--amber);">{% if d['OfferPricing'] %}{{ "{:.2f}".format(d['OfferPricing']) }}%{% else %}—{% endif %}</td>
+                <td style="text-align:center;white-space:nowrap;">
+                    <!-- Edit bank -->
+                    <button title="{{ lang_dict.get('btn_edit', 'Edit') }}"
+                            onclick="openBankEdit({{ d['DealDetailId'] }}, '{{ d['BankName']|replace("'","\\'")|replace('"','&quot;') }}', {{ d['Amount'] or 0 }}, {{ d['OfferPricing'] or 0 }})"
+                            style="color:var(--amber);background:none;border:none;cursor:pointer;padding:4px 5px;border-radius:6px;display:inline-flex;align-items:center;"
+                            onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background='none'">
+                        <span class="material-symbols-outlined" style="font-size:17px;">edit</span>
+                    </button>
+                    <!-- Remove bank -->
+                    <button title="{{ lang_dict.get('btn_delete', 'Delete') }}"
+                            onclick="deleteBank({{ d['DealDetailId'] }})"
+                            style="color:var(--red);background:none;border:none;cursor:pointer;padding:4px 5px;border-radius:6px;display:inline-flex;align-items:center;"
+                            onmouseover="this.style.background='rgba(248,113,113,0.1)'" onmouseout="this.style.background='none'">
+                        <span class="material-symbols-outlined" style="font-size:17px;">delete</span>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="t-panel" style="text-align:center;padding:32px;color:var(--on-surface-3);">
+    {{ lang_dict.get('msg_no_banks', 'NO BANKS ADDED YET.') }}
+</div>
+{% endif %}
+
+
+<!-- ═══════ Add Bank Modal ═══════ -->
+<div id="modal-add-detail" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:400px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('modal_add_bank', 'ADD BANK OFFER') }}</div>
+            <button onclick="document.getElementById('modal-add-detail').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:15px;">✕</button>
+        </div>
+        <form action="/syndications/{{ syn['DealId'] }}/detail" method="POST">
+            <div style="display:grid;gap:8px;">
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_bank_name', 'BANK NAME *') }}</label>
+                    <input type="text" name="bank_name" required class="t-input" placeholder="e.g. Example Bank A.Ş.">
+                </div>
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_amount', 'AMOUNT') }}</label>
+                    <input type="number" name="amount" step="1" class="t-input" placeholder="500000">
+                </div>
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_offer_pricing', 'OFFER PRICING (%)') }}</label>
+                    <input type="number" name="offer_pricing" step="0.01" class="t-input" placeholder="3.50">
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:12px;">
+                <button type="button" onclick="document.getElementById('modal-add-detail').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</button>
+                <button type="submit" class="t-btn t-btn-green">{{ lang_dict.get('btn_save', 'SAVE') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ═══════ Edit Bank Modal ═══════ -->
+<div id="modal-edit-bank" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:400px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('modal_edit_bank', 'EDIT BANK OFFER') }}</div>
+            <button onclick="document.getElementById('modal-edit-bank').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:15px;">✕</button>
+        </div>
+        <div style="display:grid;gap:8px;">
+            <input type="hidden" id="edit-bank-id">
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_bank_name', 'BANK NAME *') }}</label>
+                <input type="text" id="edit-bank-name" class="t-input">
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_amount', 'AMOUNT') }}</label>
+                <input type="number" id="edit-bank-amount" step="1" class="t-input">
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_offer_pricing', 'OFFER PRICING (%)') }}</label>
+                <input type="number" id="edit-bank-pricing" step="0.01" class="t-input">
+            </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:12px;">
+            <button onclick="document.getElementById('modal-edit-bank').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</button>
+            <button onclick="saveBankEdit()" class="t-btn t-btn-cyan">
+                <span class="material-symbols-outlined" style="font-size:16px;">save</span>
+                {{ lang_dict.get('btn_save', 'SAVE') }}
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+const DEAL_ID = {{ syn['DealId'] }};
+
+function openBankEdit(bankId, bankName, amount, pricing) {
+    document.getElementById('edit-bank-id').value      = bankId;
+    document.getElementById('edit-bank-name').value    = bankName;
+    document.getElementById('edit-bank-amount').value  = amount;
+    document.getElementById('edit-bank-pricing').value = pricing;
+    document.getElementById('modal-edit-bank').classList.add('open');
+}
+
+async function saveBankEdit() {
+    var bankId  = document.getElementById('edit-bank-id').value;
+    var payload = {
+        bank_name:     document.getElementById('edit-bank-name').value.trim(),
+        amount:        parseFloat(document.getElementById('edit-bank-amount').value) || null,
+        offer_pricing: parseFloat(document.getElementById('edit-bank-pricing').value) || null,
+    };
+    if (!payload.bank_name) { alert('Bank name is required.'); return; }
+    var res = await fetch('/api/syndications/' + DEAL_ID + '/banks/' + bankId, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    var data = await res.json();
+    if (data.ok) window.location.reload();
+}
+
+async function deleteBank(bankId) {
+    if (!confirm('{{ lang_dict.get("msg_confirm_delete_bank", "Remove this bank from the syndication?") }}')) return;
+    var res = await fetch('/api/syndications/' + DEAL_ID + '/banks/' + bankId, { method: 'DELETE' });
+    var data = await res.json();
+    if (data.ok) {
+        var row = document.getElementById('bank-row-' + bankId);
+        if (row) { row.style.opacity = '0'; row.style.transition = 'opacity 0.3s'; setTimeout(function(){ row.remove(); }, 320); }
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('modal-add-detail').classList.remove('open');
+        document.getElementById('modal-edit-bank').classList.remove('open');
+    }
+});
+</script>
+{% endblock %}

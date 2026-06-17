@@ -20,6 +20,9 @@ UPLOAD_FOLDER     = os.path.join(BASE_DIR, "static", "logos")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "svg"}
 MAX_LOGO_SIZE      = 2 * 1024 * 1024  # 2 MB
 
+PRODUCT_DOCS_FOLDER = os.path.join(BASE_DIR, "static", "product_docs")
+os.makedirs(PRODUCT_DOCS_FOLDER, exist_ok=True)
+
 
 # ── SQL Query Loader ───────────────────────────────────────────────────────────
 
@@ -364,7 +367,7 @@ def index():
 def user_login():
     try:
         conn = get_db()
-        users = conn.execute("SELECT * FROM BOA.ZZZ.[User] ORDER BY username").fetchall()
+        users = conn.execute("SELECT * FROM BOA.COR.[User] ORDER BY username").fetchall()
         conn.close()
     except RuntimeError as exc:
         flash(str(exc), "error")
@@ -380,7 +383,7 @@ def set_user():
 
     try:
         conn = get_db()
-        user = conn.execute("SELECT * FROM BOA.ZZZ.[User] WHERE id = ?", (user_id,)).fetchone()
+        user = conn.execute("SELECT * FROM BOA.COR.[User] WHERE id = ?", (user_id,)).fetchone()
         conn.close()
     except RuntimeError:
         return redirect(url_for("user_login"))
@@ -452,7 +455,7 @@ def set_language(lang_id):
         user_id = session.get("user_id")
         if user_id:
             conn = get_db()
-            conn.execute("UPDATE BOA.ZZZ.[User] SET default_language = ? WHERE id = ?", (lang_id, user_id))
+            conn.execute("UPDATE BOA.COR.[User] SET default_language = ? WHERE id = ?", (lang_id, user_id))
             conn.commit()
             conn.close()
     return redirect(request.referrer or url_for("dashboard"))
@@ -468,7 +471,7 @@ def set_theme(theme):
         if user_id:
             try:
                 conn = get_db()
-                conn.execute("UPDATE BOA.ZZZ.[User] SET default_theme = ? WHERE id = ?", (theme, user_id))
+                conn.execute("UPDATE BOA.COR.[User] SET default_theme = ? WHERE id = ?", (theme, user_id))
                 conn.commit()
                 conn.close()
             except Exception:
@@ -478,217 +481,178 @@ def set_theme(theme):
 
 
 
-# ── Dashboard ──────────────────────────────────────────────────────────────────
+# ── Main App ───────────────────────────────────────────────────────────────────
 
-@app.route("/dashboard")
+@app.route("/app")
 def dashboard():
-    conn = get_db()
-    status_map = get_param_map("Status", conn)
-
-    rows          = conn.execute(load_query("dashboard_status_counts")).fetchall()
-    status_counts = {str(row["status"]): row["cnt"] for row in rows}
-    chart_data    = {
-        str(code): {
-            "label": info["description"],
-            "count": status_counts.get(str(code), 0)
-        }
-        for code, info in status_map.items()
-    }
-
-    volume_totals = conn.execute(load_query("dashboard_volume_totals")).fetchone()
-    segments      = conn.execute(load_query("dashboard_segments")).fetchall()
-    regions       = conn.execute(load_query("dashboard_regions")).fetchall()
-    conn.close()
-
-    segment_data = {row["value_segment"]: row["cnt"] for row in segments}
-    region_data  = {row["region"]:        row["cnt"] for row in regions}
-
     return render_template(
         "dashboard.html",
-        chart_data    = json.dumps(chart_data),
-        status_map    = status_map,
-        volume_totals = {
-            "total_ft":    volume_totals["total_ft"],
-            "total_151":   volume_totals["total_151"],
-            "total_152":   volume_totals["total_152"],
-            "total_limit": volume_totals["total_limit"],
-        },
-        segment_data = json.dumps(segment_data),
-        region_data  = json.dumps(region_data),
         active_env   = session.get("env", "local"),
     )
 
+@app.route("/dashboard")
+def dashboard_redirect():
+    return redirect(url_for("dashboard"))
 
-# ── Deals ──────────────────────────────────────────────────────────────────────
 
-@app.route("/list")
-def customer_list():
+
+# ── Syndications ───────────────────────────────────────────────────────────────
+
+@app.route("/syndications")
+def syndications_list():
     conn = get_db()
-    status_map    = get_param_map("Status",   conn)
-    deal_type_map = get_param_map("DealType", conn)
-    fec_map       = get_param_map("FEC",      conn)
-    sector_map    = get_param_map("Sector",   conn)
-    deals         = conn.execute(load_query("list_deals")).fetchall()
-    customers     = conn.execute(load_query("list_customers_simple")).fetchall()
+    syndications = conn.execute(load_query("syndications_list")).fetchall()
+    fec_map = get_param_map("FEC", conn)
+    status_map = get_param_map("Status", conn)
+    customers = conn.execute("SELECT Customerid, CustomerName FROM BOA.CUS.Customer WHERE IsStructured=1 ORDER BY CustomerName").fetchall()
     conn.close()
-    return render_template("list.html", deals=deals, status_map=status_map,
-                           deal_type_map=deal_type_map, fec_map=fec_map,
-                           sector_map=sector_map, customers=customers)
+    return render_template("syndications.html", syndications=syndications, fec_map=fec_map, status_map=status_map, customers=customers)
 
-
-@app.route("/deals/<int:deal_id>")
-def deal_detail(deal_id):
+@app.route("/syndications/add", methods=["POST"])
+def add_syndication():
     conn = get_db()
-    deal = conn.execute(load_query("deal_detail"), (deal_id,)).fetchone()
-    if not deal:
-        conn.close()
-        return redirect(url_for("customer_list"))
-    status_map    = get_param_map("Status",   conn)
-    deal_type_map = get_param_map("DealType", conn)
-    fec_map       = get_param_map("FEC",      conn)
-    sector_map    = get_param_map("Sector",   conn)
-    items, prereq_map, subitems_map = _load_backlog(conn, "deal", deal_id)
-    conn.close()
-    return render_template("deal_detail.html", deal=deal, status_map=status_map,
-                           deal_type_map=deal_type_map, fec_map=fec_map,
-                           sector_map=sector_map, items=items, prereq_map=prereq_map, subitems_map=subitems_map)
-
-
-@app.route("/deals/add", methods=["POST"])
-def add_deal():
-    conn = get_db()
-    conn.execute(load_query("deal_insert"), (
-        int(request.form["customerid"]),
-        request.form.get("contact_name", ""),
-        float(request.form["deal_size"]),
-        float(request.form["expected_pricing_pa"]) if request.form.get("expected_pricing_pa") else None,
-        int(request.form.get("currency", 0)),
-        request.form["status"],
-        request.form["dealtype"],
-        request.form.get("notes", ""),
-    ))
+    cid = int(request.form["customerid"])
+    prod_code = "SYNDICATION"
+    amt = float(request.form["amount"])
+    pricing = float(request.form["pricing"]) if request.form.get("pricing") else None
+    fec = int(request.form["fec"]) if request.form.get("fec") else 0
+    status = request.form["status"]
+    exp_date = request.form["expected_date"] if request.form.get("expected_date") else None
+    
+    conn.execute("INSERT INTO BOA.STR.MainDeals (ProductCode, CustomerId) VALUES (?, ?)", (prod_code, cid))
+    did = conn.execute("SELECT MAX(DealId) AS id FROM BOA.STR.MainDeals").fetchone()["id"]
+    conn.execute(
+        "INSERT INTO BOA.STR.Syndication (DealId, Amount, Pricing, FEC, Status, ExpectedDate) VALUES (?, ?, ?, ?, ?, ?)",
+        (did, amt, pricing, fec, status, exp_date)
+    )
     conn.commit()
-    # Recalculate KR
-    deal_id = conn.execute("SELECT MAX(id) AS id FROM BOA.ZZZ.CustomerDeals").fetchone()["id"]
-    pid = conn.execute("SELECT ProductID FROM BOA.ZZZ.CustomerDeals WHERE id=?", (deal_id,)).fetchone()["ProductID"]
-    _recalc_kr(conn, pid)
     conn.close()
-    return redirect(url_for("customer_list"))
+    return redirect(url_for("syndications_list"))
 
-
-@app.route("/deals/edit/<int:deal_id>", methods=["GET", "POST"])
-def edit_deal(deal_id):
+@app.route("/syndications/<int:deal_id>")
+def syndication_detail(deal_id):
     conn = get_db()
-    if request.method == "POST":
-        old_pid = conn.execute("SELECT ProductID FROM BOA.ZZZ.CustomerDeals WHERE id=?", (deal_id,)).fetchone()["ProductID"]
-        conn.execute(load_query("deal_update"), (
-            request.form.get("contact_name", ""),
-            float(request.form["deal_size"]),
-            float(request.form["expected_pricing_pa"]) if request.form.get("expected_pricing_pa") else None,
-            int(request.form.get("currency", 0)),
-            request.form["status"],
-            request.form["dealtype"],
-            request.form.get("notes", ""),
-            deal_id,
-        ))
-        conn.commit()
-        new_pid = conn.execute("SELECT ProductID FROM BOA.ZZZ.CustomerDeals WHERE id=?", (deal_id,)).fetchone()["ProductID"]
-        _recalc_kr(conn, old_pid)
-        if new_pid != old_pid:
-            _recalc_kr(conn, new_pid)
+    syn = conn.execute(
+        "SELECT m.DealId, m.ProductCode, c.CustomerName, s.Amount, s.Pricing, s.FEC, s.Status, s.ExpectedDate "
+        "FROM BOA.STR.MainDeals m "
+        "JOIN BOA.STR.Syndication s ON m.DealId = s.DealId "
+        "JOIN BOA.CUS.Customer c ON m.CustomerId = c.Customerid "
+        "WHERE m.DealId = ?", (deal_id,)
+    ).fetchone()
+    
+    if not syn:
         conn.close()
-        return redirect(url_for("deal_detail", deal_id=deal_id))
-
-    deal = conn.execute(load_query("deal_edit_detail"), (deal_id,)).fetchone()
-    if not deal:
-        conn.close()
-        return redirect(url_for("customer_list"))
-    status_map    = get_param_map("Status",   conn)
-    deal_type_map = get_param_map("DealType", conn)
-    fec_map       = get_param_map("FEC",      conn)
-    sector_map    = get_param_map("Sector",   conn)
+        return redirect(url_for("syndications_list"))
+        
+    details = conn.execute("SELECT * FROM BOA.STR.SyndicationBanks WHERE DealId = ?", (deal_id,)).fetchall()
+    fec_map = get_param_map("FEC", conn)
+    status_map = get_param_map("Status", conn)
     conn.close()
-    return render_template("deal_edit.html", deal=deal, status_map=status_map,
-                           deal_type_map=deal_type_map, fec_map=fec_map,
-                           sector_map=sector_map)
+    return render_template("syndication_detail.html", syn=syn, details=details, fec_map=fec_map, status_map=status_map)
 
-
-@app.route("/deals/delete/<int:deal_id>", methods=["POST"])
-def delete_deal(deal_id):
+@app.route("/syndications/<int:deal_id>/detail", methods=["POST"])
+def add_syndication_detail(deal_id):
     conn = get_db()
-    pid = conn.execute("SELECT ProductID FROM BOA.ZZZ.CustomerDeals WHERE id=?", (deal_id,)).fetchone()["ProductID"]
-    conn.execute(load_query("deal_delete"), (deal_id,))
+    bank_name = request.form["bank_name"]
+    amount = float(request.form["amount"]) if request.form.get("amount") else None
+    offer_pricing = float(request.form["offer_pricing"]) if request.form.get("offer_pricing") else None
+    
+    conn.execute(
+        "INSERT INTO BOA.STR.SyndicationBanks (DealId, BankName, Amount, OfferPricing) VALUES (?, ?, ?, ?)",
+        (deal_id, bank_name, amount, offer_pricing)
+    )
     conn.commit()
-    _recalc_kr(conn, pid)
     conn.close()
-    return redirect(url_for("customer_list"))
+    return redirect(url_for("syndication_detail", deal_id=deal_id))
 
 
-@app.route("/list/export")
-def export_excel():
+@app.route("/api/syndications/<int:deal_id>", methods=["PATCH"])
+def api_syndication_update(deal_id):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "UPDATE BOA.STR.Syndication SET Amount=?, Pricing=?, FEC=?, Status=?, ExpectedDate=? WHERE DealId=?",
+        (data.get("amount"), data.get("pricing"), data.get("fec"), data.get("status"), data.get("expected_date") or None, deal_id)
+    )
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/syndications/<int:deal_id>", methods=["DELETE"])
+def api_syndication_delete(deal_id):
+    conn = get_db()
+    # Delete child banks first, then the syndication, then the main deal
+    conn.execute("DELETE FROM BOA.STR.SyndicationBanks WHERE DealId=?", (deal_id,))
+    conn.execute("DELETE FROM BOA.STR.Syndication WHERE DealId=?", (deal_id,))
+    conn.execute("DELETE FROM BOA.STR.MainDeals WHERE DealId=?", (deal_id,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/syndications/<int:deal_id>/banks/<int:bank_id>", methods=["PATCH"])
+def api_syndication_bank_update(deal_id, bank_id):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    conn.execute(
+        "UPDATE BOA.STR.SyndicationBanks SET BankName=?, Amount=?, OfferPricing=? WHERE DealDetailId=? AND DealId=?",
+        (data.get("bank_name"), data.get("amount"), data.get("offer_pricing"), bank_id, deal_id)
+    )
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/syndications/<int:deal_id>/banks/<int:bank_id>", methods=["DELETE"])
+def api_syndication_bank_delete(deal_id, bank_id):
+    conn = get_db()
+    conn.execute(
+        "DELETE FROM BOA.STR.SyndicationBanks WHERE DealDetailId=? AND DealId=?",
+        (bank_id, deal_id)
+    )
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/syndications/export")
+def export_syndications():
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-
-    conn          = get_db()
-    status_map    = get_param_map("Status",   conn)
-    deal_type_map = get_param_map("DealType", conn)
-    fec_map       = get_param_map("FEC",      conn)
-    sector_map    = get_param_map("Sector",   conn)
-    deals         = conn.execute(load_query("export_deals")).fetchall()
+    
+    conn = get_db()
+    syndications = conn.execute(load_query("syndications_list")).fetchall()
+    fec_map = get_param_map("FEC", conn)
     conn.close()
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Pipeline Deals"
+    ws.title = "Syndications"
 
-    headers = [
-        "Deal ID", "Company Name", "Contact Name", "Deal Type", "Deal Size",
-        "Expected Pricing p.a.", "Currency", "Status", "Sector", "Credit Limit",
-        "Value Segment", "Branch", "Region", "Portfolio Manager",
-        "Foreign Trade Volume", "MEMZUC 151 Volume", "MEMZUC 152 Volume", "Notes",
-    ]
+    headers = ["Deal ID", "Company Name", "Product", "Amount", "Pricing", "Currency", "Status", "Expected Date"]
     hfont  = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
     hfill  = PatternFill(start_color="1D62F1", end_color="1D62F1", fill_type="solid")
-    halign = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    border = Border(left=Side(style="thin"), right=Side(style="thin"),
-                    top=Side(style="thin"), bottom=Side(style="thin"))
+    halign = Alignment(horizontal="center", vertical="center")
+    border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
 
     for ci, h in enumerate(headers, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font, c.fill, c.alignment, c.border = hfont, hfill, halign, border
 
-    for ri, d in enumerate(deals, 2):
+    for ri, d in enumerate(syndications, 2):
         vals = [
-            d["id"], d["CustomerName"], d["contact_name"],
-            deal_type_map.get(str(d["dealtype"]),  {}).get("description", d["dealtype"]),
-            d["deal_size"],
-            d["expected_pricing_pa"] or "",
-            fec_map.get(str(d["currency"] or 0), {}).get("bg", "TRY"),
-            status_map.get(str(d["status"]),      {}).get("description", d["status"]),
-            sector_map.get(str(d["sector"] or ""),{}).get("description", d["sector"]) or "",
-            d["credit_limit"] or "", d["value_segment"] or "", d["branch"] or "",
-            d["region"] or "", d["portfolio_manager"] or "",
-            d["foreign_trade_volume"] or "", d["memzuc_151_volume"] or "",
-            d["memzuc_152_volume"] or "", d["notes"] or "",
+            d["DealId"], d["CustomerName"], d["ProductCode"], d["Amount"], d["Pricing"],
+            fec_map.get(str(d["FEC"] or 0), {}).get("description", "TRY"),
+            d["Status"], d["ExpectedDate"]
         ]
         for ci, v in enumerate(vals, 1):
             cell = ws.cell(row=ri, column=ci, value=v)
-            cell.border    = border
+            cell.border = border
             cell.alignment = Alignment(vertical="center")
-
-    for ci, h in enumerate(headers, 1):
-        mx = max(
-            [len(h)] + [len(str(ws.cell(r, ci).value or ""))
-                        for r in range(2, ws.max_row + 1)]
-        )
-        ws.column_dimensions[ws.cell(1, ci).column_letter].width = min(mx + 4, 40)
 
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     return send_file(
         buf, as_attachment=True,
-        download_name=f"pipeline_deals_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+        download_name=f"syndications_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
@@ -764,7 +728,7 @@ def lookup_customer(account_number):
         # Check if already tracked in local SQLite
         conn_local = get_db()
         already = conn_local.execute(
-            "SELECT IsStructured FROM BOA.ZZZ.Customer WHERE Customerid = ?", (account_number,)
+            "SELECT IsStructured FROM BOA.CUS.Customer WHERE Customerid = ?", (account_number,)
         ).fetchone()
         conn_local.close()
 
@@ -834,7 +798,7 @@ def add_customer():
 def sync_queue():
     # Available in both TEST (demo) and PROD
     conn_local = get_db()
-    customers = conn_local.execute("SELECT Customerid, CustomerName FROM BOA.ZZZ.Customer WHERE IsStructured = 1").fetchall()
+    customers = conn_local.execute("SELECT Customerid, CustomerName FROM BOA.CUS.Customer WHERE IsStructured = 1").fetchall()
     conn_local.close()
     
     return jsonify({
@@ -1011,8 +975,8 @@ def overview_detail(customer_id):
     sector_map    = get_param_map("Sector",   conn)
     
     # Financial items processing
-    fin_defs = conn.execute("SELECT * FROM BOA.ZZZ.FinancialItemDefinition").fetchall()
-    allotments = conn.execute("SELECT * FROM BOA.ZZZ.AllotmentFinancialItems WHERE AllotmentMainId = ? ORDER BY PeriodId", (customer_id,)).fetchall()
+    fin_defs = conn.execute("SELECT * FROM BOA.LNS.FinancialItemDefinition").fetchall()
+    allotments = conn.execute("SELECT * FROM BOA.LNS.AllotmentFinancialItems WHERE AllotmentMainId = ? ORDER BY PeriodId", (customer_id,)).fetchall()
     conn.close()
 
     total_deal_size = sum((d["deal_size"] or 0) for d in deals)
@@ -1159,7 +1123,7 @@ def _ensure_isactive_columns():
     """Idempotently add IsActive to CustomerDeals and Comment."""
     try:
         conn = get_db()
-        for table in ("CustomerDeals", "Comment"):
+        for table in ("Comment",):
             if not _col_exists(conn, table, "IsActive"):
                 conn.execute(f"ALTER TABLE BOA.ZZZ.{table} ADD IsActive TINYINT NOT NULL DEFAULT 1")
                 conn.commit()
@@ -1198,46 +1162,19 @@ def _run_platform_migrations():
         # 110xxxx — Product
         if not _table_exists(conn, "Product"):
             conn.execute("""
-                CREATE TABLE BOA.ZZZ.Product (
-                    ProductID           INT IDENTITY(1100001,1) PRIMARY KEY,
+                CREATE TABLE BOA.COR.Product (
+                    ProductID           INT IDENTITY(1,1) PRIMARY KEY,
                     ProductCode         NVARCHAR(50)  NOT NULL,
                     ProductName         NVARCHAR(200) NOT NULL,
-                    ProductType         NVARCHAR(100),
-                    IslamicContractType NVARCHAR(100),
-                    PartnerInstitution  NVARCHAR(200),
-                    DefaultCurrencyID   INT,
-                    Description         NVARCHAR(MAX),
-                    IsActive            TINYINT NOT NULL DEFAULT 1,
-                    CreatedAt           DATETIME NOT NULL DEFAULT GETDATE(),
-                    UpdatedAt           DATETIME
+                    IsActive            TINYINT NOT NULL DEFAULT 1
                 )""")
             conn.execute(
-                "INSERT INTO BOA.ZZZ.Product (ProductCode,ProductName,ProductType,Description) "
-                "VALUES ('UNCLASSIFIED','Unclassified','Legacy','Auto-created for pre-product deals')"
+                "INSERT INTO BOA.COR.Product (ProductCode,ProductName) VALUES ('SYNDICATION','Syndication')"
             )
             conn.commit()
-            print("[startup] Created BOA.ZZZ.Product + seeded Unclassified (ID 1100001)")
+            print("[startup] Created BOA.COR.Product + seeded Unclassified (ID 1100001)")
         else:
             print("[startup] Product exists — skipping")
-
-        # 111xxxx — ProductField
-        if not _table_exists(conn, "ProductField"):
-            conn.execute("""
-                CREATE TABLE BOA.ZZZ.ProductField (
-                    FieldID      INT IDENTITY(1110001,1) PRIMARY KEY,
-                    ProductID    INT NOT NULL,
-                    FieldName    NVARCHAR(100) NOT NULL,
-                    FieldType    NVARCHAR(20)  NOT NULL DEFAULT 'text',
-                    DefaultValue NVARCHAR(200),
-                    IsRequired   TINYINT NOT NULL DEFAULT 0,
-                    IsActive     TINYINT NOT NULL DEFAULT 1,
-                    FOREIGN KEY (ProductID) REFERENCES BOA.ZZZ.Product(ProductID)
-                )""")
-            conn.commit()
-            print("[startup] Created BOA.ZZZ.ProductField")
-        else:
-            print("[startup] ProductField exists — skipping")
-
         # 310xxxx — Objective
         if not _table_exists(conn, "Objective"):
             conn.execute("""
@@ -1274,23 +1211,6 @@ def _run_platform_migrations():
             print("[startup] Created BOA.ZZZ.KeyResult")
         else:
             print("[startup] KeyResult exists — skipping")
-
-        # 312xxxx — OKRProductLink
-        if not _table_exists(conn, "OKRProductLink"):
-            conn.execute("""
-                CREATE TABLE BOA.ZZZ.OKRProductLink (
-                    LinkID    INT IDENTITY(3120001,1) PRIMARY KEY,
-                    KRID      INT NOT NULL,
-                    ProductID INT NOT NULL,
-                    IsActive  TINYINT NOT NULL DEFAULT 1,
-                    FOREIGN KEY (KRID)      REFERENCES BOA.ZZZ.KeyResult(KRID),
-                    FOREIGN KEY (ProductID) REFERENCES BOA.ZZZ.Product(ProductID)
-                )""")
-            conn.commit()
-            print("[startup] Created BOA.ZZZ.OKRProductLink")
-        else:
-            print("[startup] OKRProductLink exists — skipping")
-
         # 320xxxx — Project
         if not _table_exists(conn, "Project"):
             conn.execute("""
@@ -1385,19 +1305,76 @@ def _run_platform_migrations():
         else:
             print("[startup] WorkItemAssignee exists — skipping")
 
-        # CustomerDeals.ProductID — add if missing
-        if not _col_exists(conn, "CustomerDeals", "ProductID"):
-            conn.execute(
-                "ALTER TABLE BOA.ZZZ.CustomerDeals ADD ProductID INT NOT NULL DEFAULT 1100001"
-            )
-            conn.execute(
-                "ALTER TABLE BOA.ZZZ.CustomerDeals ADD CONSTRAINT FK_Deal_Product "
-                "FOREIGN KEY (ProductID) REFERENCES BOA.ZZZ.Product(ProductID)"
-            )
+
+
+        # Syndications Tables
+        if not _table_exists(conn, "MainDeals"):
+            conn.execute("""
+                CREATE TABLE BOA.STR.MainDeals (
+                    DealId INT IDENTITY(1,1) PRIMARY KEY,
+                    ProductCode NVARCHAR(50),
+                    CustomerId INT NOT NULL,
+                    FOREIGN KEY (CustomerId) REFERENCES BOA.CUS.Customer(Customerid)
+                )""")
+            # Create STR schema if it doesn't exist
+            try:
+                conn.execute("CREATE SCHEMA STR")
+                conn.commit()
+            except Exception:
+                pass # schema might exist
+                
+            conn.execute("""
+                CREATE TABLE BOA.STR.Syndication (
+                    DealId INT PRIMARY KEY,
+                    Amount FLOAT,
+                    Pricing FLOAT,
+                    FEC INT,
+                    Status NVARCHAR(50),
+                    ExpectedDate DATE,
+                    FOREIGN KEY (DealId) REFERENCES BOA.STR.MainDeals(DealId)
+                )""")
+            conn.execute("""
+                CREATE TABLE BOA.STR.SyndicationBanks (
+                    DealDetailId INT IDENTITY(1,1) PRIMARY KEY,
+                    DealId INT NOT NULL,
+                    BankName NVARCHAR(200),
+                    Amount FLOAT,
+                    OfferPricing FLOAT,
+                    FOREIGN KEY (DealId) REFERENCES BOA.STR.Syndication(DealId)
+                )""")
             conn.commit()
-            print("[startup] Added ProductID to CustomerDeals — legacy deals assigned to Unclassified")
+            print("[startup] Created MainDeals, Syndications, SyndicationDetail tables")
+
+            # Clean up old DealType parameters and add 3 dummy records
+            conn.execute("DELETE FROM BOA.COR.Parameter WHERE ParamType='DealType'")
+            conn.commit()
+            
+            # Seed 3 dummy syndications
+            first_cust_id = conn.execute("SELECT TOP 1 Customerid FROM BOA.CUS.Customer").fetchone()
+            if first_cust_id:
+                cid = first_cust_id["Customerid"]
+                # 1
+                conn.execute("INSERT INTO BOA.STR.MainDeals (ProductCode, CustomerId) VALUES ('SYNDICATION', ?)", (cid,))
+                did1 = conn.execute("SELECT MAX(DealId) AS id FROM BOA.STR.MainDeals").fetchone()["id"]
+                conn.execute("INSERT INTO BOA.STR.Syndication (DealId, Amount, Pricing, FEC, Status, ExpectedDate) VALUES (?, 1000000, 3.5, 2, 'Lead', '2026-12-31')", (did1,))
+                conn.execute("INSERT INTO BOA.STR.SyndicationBanks (DealId, BankName, Amount, OfferPricing) VALUES (?, 'Bank A', 500000, 3.6)", (did1,))
+                
+                # 2
+                conn.execute("INSERT INTO BOA.STR.MainDeals (ProductCode, CustomerId) VALUES ('SYNDICATION', ?)", (cid,))
+                did2 = conn.execute("SELECT MAX(DealId) AS id FROM BOA.STR.MainDeals").fetchone()["id"]
+                conn.execute("INSERT INTO BOA.STR.Syndication (DealId, Amount, Pricing, FEC, Status, ExpectedDate) VALUES (?, 5000000, 4.0, 1, 'Proposal', '2026-10-15')", (did2,))
+                conn.execute("INSERT INTO BOA.STR.SyndicationBanks (DealId, BankName, Amount, OfferPricing) VALUES (?, 'Bank B', 2000000, 4.1)", (did2,))
+                
+                # 3
+                conn.execute("INSERT INTO BOA.STR.MainDeals (ProductCode, CustomerId) VALUES ('SYNDICATION', ?)", (cid,))
+                did3 = conn.execute("SELECT MAX(DealId) AS id FROM BOA.STR.MainDeals").fetchone()["id"]
+                conn.execute("INSERT INTO BOA.STR.Syndication (DealId, Amount, Pricing, FEC, Status, ExpectedDate) VALUES (?, 250000, 2.5, 3, 'Won', '2026-08-01')", (did3,))
+                conn.execute("INSERT INTO BOA.STR.SyndicationBanks (DealId, BankName, Amount, OfferPricing) VALUES (?, 'Bank C', 250000, 2.5)", (did3,))
+                
+                conn.commit()
+                print("[startup] Seeded 3 dummy Syndications")
         else:
-            print("[startup] CustomerDeals.ProductID exists — skipping")
+            print("[startup] MainDeals exists — skipping")
 
     except Exception as e:
         print(f"[startup] Platform migration error (non-fatal): {e}")
@@ -1416,39 +1393,11 @@ def products_list():
     conn = get_db()
     products = conn.execute(
         "SELECT p.*, "
-        "  (SELECT COUNT(*) FROM BOA.ZZZ.CustomerDeals d WHERE d.ProductID=p.ProductID AND d.IsActive=1) AS deal_count "
-        "FROM BOA.ZZZ.Product p WHERE p.IsActive=1 ORDER BY p.ProductName"
+        "  (SELECT COUNT(*) FROM BOA.STR.MainDeals d WHERE d.ProductCode=p.ProductCode) AS deal_count "
+        "FROM BOA.COR.Product p WHERE p.IsActive=1 ORDER BY p.ProductName"
     ).fetchall()
     conn.close()
     return render_template("products.html", products=products)
-
-
-@app.route("/products/<int:product_id>")
-def product_detail(product_id):
-    conn = get_db()
-    product = conn.execute("SELECT * FROM BOA.ZZZ.Product WHERE ProductID=? AND IsActive=1", (product_id,)).fetchone()
-    if not product:
-        conn.close()
-        return "Product not found", 404
-    fields   = conn.execute("SELECT * FROM BOA.ZZZ.ProductField WHERE ProductID=? AND IsActive=1 ORDER BY FieldID", (product_id,)).fetchall()
-    linked_krs = conn.execute(
-        "SELECT kr.KRID, kr.Title AS KRTitle, o.Title AS ObjTitle "
-        "FROM BOA.ZZZ.OKRProductLink lnk "
-        "JOIN BOA.ZZZ.KeyResult kr ON lnk.KRID=kr.KRID "
-        "JOIN BOA.ZZZ.Objective o ON kr.ObjectiveID=o.ObjectiveID "
-        "WHERE lnk.ProductID=? AND lnk.IsActive=1", (product_id,)
-    ).fetchall()
-    deals = conn.execute(
-        "SELECT d.id, c.CustomerName, d.deal_size, d.currency, d.status "
-        "FROM BOA.ZZZ.CustomerDeals d JOIN BOA.ZZZ.Customer c ON d.customerid=c.Customerid "
-        "WHERE d.ProductID=? AND d.IsActive=1 ORDER BY d.id DESC", (product_id,)
-    ).fetchall()
-    all_krs = conn.execute(
-        "SELECT kr.KRID, kr.Title, o.Title AS ObjTitle FROM BOA.ZZZ.KeyResult kr "
-        "JOIN BOA.ZZZ.Objective o ON kr.ObjectiveID=o.ObjectiveID WHERE kr.IsActive=1 ORDER BY o.Title, kr.Title"
-    ).fetchall()
-    conn.close()
-    return render_template("product_detail.html", product=product, fields=fields, linked_krs=linked_krs, deals=deals, all_krs=all_krs)
 
 
 @app.route("/api/products", methods=["POST"])
@@ -1456,11 +1405,11 @@ def api_product_create():
     data = request.get_json(silent=True) or {}
     conn = get_db()
     conn.execute(
-        "INSERT INTO BOA.ZZZ.Product (ProductCode,ProductName,ProductType,IslamicContractType,PartnerInstitution,Description) VALUES (?,?,?,?,?,?)",
-        (data.get("code",""), data.get("name",""), data.get("type",""), data.get("islamic_contract",""), data.get("partner",""), data.get("description",""))
+        "INSERT INTO BOA.COR.Product (ProductCode,ProductName) VALUES (?,?)",
+        (data.get("code",""), data.get("name",""))
     )
     conn.commit()
-    pid = conn.execute("SELECT MAX(ProductID) AS id FROM BOA.ZZZ.Product").fetchone()["id"]
+    pid = conn.execute("SELECT MAX(ProductID) AS id FROM BOA.COR.Product").fetchone()["id"]
     conn.close()
     return jsonify({"ok": True, "product_id": pid})
 
@@ -1470,8 +1419,8 @@ def api_product_update(pid):
     data = request.get_json(silent=True) or {}
     conn = get_db()
     conn.execute(
-        "UPDATE BOA.ZZZ.Product SET ProductName=?,ProductType=?,IslamicContractType=?,PartnerInstitution=?,Description=?,UpdatedAt=GETDATE() WHERE ProductID=?",
-        (data.get("name"), data.get("type"), data.get("islamic_contract"), data.get("partner"), data.get("description"), pid)
+        "UPDATE BOA.COR.Product SET ProductName=? WHERE ProductID=?",
+        (data.get("name"), pid)
     )
     conn.commit(); conn.close()
     return jsonify({"ok": True})
@@ -1480,59 +1429,193 @@ def api_product_update(pid):
 @app.route("/api/products/<int:pid>", methods=["DELETE"])
 def api_product_delete(pid):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.Product SET IsActive=0 WHERE ProductID=?", (pid,))
+    conn.execute("UPDATE BOA.COR.Product SET IsActive=0 WHERE ProductID=?", (pid,))
     conn.commit(); conn.close()
     return jsonify({"ok": True})
 
 
-@app.route("/api/products/<int:pid>/fields", methods=["POST"])
-def api_product_field_create(pid):
+# ── Product Detail & Documents ────────────────────────────────────────────────────────
+
+@app.route("/products/<int:pid>")
+def product_detail(pid):
+    conn = get_db()
+    product = conn.execute(
+        "SELECT * FROM BOA.COR.Product WHERE ProductID=? AND IsActive=1", (pid,)
+    ).fetchone()
+    if not product:
+        conn.close()
+        return redirect(url_for("products_list"))
+    documents = conn.execute(
+        "SELECT pd.*, cu.Username AS UploaderName "
+        "FROM BOA.COR.ProductDocument pd "
+        "LEFT JOIN BOA.COR.[User] cu ON pd.UploadedBy = cu.Username "
+        "WHERE pd.ProductID=? AND pd.IsActive=1 "
+        "ORDER BY pd.UploadedAt DESC",
+        (pid,)
+    ).fetchall()
+    doc_type_map = get_param_map("PRODDOC", conn)
+    conn.close()
+    return render_template(
+        "product_detail.html",
+        product=product,
+        documents=documents,
+        doc_type_map=doc_type_map
+    )
+
+
+@app.route("/products/<int:pid>/documents", methods=["POST"])
+def product_doc_upload(pid):
+    conn = get_db()
+    product = conn.execute(
+        "SELECT ProductID FROM BOA.COR.Product WHERE ProductID=? AND IsActive=1", (pid,)
+    ).fetchone()
+    if not product:
+        conn.close()
+        return jsonify({"ok": False, "error": "Product not found"}), 404
+
+    doc_name  = request.form.get("doc_name", "").strip()
+    doc_type  = request.form.get("doc_type", "").strip()
+    file      = request.files.get("file")
+
+    if not doc_name or not doc_type or not file or file.filename == "":
+        conn.close()
+        return jsonify({"ok": False, "error": "Missing required fields"}), 400
+
+    original_filename = secure_filename(file.filename)
+    file_ext = os.path.splitext(original_filename)[1].lower()
+    # Build a unique storage filename: pid_timestamp_original
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    stored_filename = f"{pid}_{timestamp}_{original_filename}"
+    save_path = os.path.join(PRODUCT_DOCS_FOLDER, stored_filename)
+    file.save(save_path)
+
+    uploader = session.get("username", "system")
+    conn.execute(
+        "INSERT INTO BOA.COR.ProductDocument "
+        "(ProductID, DocName, DocTypeCode, FileName, FileExt, UploadedBy) "
+        "VALUES (?,?,?,?,?,?)",
+        (pid, doc_name, int(doc_type), stored_filename, file_ext.lstrip("."), uploader)
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("product_detail", pid=pid))
+
+
+@app.route("/api/products/<int:pid>/documents/<int:doc_id>", methods=["PATCH"])
+def api_product_doc_edit(pid, doc_id):
     data = request.get_json(silent=True) or {}
+    doc_name = data.get("doc_name", "").strip()
+    doc_type = data.get("doc_type")
+    if not doc_name or not doc_type:
+        return jsonify({"ok": False, "error": "Missing fields"}), 400
     conn = get_db()
     conn.execute(
-        "INSERT INTO BOA.ZZZ.ProductField (ProductID,FieldName,FieldType,DefaultValue,IsRequired) VALUES (?,?,?,?,?)",
-        (pid, data.get("name",""), data.get("field_type","text"), data.get("default",""), 1 if data.get("required") else 0)
+        "UPDATE BOA.COR.ProductDocument SET DocName=?, DocTypeCode=? "
+        "WHERE DocID=? AND ProductID=? AND IsActive=1",
+        (doc_name, int(doc_type), doc_id, pid)
     )
-    conn.commit(); conn.close()
-    return jsonify({"ok": True})
-
-
-@app.route("/api/products/fields/<int:fid>", methods=["DELETE"])
-def api_product_field_delete(fid):
-    conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.ProductField SET IsActive=0 WHERE FieldID=?", (fid,))
-    conn.commit(); conn.close()
-    return jsonify({"ok": True})
-
-
-@app.route("/api/products/<int:pid>/link-kr", methods=["POST"])
-def api_product_link_kr(pid):
-    data = request.get_json(silent=True) or {}
-    conn = get_db()
-    if not conn.execute("SELECT LinkID FROM BOA.ZZZ.OKRProductLink WHERE KRID=? AND ProductID=? AND IsActive=1", (data.get("kr_id"), pid)).fetchone():
-        conn.execute("INSERT INTO BOA.ZZZ.OKRProductLink (KRID,ProductID) VALUES (?,?)", (data.get("kr_id"), pid))
-        conn.commit()
+    conn.commit()
     conn.close()
     return jsonify({"ok": True})
 
 
-@app.route("/api/products/<int:pid>/unlink-kr/<int:krid>", methods=["DELETE"])
-def api_product_unlink_kr(pid, krid):
+@app.route("/api/products/<int:pid>/documents/<int:doc_id>", methods=["DELETE"])
+def api_product_doc_delete(pid, doc_id):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.OKRProductLink SET IsActive=0 WHERE ProductID=? AND KRID=?", (pid, krid))
-    conn.commit(); conn.close()
+    row = conn.execute(
+        "SELECT FileName FROM BOA.COR.ProductDocument WHERE DocID=? AND ProductID=? AND IsActive=1",
+        (doc_id, pid)
+    ).fetchone()
+    if row:
+        conn.execute(
+            "UPDATE BOA.COR.ProductDocument SET IsActive=0 WHERE DocID=?", (doc_id,)
+        )
+        conn.commit()
+        file_path = os.path.join(PRODUCT_DOCS_FOLDER, row["FileName"])
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    conn.close()
     return jsonify({"ok": True})
 
 
-# ── OKRs ─────────────────────────────────────────────────────────────────────────────
+@app.route("/products/<int:pid>/documents/<int:doc_id>/open")
+def product_doc_open(pid, doc_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT FileName, DocName, FileExt FROM BOA.COR.ProductDocument "
+        "WHERE DocID=? AND ProductID=? AND IsActive=1",
+        (doc_id, pid)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return "File not found", 404
+    file_path = os.path.join(PRODUCT_DOCS_FOLDER, row["FileName"])
+    if not os.path.exists(file_path):
+        return "File not found on disk", 404
+    download_name = f"{row['DocName']}.{row['FileExt']}"
+    return send_file(file_path, as_attachment=False, download_name=download_name)
+
+
+def _recalc_all_krs(conn):
+    """Auto-recalculate AchievedValue for all active auto-measurement KRs."""
+    krs = conn.execute(
+        "SELECT * FROM BOA.ZZZ.KeyResult WHERE IsActive=1 AND MeasurementType IN ('product','project')"
+    ).fetchall()
+    for kr in krs:
+        new_val = None
+        try:
+            if kr["MeasurementType"] == "product" and kr["LinkedProductCode"] and kr["LinkedStatusCodes"]:
+                import json
+                status_codes = json.loads(kr["LinkedStatusCodes"])
+                if status_codes:
+                    placeholders = ",".join(["?" for _ in status_codes])
+                    params = [kr["LinkedProductCode"]] + status_codes
+                    row = conn.execute(
+                        f"SELECT COALESCE(SUM(s.Amount),0) AS total "
+                        f"FROM BOA.STR.MainDeals m "
+                        f"JOIN BOA.STR.Syndication s ON m.DealId = s.DealId "
+                        f"WHERE m.ProductCode=? AND s.Status IN ({placeholders})",
+                        params
+                    ).fetchone()
+                    new_val = float(row["total"]) if row else 0.0
+
+            elif kr["MeasurementType"] == "project" and kr["LinkedProjectID"]:
+                # Project % done = closed work items / total work items * TargetValue
+                total_row = conn.execute(
+                    "SELECT COUNT(*) AS cnt FROM BOA.ZZZ.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1",
+                    (kr["LinkedProjectID"],)
+                ).fetchone()
+                done_row = conn.execute(
+                    "SELECT COUNT(*) AS cnt FROM BOA.ZZZ.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1 AND Status='done'",
+                    (kr["LinkedProjectID"],)
+                ).fetchone()
+                total_cnt = total_row["cnt"] if total_row else 0
+                done_cnt  = done_row["cnt"]  if done_row  else 0
+                pct = (done_cnt / total_cnt * 100.0) if total_cnt > 0 else 0.0
+                new_val = round(pct * float(kr["TargetValue"]) / 100.0, 2)
+
+            if new_val is not None:
+                conn.execute(
+                    "UPDATE BOA.ZZZ.KeyResult SET AchievedValue=? WHERE KRID=?",
+                    (new_val, kr["KRID"])
+                )
+        except Exception as e:
+            print(f"[recalc] KR {kr['KRID']} error: {e}")
+    conn.commit()
+
 
 @app.route("/okrs")
 def okrs_list():
     conn = get_db()
+    _recalc_all_krs(conn)
     objectives = conn.execute("SELECT * FROM BOA.ZZZ.Objective WHERE IsActive=1 ORDER BY Period DESC, ObjectiveID").fetchall()
     krs        = conn.execute("SELECT * FROM BOA.ZZZ.KeyResult WHERE IsActive=1 ORDER BY ObjectiveID, KRID").fetchall()
+    products   = conn.execute("SELECT * FROM BOA.COR.Product WHERE IsActive=1").fetchall()
+    projects   = conn.execute("SELECT ProjectID, ProjectName FROM BOA.ZZZ.Project WHERE IsActive=1 ORDER BY ProjectName").fetchall()
+    status_map = get_param_map("Status", conn)
     conn.close()
-    return render_template("okrs.html", objectives=objectives, krs=krs)
+    return render_template("okrs.html", objectives=objectives, krs=krs,
+                           products=products, projects=projects, status_map=status_map)
 
 
 @app.route("/api/okrs/objectives", methods=["POST"])
@@ -1555,12 +1638,68 @@ def api_objective_delete(oid):
 
 @app.route("/api/okrs/krs", methods=["POST"])
 def api_kr_create():
+    import json as _json
     data = request.get_json(silent=True) or {}
+    mtype           = data.get("measurement_type", "manual")
+    linked_product  = data.get("linked_product_code") or None
+    linked_statuses = _json.dumps(data.get("linked_status_codes", [])) if data.get("linked_status_codes") else None
+    linked_project  = data.get("linked_project_id") or None
     conn = get_db()
-    conn.execute("INSERT INTO BOA.ZZZ.KeyResult (ObjectiveID,Title,TargetValue,Unit,CalcMethod) VALUES (?,?,?,?,?)",
-                 (data.get("objective_id"), data.get("title",""), float(data.get("target",0)), data.get("unit","deals"), data.get("calc_method","count")))
+    conn.execute(
+        "INSERT INTO BOA.ZZZ.KeyResult "
+        "(ObjectiveID,Title,TargetValue,Unit,CalcMethod,MeasurementType,LinkedProductCode,LinkedStatusCodes,LinkedProjectID) "
+        "VALUES (?,?,?,?,?,?,?,?,?)",
+        (data.get("objective_id"), data.get("title",""), float(data.get("target",0)),
+         data.get("unit",""), data.get("calc_method","manual"),
+         mtype, linked_product, linked_statuses, linked_project)
+    )
     conn.commit(); conn.close()
     return jsonify({"ok": True})
+
+
+@app.route("/api/okrs/krs/<int:krid>", methods=["PATCH"])
+def api_kr_update(krid):
+    import json as _json
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    kr = conn.execute("SELECT * FROM BOA.ZZZ.KeyResult WHERE KRID=?", (krid,)).fetchone()
+    if not kr:
+        conn.close()
+        return jsonify({"ok": False, "error": "KR not found"}), 404
+
+    mtype = data.get("measurement_type", kr["MeasurementType"] or "manual")
+
+    # For manual type, also accept direct achieved/pipeline values
+    achieved  = float(data.get("achieved",  kr["AchievedValue"]  or 0))
+    pipeline  = float(data.get("pipeline",  kr["PipelineValue"]  or 0))
+
+    linked_product  = data.get("linked_product_code") or None
+    linked_statuses = _json.dumps(data.get("linked_status_codes", [])) if data.get("linked_status_codes") else None
+    linked_project  = data.get("linked_project_id") or None
+
+    conn.execute(
+        "UPDATE BOA.ZZZ.KeyResult SET "
+        "Title=?, TargetValue=?, Unit=?, CalcMethod=?, "
+        "MeasurementType=?, LinkedProductCode=?, LinkedStatusCodes=?, LinkedProjectID=?, "
+        "AchievedValue=?, PipelineValue=? "
+        "WHERE KRID=?",
+        (
+            data.get("title", kr["Title"]),
+            float(data.get("target", kr["TargetValue"] or 0)),
+            data.get("unit", kr["Unit"] or ""),
+            data.get("calc_method", kr["CalcMethod"] or "manual"),
+            mtype, linked_product, linked_statuses, linked_project,
+            achieved, pipeline,
+            krid
+        )
+    )
+    conn.commit()
+    # If now auto, recalc immediately
+    if mtype in ("product", "project"):
+        _recalc_all_krs(conn)
+    conn.close()
+    return jsonify({"ok": True})
+
 
 
 @app.route("/api/okrs/krs/<int:krid>", methods=["DELETE"])
@@ -1571,54 +1710,12 @@ def api_kr_delete(krid):
     return jsonify({"ok": True})
 
 
-@app.route("/api/okrs/krs/<int:krid>/deals")
-def api_kr_deals(krid):
+@app.route("/api/okrs/recalculate", methods=["POST"])
+def api_okrs_recalculate():
     conn = get_db()
-    deals = conn.execute("""
-        SELECT d.id, c.CustomerName, d.contact_name, d.deal_size, d.status
-        FROM BOA.ZZZ.CustomerDeals d
-        JOIN BOA.ZZZ.Customer c ON d.customerid = c.Customerid
-        WHERE d.IsActive = 1
-        AND d.ProductID IN (
-            SELECT ProductID FROM BOA.ZZZ.OKRProductLink WHERE KRID = ? AND IsActive = 1
-        )
-        AND d.status IN ('2', '3', '4')
-        ORDER BY d.deal_size DESC
-    """, (krid,)).fetchall()
-    
-    status_map = get_param_map("Status", conn)
+    _recalc_all_krs(conn)
     conn.close()
-    
-    results = []
-    for d in deals:
-        results.append({
-            "id": d["id"],
-            "company": d["CustomerName"],
-            "contact": d["contact_name"],
-            "size": d["deal_size"],
-            "status": str(d["status"]),
-            "status_label": status_map.get(str(d["status"]), {}).get("description", str(d["status"]))
-        })
-    return jsonify({"deals": results})
-
-
-def _recalc_kr(conn, product_id):
-    links = conn.execute(
-        "SELECT lnk.KRID, kr.CalcMethod FROM BOA.ZZZ.OKRProductLink lnk "
-        "JOIN BOA.ZZZ.KeyResult kr ON lnk.KRID=kr.KRID "
-        "WHERE lnk.ProductID=? AND lnk.IsActive=1 AND kr.IsActive=1", (product_id,)
-    ).fetchall()
-    for link in links:
-        krid, calc = link["KRID"], link["CalcMethod"]
-        if calc == "count":
-            achieved = conn.execute("SELECT COUNT(*) AS v FROM BOA.ZZZ.CustomerDeals WHERE ProductID=? AND IsActive=1 AND status=4", (product_id,)).fetchone()["v"]
-            pipeline = conn.execute("SELECT COUNT(*) AS v FROM BOA.ZZZ.CustomerDeals WHERE ProductID=? AND IsActive=1 AND status IN (2,3)", (product_id,)).fetchone()["v"]
-        elif calc == "sum_size":
-            achieved = conn.execute("SELECT ISNULL(SUM(deal_size),0) AS v FROM BOA.ZZZ.CustomerDeals WHERE ProductID=? AND IsActive=1 AND status=4", (product_id,)).fetchone()["v"]
-            pipeline = conn.execute("SELECT ISNULL(SUM(deal_size),0) AS v FROM BOA.ZZZ.CustomerDeals WHERE ProductID=? AND IsActive=1 AND status IN (2,3)", (product_id,)).fetchone()["v"]
-        else:
-            continue
-        conn.execute("UPDATE BOA.ZZZ.KeyResult SET AchievedValue=?,PipelineValue=? WHERE KRID=?", (achieved, pipeline, krid))
+    return jsonify({"ok": True})
 
 
 # ── Projects ─────────────────────────────────────────────────────────────────────────
@@ -1649,10 +1746,11 @@ def project_detail(project_id):
     if not project:
         conn.close()
         return "Project not found", 404
-    items, prereq_map, subitems_map = _load_backlog(conn, "project", project_id)
+    items, prereq_map, subitems_map, assignees_map = _load_backlog(conn, "project", project_id)
     stakeholders = conn.execute("SELECT StakeholderID, FullName, Organization FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
+    users = conn.execute("SELECT id, username, surname FROM BOA.COR.[User] ORDER BY username").fetchall()
     conn.close()
-    return render_template("project_detail.html", project=project, items=items, prereq_map=prereq_map, subitems_map=subitems_map, stakeholders=stakeholders)
+    return render_template("project_detail.html", project=project, items=items, prereq_map=prereq_map, subitems_map=subitems_map, assignees_map=assignees_map, stakeholders=stakeholders, users=users)
 
 
 @app.route("/api/projects", methods=["POST"])
@@ -1698,14 +1796,22 @@ def _load_backlog(conn, parent_type, parent_id):
         (parent_type, parent_id)
     ).fetchall()
     item_ids = [i["ItemID"] for i in items]
-    prereq_map, subitems_map = {}, {}
+    prereq_map, subitems_map, assignees_map = {}, {}, {}
     if item_ids:
         ph = ",".join("?" * len(item_ids))
         for p in conn.execute(f"SELECT ItemID,RequiresItemID FROM BOA.ZZZ.WorkItemPrerequisite WHERE ItemID IN ({ph}) AND IsActive=1", item_ids).fetchall():
             prereq_map.setdefault(p["ItemID"], []).append(p["RequiresItemID"])
         for s in conn.execute(f"SELECT * FROM BOA.ZZZ.WorkSubItem WHERE ParentItemID IN ({ph}) AND IsActive=1 ORDER BY SortOrder,SubItemID", item_ids).fetchall():
             subitems_map.setdefault(s["ParentItemID"], []).append(dict(s))
-    return items, prereq_map, subitems_map
+        for a in conn.execute(
+            f"SELECT wa.ItemID, COALESCE(s.FullName, u.username + ' ' + ISNULL(u.surname, '')) AS AssigneeName "
+            f"FROM BOA.ZZZ.WorkItemAssignee wa "
+            f"LEFT JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
+            f"LEFT JOIN BOA.COR.[User] u ON wa.UserID = u.id "
+            f"WHERE wa.ItemID IN ({ph}) AND wa.IsActive=1", item_ids
+        ).fetchall():
+            assignees_map.setdefault(a["ItemID"], []).append(a["AssigneeName"])
+    return items, prereq_map, subitems_map, assignees_map
 
 
 @app.route("/api/workitems", methods=["POST"])
@@ -1718,6 +1824,14 @@ def api_workitem_create():
     )
     conn.commit()
     iid = conn.execute("SELECT MAX(ItemID) AS id FROM BOA.ZZZ.WorkItem").fetchone()["id"]
+    assignees = data.get("assignees", [])
+    if assignees:
+        for a in assignees:
+            if a.startswith("U-"):
+                conn.execute("INSERT INTO BOA.ZZZ.WorkItemAssignee (ItemID, UserID) VALUES (?, ?)", (iid, int(a[2:])))
+            elif a.startswith("S-"):
+                conn.execute("INSERT INTO BOA.ZZZ.WorkItemAssignee (ItemID, StakeholderID) VALUES (?, ?)", (iid, int(a[2:])))
+        conn.commit()
     conn.close()
     return jsonify({"ok": True, "item_id": iid})
 
@@ -1806,18 +1920,18 @@ def global_backlog():
         "SELECT w.*, "
         "  CASE w.ParentType "
         "    WHEN 'project' THEN (SELECT ProjectName FROM BOA.ZZZ.Project WHERE ProjectID=w.ParentID) "
-        "    WHEN 'deal' THEN (SELECT TOP 1 c.CustomerName + ' Deal #'+CAST(d.id AS NVARCHAR) "
-        "                     FROM BOA.ZZZ.CustomerDeals d JOIN BOA.ZZZ.Customer c ON d.customerid=c.Customerid "
-        "                     WHERE d.id=w.ParentID) "
+        "    WHEN 'deal' THEN (SELECT TOP 1 c.CustomerName + ' Deal #'+CAST(d.DealId AS NVARCHAR) "
+        "                     FROM BOA.STR.MainDeals d JOIN BOA.CUS.Customer c ON d.CustomerId=c.Customerid "
+        "                     WHERE d.DealId=w.ParentID) "
         "  END AS ParentName, "
-        "  (SELECT STRING_AGG(CAST(s.StakeholderID AS NVARCHAR), ',') "
+        "  (SELECT STRING_AGG(COALESCE('S-'+CAST(wa.StakeholderID AS NVARCHAR), 'U-'+CAST(wa.UserID AS NVARCHAR)), ',') "
         "   FROM BOA.ZZZ.WorkItemAssignee wa "
-        "   JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
-        "   WHERE wa.ItemID = w.ItemID) AS AssigneeIDs, "
-        "  (SELECT STRING_AGG(s.FullName, ', ') "
+        "   WHERE wa.ItemID = w.ItemID AND wa.IsActive=1) AS AssigneeIDs, "
+        "  (SELECT STRING_AGG(COALESCE(s.FullName, u.username + ' ' + ISNULL(u.surname, '')), ', ') "
         "   FROM BOA.ZZZ.WorkItemAssignee wa "
-        "   JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
-        "   WHERE wa.ItemID = w.ItemID) AS Assignees "
+        "   LEFT JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
+        "   LEFT JOIN BOA.COR.[User] u ON wa.UserID = u.id "
+        "   WHERE wa.ItemID = w.ItemID AND wa.IsActive=1) AS Assignees "
         "FROM BOA.ZZZ.WorkItem w WHERE w.IsActive=1 AND w.Status != 'done' "
         "ORDER BY w.Deadline ASC, w.SortOrder ASC, w.ItemID ASC"
     ).fetchall()
