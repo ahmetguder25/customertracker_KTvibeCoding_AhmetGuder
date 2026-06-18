@@ -8,6 +8,10 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    Response, stream_with_context)
 from werkzeug.utils import secure_filename
 import io
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # ── App Setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
@@ -22,6 +26,9 @@ MAX_LOGO_SIZE      = 2 * 1024 * 1024  # 2 MB
 
 PRODUCT_DOCS_FOLDER = os.path.join(BASE_DIR, "static", "product_docs")
 os.makedirs(PRODUCT_DOCS_FOLDER, exist_ok=True)
+
+CUSTOMER_DOCS_FOLDER = os.path.join(BASE_DIR, "static", "customer_docs")
+os.makedirs(CUSTOMER_DOCS_FOLDER, exist_ok=True)
 
 
 # ── SQL Query Loader ───────────────────────────────────────────────────────────
@@ -993,6 +1000,18 @@ def overview_detail(customer_id):
     # Financial items processing
     fin_defs = conn.execute("SELECT * FROM BOA.LNS.FinancialItemDefinition").fetchall()
     allotments = conn.execute("SELECT * FROM BOA.LNS.AllotmentFinancialItems WHERE AllotmentMainId = ? ORDER BY PeriodId", (customer_id,)).fetchall()
+    
+    # Customer Documents
+    documents = conn.execute(
+        "SELECT cd.*, cu.Username AS UploaderName "
+        "FROM BOA.COR.CustomerDocument cd "
+        "LEFT JOIN BOA.COR.[User] cu ON cd.UploadedBy = cu.Username "
+        "WHERE cd.CustomerID=? AND cd.IsActive=1 "
+        "ORDER BY cd.UploadedAt DESC",
+        (customer_id,)
+    ).fetchall()
+    doc_type_map = get_param_map("CUSTDOC", conn)
+    
     conn.close()
 
     total_deal_size = sum((d["deal_size"] or 0) for d in deals)
@@ -1089,12 +1108,108 @@ def overview_detail(customer_id):
         fin_nodes       = ordered_fin_nodes,
         periods         = periods,
         chart_periods   = chart_periods,
-        chart_asset_data= asset_data
+        chart_asset_data= asset_data,
+        documents       = documents,
+        doc_type_map    = doc_type_map
     )
 
 
 
 
+
+
+# ── Customer Documents ─────────────────────────────────────────────────────────
+
+@app.route("/overview/<int:cid>/documents", methods=["POST"])
+def customer_doc_upload(cid):
+    conn = get_db()
+    customer = conn.execute(
+        "SELECT Customerid FROM BOA.CUS.Customer WHERE Customerid=?", (cid,)
+    ).fetchone()
+    if not customer:
+        conn.close()
+        return jsonify({"ok": False, "error": "Customer not found"}), 404
+
+    doc_name  = request.form.get("doc_name", "").strip()
+    doc_type  = request.form.get("doc_type", "").strip()
+    file      = request.files.get("file")
+
+    if not doc_name or not doc_type or not file or file.filename == "":
+        conn.close()
+        return jsonify({"ok": False, "error": "Missing required fields"}), 400
+
+    original_filename = secure_filename(file.filename)
+    file_ext = os.path.splitext(original_filename)[1].lower()
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    stored_filename = f"{cid}_{timestamp}_{original_filename}"
+    save_path = os.path.join(CUSTOMER_DOCS_FOLDER, stored_filename)
+    file.save(save_path)
+
+    uploader = session.get("username", "system")
+    conn.execute(
+        "INSERT INTO BOA.COR.CustomerDocument "
+        "(CustomerID, DocName, DocTypeCode, FileName, FileExt, UploadedBy) "
+        "VALUES (?,?,?,?,?,?)",
+        (cid, doc_name, int(doc_type), stored_filename, file_ext.lstrip("."), uploader)
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("overview_detail", customer_id=cid))
+
+
+@app.route("/api/customers/<int:cid>/documents/<int:doc_id>", methods=["PATCH"])
+def api_customer_doc_edit(cid, doc_id):
+    data = request.get_json(silent=True) or {}
+    doc_name = data.get("doc_name", "").strip()
+    doc_type = data.get("doc_type")
+    if not doc_name or not doc_type:
+        return jsonify({"ok": False, "error": "Missing fields"}), 400
+    conn = get_db()
+    conn.execute(
+        "UPDATE BOA.COR.CustomerDocument SET DocName=?, DocTypeCode=? "
+        "WHERE DocID=? AND CustomerID=? AND IsActive=1",
+        (doc_name, int(doc_type), doc_id, cid)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/customers/<int:cid>/documents/<int:doc_id>", methods=["DELETE"])
+def api_customer_doc_delete(cid, doc_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT FileName FROM BOA.COR.CustomerDocument WHERE DocID=? AND CustomerID=? AND IsActive=1",
+        (doc_id, cid)
+    ).fetchone()
+    if row:
+        conn.execute(
+            "UPDATE BOA.COR.CustomerDocument SET IsActive=0 WHERE DocID=?", (doc_id,)
+        )
+        conn.commit()
+        file_path = os.path.join(CUSTOMER_DOCS_FOLDER, row["FileName"])
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/overview/<int:cid>/documents/<int:doc_id>/open")
+def customer_doc_open(cid, doc_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT FileName, DocName, FileExt FROM BOA.COR.CustomerDocument "
+        "WHERE DocID=? AND CustomerID=? AND IsActive=1",
+        (doc_id, cid)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return "File not found", 404
+    file_path = os.path.join(CUSTOMER_DOCS_FOLDER, row["FileName"])
+    if not os.path.exists(file_path):
+        return "File not found on disk", 404
+    download_name = f"{row['DocName']}.{row['FileExt']}"
+    return send_file(file_path, as_attachment=False, download_name=download_name)
 
 
 # ── Comments ───────────────────────────────────────────────────────────────────
@@ -2122,7 +2237,7 @@ def global_backlog():
 
 
 try:
-    from rag import search_document_hybrid as _rag_search
+    from ai_apps.rag import search_document_hybrid as _rag_search
     _RAG_AVAILABLE = True
 except ImportError:
     _RAG_AVAILABLE = False
@@ -2223,6 +2338,60 @@ def ask_document():
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+def _ensure_customer_doc_schema():
+    """Create BOA.COR.CustomerDocument and CUSTDOC parameters if not exist."""
+    conn = get_db()
+    
+    # 1. Create Table
+    try:
+        conn.execute("SELECT 1 FROM BOA.COR.CustomerDocument").fetchone()
+    except Exception:
+        print("[startup] Creating BOA.COR.CustomerDocument table...")
+        conn.execute('''
+            CREATE TABLE BOA.COR.CustomerDocument (
+                DocID        INT IDENTITY(1,1) PRIMARY KEY,
+                CustomerID   INT NOT NULL,
+                DocName      NVARCHAR(255) NOT NULL,
+                DocTypeCode  INT NOT NULL,
+                FileName     NVARCHAR(500) NOT NULL,
+                FileExt      NVARCHAR(20)  NOT NULL,
+                UploadedBy   NVARCHAR(100),
+                UploadedAt   DATETIME DEFAULT CURRENT_TIMESTAMP,
+                IsActive     BIT DEFAULT 1
+            )
+        ''')
+        conn.commit()
+
+    # 2. Insert default CUSTDOC parameters
+    params_count = conn.execute("SELECT COUNT(*) as c FROM BOA.COR.Parameter WHERE ParamType='CUSTDOC'").fetchone()["c"]
+    if params_count == 0:
+        print("[startup] Inserting default CUSTDOC parameters...")
+        default_params = [
+            ("1", "Annual Report", "Yıllık Rapor"),
+            ("2", "Financial Statement", "Mali Tablo"),
+            ("3", "Audit Report", "Denetim Raporu"),
+            ("4", "Board Resolution", "Yönetim Kurulu Kararı"),
+            ("5", "Rating Report", "Derecelendirme Raporu"),
+            ("6", "Company Presentation", "Şirket Sunumu"),
+            ("7", "Other", "Diğer")
+        ]
+        for p in default_params:
+            # EN
+            conn.execute(
+                "INSERT INTO BOA.COR.Parameter (ParamType, ParamCode, LanguageId, ParamDescription) VALUES ('CUSTDOC', ?, 2, ?)",
+                (p[0], p[1])
+            )
+            # TR
+            conn.execute(
+                "INSERT INTO BOA.COR.Parameter (ParamType, ParamCode, LanguageId, ParamDescription) VALUES ('CUSTDOC', ?, 1, ?)",
+                (p[0], p[2])
+            )
+        conn.commit()
+    conn.close()
+
+
 
 
 def _ensure_wit_schema():
@@ -2460,9 +2629,125 @@ def _ensure_wit_schema():
         print(f"[startup] WIT schema migration warning (non-fatal): {e}")
         import traceback; traceback.print_exc()
 
+# ── GRAPHRAG ASYNC ENDPOINTS ──────────────────────────────────────────────────
+
+@app.route("/api/chunk", methods=["POST"])
+def api_chunk_document():
+    import tasks
+    import rag_db
+    data = request.get_json() or {}
+    doc_id = str(data.get("document_id", ""))
+    
+    if not doc_id:
+        return jsonify({"error": "Missing document_id"}), 400
+        
+    # Look up filename
+    conn = get_db()
+    row = conn.execute("SELECT FileName FROM BOA.COR.CustomerDocument WHERE DocID=?", (doc_id,)).fetchone()
+    conn.close()
+    
+    if not row:
+        return jsonify({"error": "Document not found"}), 404
+        
+    filepath = os.path.join(CUSTOMER_DOCS_FOLDER, row["FileName"])
+    
+    # Initialize state
+    rag_db.upsert_task(doc_id, "Chunking", "Pending", "Added to queue...")
+    
+    # Dispatch
+    tasks.process_chunking_task(doc_id, filepath)
+    
+    return jsonify({"message": "Chunking task dispatched", "document_id": doc_id}), 202
+
+@app.route("/api/map", methods=["POST"])
+def api_map_document():
+    import tasks
+    import rag_db
+    data = request.get_json() or {}
+    doc_id = str(data.get("document_id", ""))
+    
+    if not doc_id:
+        return jsonify({"error": "Missing document_id"}), 400
+        
+    # Initialize state
+    rag_db.upsert_task(doc_id, "Mapping", "Pending", "Added to queue...")
+    
+    # Dispatch
+    tasks.process_mapping_task(doc_id)
+    
+    return jsonify({"message": "Mapping task dispatched", "document_id": doc_id}), 202
+
+@app.route("/api/status", methods=["GET", "POST"])
+def api_status():
+    import rag_db
+    if request.method == "POST":
+        data = request.get_json() or {}
+        doc_id = str(data.get("document_id", ""))
+    else:
+        doc_id = request.args.get("document_id", "")
+        
+    if not doc_id:
+        return jsonify({"error": "Missing document_id"}), 400
+        
+    tasks = rag_db.get_task_status(doc_id)
+    
+    status_map = {
+        "chunking": {"status": "Not Started", "message": "", "percent": 0},
+        "mapping": {"status": "Not Started", "message": "", "percent": 0}
+    }
+    
+    for t in tasks:
+        task_type = t["task_type"].lower()
+        if task_type in status_map:
+            status_map[task_type] = {
+                "status": t["status"],
+                "message": t["progress_message"],
+                "percent": t["percent_complete"]
+            }
+            
+    return jsonify(status_map)
+
+@app.route("/api/analyze", methods=["POST"])
+def api_analyze():
+    import tasks
+    import rag_db
+    data = request.get_json() or {}
+    doc_id = str(data.get("document_id", ""))
+    query = data.get("query", "").strip()
+    
+    if not doc_id or not query:
+        return jsonify({"error": "Missing document_id or query"}), 400
+        
+    # Simple synchronous analysis endpoint for the prototype
+    try:
+        # Check if Ollama is alive
+        ok, msg = tasks.check_ollama_status()
+        if not ok:
+            return jsonify({"error": msg}), 500
+            
+        # Get summaries to act as global context
+        summaries = rag_db.get_summaries(doc_id)
+        if not summaries:
+            return jsonify({"error": "No graph summaries found for this document. Have you run Mapping?"}), 400
+            
+        context = "\\n\\n".join([s["summary_text"] for s in summaries])
+        
+        prompt = f"Given the following financial graph community summaries:\\n\\n{context}\\n\\nAnswer the query: {query}"
+        system = "You are a financial analyst. Synthesize the context to answer the question accurately."
+        
+        response = tasks.query_ollama(prompt, system=system)
+        
+        return jsonify({
+            "answer": response,
+            "document_id": doc_id,
+            "query": query
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     _ensure_isactive_columns()
     _run_platform_migrations()
     _ensure_wit_schema()
+    _ensure_customer_doc_schema()
     app.run(debug=True, port=5000)

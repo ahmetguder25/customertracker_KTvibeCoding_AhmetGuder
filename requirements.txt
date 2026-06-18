@@ -9,3 +9,7 @@ pymupdf
 langchain-text-splitters
 ollama
 numpy
+huey
+networkx
+python-louvain
+python-dotenv

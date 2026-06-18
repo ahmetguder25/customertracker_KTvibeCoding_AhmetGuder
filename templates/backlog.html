@@ -194,7 +194,7 @@
         <div style="display:grid;gap:10px;">
             <!-- Parent selector -->
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">LINKED TO *</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_linked_to_star', 'LINKED TO *') }}</label>
                 <div style="display:flex;gap:6px;">
                     <select id="add-parent-type" onchange="syncParentSelect()" class="t-input" style="width:140px;">
                         <option value="project">PROJECT</option>
@@ -215,16 +215,16 @@
                 </div>
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">TITLE *</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_title_star', 'TITLE *') }}</label>
                 <input id="add-title" type="text" class="t-input" placeholder="Work item title...">
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">DESCRIPTION</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_description', 'DESCRIPTION') }}</label>
                 <textarea id="add-desc" rows="2" class="t-input" placeholder="Optional description..."></textarea>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:4px;">STATUS</label>
+                    <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_status', 'STATUS') }}</label>
                     <select id="add-status" class="t-input">
                         <option value="not_started">NOT STARTED</option>
                         <option value="in_progress">IN PROGRESS</option>
@@ -233,12 +233,12 @@
                     </select>
                 </div>
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:4px;">DEADLINE</label>
+                    <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_deadline', 'DEADLINE') }}</label>
                     <input id="add-deadline" type="date" class="t-input">
                 </div>
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">ASSIGNEES</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_assignees', 'ASSIGNEES') }}</label>
                 <div id="add-assignees-picker"></div>
             </div>
         </div>
@@ -266,7 +266,7 @@
         <div style="display:grid;gap:10px;">
             <!-- Re-parent selector -->
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">LINKED TO</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_linked_to', 'LINKED TO') }}</label>
                 <div style="display:flex;gap:6px;">
                     <select id="edit-parent-type" onchange="syncEditParentSelect()" class="t-input" style="width:140px;">
                         <option value="project">PROJECT</option>
@@ -287,16 +287,16 @@
                 </div>
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">TITLE *</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_title_star', 'TITLE *') }}</label>
                 <input id="edit-title" type="text" class="t-input">
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">DESCRIPTION</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_description', 'DESCRIPTION') }}</label>
                 <textarea id="edit-desc" rows="2" class="t-input"></textarea>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:4px;">STATUS</label>
+                    <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_status', 'STATUS') }}</label>
                     <select id="edit-status" class="t-input">
                         <option value="not_started">NOT STARTED</option>
                         <option value="in_progress">IN PROGRESS</option>
@@ -305,12 +305,12 @@
                     </select>
                 </div>
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:4px;">DEADLINE</label>
+                    <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_deadline', 'DEADLINE') }}</label>
                     <input id="edit-deadline" type="date" class="t-input">
                 </div>
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">ASSIGNEES</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_assignees', 'ASSIGNEES') }}</label>
                 <div id="edit-assignees-picker"></div>
             </div>
         </div>

@@ -163,21 +163,21 @@
             <button onclick="document.getElementById('modal-item').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
         </div>
         <div style="display:grid;gap:8px;">
-            <div><label class="t-label" style="display:block;margin-bottom:3px;">TITLE *</label><input id="wi-title" type="text" placeholder="Work item title" class="t-input"></div>
-            <div><label class="t-label" style="display:block;margin-bottom:3px;">DESCRIPTION</label><textarea id="wi-desc" rows="2" class="t-input"></textarea></div>
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_title_star', 'TITLE *') }}</label><input id="wi-title" type="text" placeholder="Work item title" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_description', 'DESCRIPTION') }}</label><textarea id="wi-desc" rows="2" class="t-input"></textarea></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:3px;">STATUS</label>
+                    <label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_status', 'STATUS') }}</label>
                     <select id="wi-status" class="t-input">
                         <option value="not_started">NOT STARTED</option>
                         <option value="in_progress">IN PROGRESS</option>
                         <option value="blocked">BLOCKED</option>
                     </select>
                 </div>
-                <div><label class="t-label" style="display:block;margin-bottom:3px;">DEADLINE</label><input id="wi-deadline" type="date" class="t-input"></div>
+                <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_deadline', 'DEADLINE') }}</label><input id="wi-deadline" type="date" class="t-input"></div>
             </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:3px;">ASSIGNEES</label>
+                <label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_assignees', 'ASSIGNEES') }}</label>
                 <div id="wi-assignees-picker"></div>
             </div>
         </div>
@@ -196,11 +196,11 @@
             <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
         </div>
         <div style="display:grid;gap:8px;">
-            <div><label class="t-label" style="display:block;margin-bottom:3px;">NAME *</label><input id="ep-name" type="text" class="t-input"></div>
-            <div><label class="t-label" style="display:block;margin-bottom:3px;">DESCRIPTION</label><textarea id="ep-desc" rows="2" class="t-input"></textarea></div>
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_name_star', 'NAME *') }}</label><input id="ep-name" type="text" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_description', 'DESCRIPTION') }}</label><textarea id="ep-desc" rows="2" class="t-input"></textarea></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                <div><label class="t-label" style="display:block;margin-bottom:3px;">DEADLINE</label><input id="ep-deadline" type="date" class="t-input"></div>
-                <div><label class="t-label" style="display:block;margin-bottom:3px;">LINK TO OBJECTIVE</label>
+                <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_deadline', 'DEADLINE') }}</label><input id="ep-deadline" type="date" class="t-input"></div>
+                <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_link_objective', 'LINK TO OBJECTIVE') }}</label>
                     <select id="ep-obj" class="t-input"><option value="">None</option>{% for obj in objectives %}<option value="{{ obj.ObjectiveID }}">{{ obj.Title }}</option>{% endfor %}</select>
                 </div>
             </div>

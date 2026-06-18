@@ -175,7 +175,8 @@
                             {{ lang_dict.get('lbl_drop_file', 'Drop file here or click to browse') }}
                         </div>
                     </div>
-                    <input type="file" id="file-input" name="file" required style="display:none;"
+                    <input type="file" id="file-input" name="file" required 
+                           style="width:0.1px; height:0.1px; opacity:0; overflow:hidden; position:absolute; z-index:-1;"
                            onchange="updateDropLabel(this)">
                 </div>
 
@@ -189,7 +190,7 @@
                 </button>
                 <button type="submit" class="t-btn t-btn-green">
                     <span class="material-symbols-outlined" style="font-size:16px;">upload</span>
-                    {{ lang_dict.get('btn_upload', 'Upload') }}
+                    Save Document
                 </button>
             </div>
         </form>

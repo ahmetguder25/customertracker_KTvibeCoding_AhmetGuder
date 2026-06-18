@@ -1,6 +1,5 @@
 {% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
 {% block title %}{{ customer['CustomerName'] | upper }} — OVERVIEW{% endblock %}
-
 {% block content %}
 <!-- Back -->
 <div style="margin-bottom:4px;">
@@ -55,6 +54,8 @@
 <div class="t-tabs">
     <button onclick="switchTab('overview')" id="btn-tab-overview" class="t-tab active">OVERVIEW</button>
     <button onclick="switchTab('credit')" id="btn-tab-credit" class="t-tab">CREDIT ANALYSIS</button>
+    <button onclick="switchTab('documents')" id="btn-tab-documents" class="t-tab">COMPANY DOCUMENTS</button>
+    <button onclick="switchTab('ai')" id="btn-tab-ai" class="t-tab">AI ANALYSIS</button>
 </div>
 
 <!-- ═══ TAB: OVERVIEW ═══ -->
@@ -155,6 +156,273 @@
     </div>
 </div>
 
+<!-- ═══ TAB: COMPANY DOCUMENTS ═══ -->
+<div id="tab-documents" style="display:none;">
+    <div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span>
+            COMPANY DOCUMENTS
+            <span style="color:var(--on-surface-3);font-size:13px;">[{{ documents|length }}]</span>
+        </span>
+        <button onclick="document.getElementById('modal-upload-doc').classList.add('open')" class="t-btn t-btn-sm">
+            <span class="material-symbols-outlined" style="font-size:16px;">upload_file</span>
+            UPLOAD DOCUMENT
+        </button>
+    </div>
+
+    {% if documents %}
+    <div class="t-panel" style="overflow-x:auto;padding:0;">
+        <table class="t-table">
+            <thead>
+                <tr>
+                    <th>DOCUMENT TYPE</th>
+                    <th>DOCUMENT NAME</th>
+                    <th>FILE TYPE</th>
+                    <th>UPLOADED BY</th>
+                    <th>UPLOAD DATE</th>
+                    <th style="text-align:center;">ACTIONS</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                {% set dtype = doc_type_map.get(doc['DocTypeCode']|string, {}) %}
+                <tr id="doc-row-{{ doc['DocID'] }}">
+                    <!-- Document Type -->
+                    <td>
+                        <span class="t-chip" style="background:rgba(45,212,191,0.08);color:var(--primary);">
+                            {{ dtype.get('description', doc['DocTypeCode']) }}
+                        </span>
+                    </td>
+                    <!-- Document Name -->
+                    <td style="color:var(--on-surface);font-weight:500;">
+                        {{ doc['DocName'] }}
+                    </td>
+                    <!-- File Extension -->
+                    <td>
+                        <span style="
+                            display:inline-block;padding:2px 8px;border-radius:6px;font-size:13px;font-weight:700;text-transform:uppercase;
+                            {% set ext = doc['FileExt']|lower %}
+                            {% if ext in ['pdf'] %}background:rgba(239,68,68,0.15);color:#f87171;
+                            {% elif ext in ['doc','docx'] %}background:rgba(59,130,246,0.15);color:#60a5fa;
+                            {% elif ext in ['xls','xlsx','csv'] %}background:rgba(34,197,94,0.15);color:#4ade80;
+                            {% elif ext in ['ppt','pptx'] %}background:rgba(249,115,22,0.15);color:#fb923c;
+                            {% elif ext in ['png','jpg','jpeg','gif','svg'] %}background:rgba(168,85,247,0.15);color:#c084fc;
+                            {% else %}background:rgba(148,163,184,0.15);color:#94a3b8;
+                            {% endif %}
+                        ">
+                            .{{ doc['FileExt'] }}
+                        </span>
+                    </td>
+                    <!-- Uploaded By -->
+                    <td style="color:var(--on-surface-3);">{{ doc['UploadedBy'] or '—' }}</td>
+                    <!-- Upload Date -->
+                    <td style="color:var(--on-surface-3);font-size:12px;">
+                        {% if doc['UploadedAt'] %}
+                            {{ doc['UploadedAt'].strftime('%d %b %Y, %H:%M') if doc['UploadedAt'].__class__.__name__ != 'str' else doc['UploadedAt'][:16] }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <!-- Actions -->
+                    <td style="text-align:center;white-space:nowrap;">
+                        <!-- Open -->
+                        <a href="/overview/{{ customer['Customerid'] }}/documents/{{ doc['DocID'] }}/open" target="_blank"
+                           title="Open Document"
+                           style="color:var(--primary);background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:6px;display:inline-flex;align-items:center;"
+                           onmouseover="this.style.background='rgba(45,212,191,0.1)'" onmouseout="this.style.background='none'">
+                            <span class="material-symbols-outlined" style="font-size:18px;">open_in_new</span>
+                        </a>
+                        <!-- Edit -->
+                        <button onclick="openEditModal({{ doc['DocID'] }}, '{{ doc['DocName']|replace("\'","\\\'")|replace('"','&quot;') }}', '{{ doc['DocTypeCode'] }}')"
+                                title="Edit"
+                                style="color:var(--amber);background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:6px;display:inline-flex;align-items:center;"
+                                onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background='none'">
+                            <span class="material-symbols-outlined" style="font-size:18px;">edit</span>
+                        </button>
+                        <!-- Delete -->
+                        <button onclick="deleteDoc({{ doc['DocID'] }})"
+                                title="Delete"
+                                style="color:var(--red);background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:6px;display:inline-flex;align-items:center;"
+                                onmouseover="this.style.background='rgba(248,113,113,0.1)'" onmouseout="this.style.background='none'">
+                            <span class="material-symbols-outlined" style="font-size:18px;">delete</span>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="t-panel" style="text-align:center;padding:40px 24px;">
+        <span class="material-symbols-outlined" style="font-size:40px;color:var(--on-surface-3);display:block;margin-bottom:8px;">folder_open</span>
+        <div style="color:var(--on-surface-3);font-size:14px;">No documents uploaded yet.</div>
+        <button onclick="document.getElementById('modal-upload-doc').classList.add('open')"
+                class="t-btn" style="margin-top:16px;">
+            Upload First Document
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     MODAL: Upload Document
+     ═══════════════════════════════════════════════════════════════════ -->
+<div id="modal-upload-doc" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:480px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">
+                Upload Document
+            </div>
+            <button onclick="document.getElementById('modal-upload-doc').classList.remove('open')"
+                    style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;">✕</button>
+        </div>
+
+        <form action="/overview/{{ customer['Customerid'] }}/documents" method="POST" enctype="multipart/form-data">
+            <div style="display:grid;gap:12px;">
+                <!-- Document Name -->
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:4px;">
+                        Document Name *
+                    </label>
+                    <input type="text" name="doc_name" required class="t-input"
+                           placeholder="e.g. Q1 2026 Financials">
+                </div>
+
+                <!-- Document Type -->
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:4px;">
+                        Document Type *
+                    </label>
+                    <select name="doc_type" required class="t-input">
+                        <option value="">— Select —</option>
+                        {% for code, info in doc_type_map.items() %}
+                        <option value="{{ code }}">{{ info.get('description', code) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- File Upload -->
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:4px;">
+                        File *
+                    </label>
+                    <div id="drop-zone"
+                         style="border:2px dashed rgba(45,212,191,0.3);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;"
+                         onclick="document.getElementById('file-input').click()"
+                         ondragover="event.preventDefault();this.style.borderColor='var(--primary)';this.style.background='rgba(45,212,191,0.05)'"
+                         ondragleave="this.style.borderColor='rgba(45,212,191,0.3)';this.style.background=''"
+                         ondrop="handleDrop(event)">
+                        <span class="material-symbols-outlined" style="font-size:32px;color:var(--primary);display:block;margin-bottom:6px;">cloud_upload</span>
+                        <div style="color:var(--on-surface-3);font-size:13px;" id="drop-label">
+                            Drop file here or click to browse
+                        </div>
+                    </div>
+                    <input type="file" id="file-input" name="file" required 
+                           style="width:0.1px; height:0.1px; opacity:0; overflow:hidden; position:absolute; z-index:-1;"
+                           onchange="updateDropLabel(this)">
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;">
+                <button type="button"
+                        onclick="document.getElementById('modal-upload-doc').classList.remove('open')"
+                        class="t-btn t-btn-outline">
+                    Cancel
+                </button>
+                <button type="submit" class="t-btn t-btn-green">
+                    <span class="material-symbols-outlined" style="font-size:16px;">upload</span>
+                    Save Document
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     MODAL: Edit Document
+     ═══════════════════════════════════════════════════════════════════ -->
+<div id="modal-edit-doc" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:420px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">
+                Edit Document
+            </div>
+            <button onclick="document.getElementById('modal-edit-doc').classList.remove('open')"
+                    style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;">✕</button>
+        </div>
+
+        <div style="display:grid;gap:12px;">
+            <input type="hidden" id="edit-doc-id">
+            <!-- Document Name -->
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:4px;">
+                    Document Name *
+                </label>
+                <input type="text" id="edit-doc-name" class="t-input">
+            </div>
+            <!-- Document Type -->
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:4px;">
+                    Document Type *
+                </label>
+                <select id="edit-doc-type" class="t-input">
+                    <option value="">— Select —</option>
+                    {% for code, info in doc_type_map.items() %}
+                    <option value="{{ code }}">{{ info.get('description', code) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;">
+            <button onclick="document.getElementById('modal-edit-doc').classList.remove('open')"
+                    class="t-btn t-btn-outline">
+                Cancel
+            </button>
+            <button onclick="saveEdit()" class="t-btn t-btn-cyan">
+                <span class="material-symbols-outlined" style="font-size:16px;">save</span>
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ═══ TAB: AI ANALYSIS ═══ -->
+<div id="tab-ai" style="display:none;">
+    <style>@keyframes t-spin { 100% { transform: rotate(360deg); } }</style>
+    <div class="t-section-header" style="margin-bottom:16px;">AI ANALYSIS DASHBOARD</div>
+    
+    <div style="display:flex;gap:16px;margin-bottom:24px;">
+        <div onclick="selectAiMode('document')" id="ai-mode-doc" class="t-panel" style="flex:1;cursor:pointer;border:2px solid var(--surface-2);transition:0.2s;">
+            <div style="display:flex;align-items:center;gap:8px;font-weight:bold;margin-bottom:4px;">
+                <span class="material-symbols-outlined" style="color:var(--primary);">description</span>
+                Document Analysis
+            </div>
+            <div style="font-size:13px;color:var(--on-surface-3);">Analyze uploaded customer documents.</div>
+        </div>
+        <div onclick="selectAiMode('other')" id="ai-mode-other" class="t-panel" style="flex:1;cursor:pointer;border:2px solid var(--surface-2);transition:0.2s;opacity:0.7;">
+            <div style="display:flex;align-items:center;gap:8px;font-weight:bold;margin-bottom:4px;">
+                <span class="material-symbols-outlined" style="color:var(--amber);">auto_awesome</span>
+                Other (Coming Soon)
+            </div>
+            <div style="font-size:13px;color:var(--on-surface-3);">General purpose AI queries.</div>
+        </div>
+    </div>
+    
+    <div id="ai-doc-section" style="display:none;">
+        <div class="t-section-header" style="margin-bottom:8px;">Select Document</div>
+        <select id="ai-doc-select" class="t-input" style="max-width:400px;margin-bottom:16px;" onchange="handleAiDocChange()">
+            <option value="">— Select a document —</option>
+            {% for doc in documents %}
+            <option value="{{ doc['DocID'] }}">{{ doc['DocName'] }} ({{ doc['DocTypeCode'] }})</option>
+            {% endfor %}
+        </select>
+        
+        <div id="ai-doc-status" class="t-panel" style="display:none;background:var(--surface-2);"></div>
+        
+        <!-- AI Analysis Results Container -->
+        <div id="ai-analysis-result" style="display:none;margin-top:16px;"></div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -167,14 +435,33 @@ Chart.defaults.font.size = 10;
 function switchTab(tabName) {
     var tabOv = document.getElementById('tab-overview');
     var tabCr = document.getElementById('tab-credit');
+    var tabDoc = document.getElementById('tab-documents');
+    var tabAi = document.getElementById('tab-ai');
     var btnOv = document.getElementById('btn-tab-overview');
     var btnCr = document.getElementById('btn-tab-credit');
+    var btnDoc = document.getElementById('btn-tab-documents');
+    var btnAi = document.getElementById('btn-tab-ai');
+    
+    tabOv.style.display = 'none';
+    tabCr.style.display = 'none';
+    if(tabDoc) tabDoc.style.display = 'none';
+    if(tabAi) tabAi.style.display = 'none';
+    
+    btnOv.classList.remove('active');
+    btnCr.classList.remove('active');
+    if(btnDoc) btnDoc.classList.remove('active');
+    if(btnAi) btnAi.classList.remove('active');
+    
     if (tabName === 'overview') {
-        tabOv.style.display = ''; tabCr.style.display = 'none';
-        btnOv.classList.add('active'); btnCr.classList.remove('active');
-    } else {
-        tabOv.style.display = 'none'; tabCr.style.display = '';
-        btnCr.classList.add('active'); btnOv.classList.remove('active');
+        tabOv.style.display = ''; btnOv.classList.add('active');
+    } else if (tabName === 'credit') {
+        tabCr.style.display = ''; btnCr.classList.add('active');
+    } else if (tabName === 'documents') {
+        if(tabDoc) tabDoc.style.display = '';
+        if(btnDoc) btnDoc.classList.add('active');
+    } else if (tabName === 'ai') {
+        if(tabAi) tabAi.style.display = '';
+        if(btnAi) btnAi.classList.add('active');
     }
 }
 
@@ -216,5 +503,367 @@ if (ctx) {
         options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(42,42,46,0.7)' }, ticks: { callback: function(v) { return v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v; } } }, x: { grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#18181c', titleColor: '#FF8C00', bodyColor: '#d4d4d4', borderColor: '#FF8C00', borderWidth: 1, cornerRadius: 0 } } }
     });
 }
+
+const CUSTOMER_ID = {{ customer['Customerid'] }};
+
+/* ── File drop zone ── */
+function handleDrop(e) {
+    e.preventDefault();
+    var zone = document.getElementById('drop-zone');
+    zone.style.borderColor = 'rgba(45,212,191,0.3)';
+    zone.style.background   = '';
+    var dt = e.dataTransfer;
+    if (dt.files && dt.files.length) {
+        var inp = document.getElementById('file-input');
+        inp.files = dt.files;
+        updateDropLabel(inp);
+    }
+}
+
+function updateDropLabel(input) {
+    var label = document.getElementById('drop-label');
+    if (input.files && input.files.length) {
+        var f = input.files[0];
+        var sizeKb = (f.size / 1024).toFixed(1);
+        label.innerHTML = '<strong style="color:var(--on-surface);">' + f.name + '</strong>'
+                        + '<br><span style="font-size:13px;">' + sizeKb + ' KB</span>';
+        document.getElementById('drop-zone').style.borderColor = 'var(--primary)';
+    }
+}
+
+/* ── Edit modal ── */
+function openEditModal(docId, docName, docType) {
+    document.getElementById('edit-doc-id').value   = docId;
+    document.getElementById('edit-doc-name').value = docName;
+    document.getElementById('edit-doc-type').value = String(docType);
+    document.getElementById('modal-edit-doc').classList.add('open');
+}
+
+async function saveEdit() {
+    var docId   = document.getElementById('edit-doc-id').value;
+    var docName = document.getElementById('edit-doc-name').value.trim();
+    var docType = document.getElementById('edit-doc-type').value;
+    if (!docName || !docType) {
+        alert('Please fill all required fields.');
+        return;
+    }
+    var res = await fetch('/api/customers/' + CUSTOMER_ID + '/documents/' + docId, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ doc_name: docName, doc_type: parseInt(docType) })
+    });
+    var data = await res.json();
+    if (data.ok) {
+        window.location.reload();
+    } else {
+        alert('An error occurred.');
+    }
+}
+
+/* ── Delete ── */
+async function deleteDoc(docId) {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    var res = await fetch('/api/customers/' + CUSTOMER_ID + '/documents/' + docId, {
+        method: 'DELETE'
+    });
+    var data = await res.json();
+    if (data.ok) {
+        var row = document.getElementById('doc-row-' + docId);
+        if (row) {
+            row.style.opacity = '0';
+            row.style.transition = 'opacity 0.3s';
+            setTimeout(function() { row.remove(); }, 320);
+        }
+    }
+}
+
+/* ── Keyboard escape ── */
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var m1 = document.getElementById('modal-upload-doc');
+        if(m1) m1.classList.remove('open');
+        var m2 = document.getElementById('modal-edit-doc');
+        if(m2) m2.classList.remove('open');
+    }
+});
+
+// ==========================================
+// AI ANALYSIS LOGIC (MOCK)
+// ==========================================
+function selectAiMode(mode) {
+    var docCard = document.getElementById('ai-mode-doc');
+    var otherCard = document.getElementById('ai-mode-other');
+    
+    docCard.style.borderColor = (mode === 'document') ? 'var(--primary)' : 'var(--surface-2)';
+    otherCard.style.borderColor = (mode === 'other') ? 'var(--amber)' : 'var(--surface-2)';
+    
+    document.getElementById('ai-doc-section').style.display = (mode === 'document') ? 'block' : 'none';
+    
+    if(mode === 'other') {
+        alert("This feature is coming soon!");
+        otherCard.style.borderColor = 'var(--surface-2)';
+    }
+}
+
+var currentAiDocId = null;
+var pollInterval = null;
+var localDocStates = {}; // Just to track if we fetched analysis in the UI
+
+function handleAiDocChange() {
+    var select = document.getElementById('ai-doc-select');
+    var docId = select.value;
+    var statusPanel = document.getElementById('ai-doc-status');
+    var resultPanel = document.getElementById('ai-analysis-result');
+    
+    if (!docId) {
+        statusPanel.style.display = 'none';
+        resultPanel.style.display = 'none';
+        if (pollInterval) clearInterval(pollInterval);
+        return;
+    }
+    
+    currentAiDocId = docId;
+    statusPanel.style.display = 'block';
+    resultPanel.style.display = 'none';
+    
+    if (!localDocStates[docId]) {
+        localDocStates[docId] = { hasAnalysis: false };
+    }
+    
+    // Fetch initial status
+    fetchStatusAndRender();
+}
+
+function fetchStatusAndRender() {
+    if (!currentAiDocId) return;
+    
+    fetch('/api/status?document_id=' + currentAiDocId)
+        .then(r => r.json())
+        .then(data => {
+            renderAiStatus(currentAiDocId, data);
+            
+            // If anything is processing, start polling
+            if (data.chunking.status === 'Processing' || data.mapping.status === 'Processing' || data.chunking.status === 'Pending' || data.mapping.status === 'Pending') {
+                if (!pollInterval) {
+                    pollInterval = setInterval(fetchStatusAndRender, 2000);
+                }
+            } else {
+                if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                }
+            }
+        });
+}
+
+function renderAiStatus(docId, data) {
+    var statusPanel = document.getElementById('ai-doc-status');
+    
+    // Check if chunking failed
+    if (data.chunking.status === 'Failed') {
+        statusPanel.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span class="material-symbols-outlined" style="color:var(--red);font-size:24px;">error</span>
+                <div style="flex:1;">
+                    <div style="font-weight:500;color:var(--red);">Chunking Failed</div>
+                    <div style="font-size:13px;color:var(--on-surface-3);">${data.chunking.message}</div>
+                </div>
+                <button onclick="triggerChunking('${docId}')" class="t-btn t-btn-amber">Retry</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Check if mapping failed
+    if (data.mapping.status === 'Failed') {
+        statusPanel.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span class="material-symbols-outlined" style="color:var(--red);font-size:24px;">error</span>
+                <div style="flex:1;">
+                    <div style="font-weight:500;color:var(--red);">Mapping Failed</div>
+                    <div style="font-size:13px;color:var(--on-surface-3);">${data.mapping.message}</div>
+                </div>
+                <button onclick="triggerMapping('${docId}')" class="t-btn t-btn-cyan">Retry</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Not chunked yet
+    if (data.chunking.status !== 'Completed' && data.chunking.status !== 'Processing' && data.chunking.status !== 'Pending') {
+        statusPanel.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span class="material-symbols-outlined" style="color:var(--amber);font-size:24px;">warning</span>
+                <div style="flex:1;">
+                    <div style="font-weight:500;">Document Not Chunked</div>
+                    <div style="font-size:13px;color:var(--on-surface-3);">This document needs to be processed into chunks first.</div>
+                </div>
+                <button onclick="triggerChunking('${docId}')" class="t-btn t-btn-amber">Chunk Document</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Chunking in progress
+    if (data.chunking.status === 'Processing' || data.chunking.status === 'Pending') {
+        statusPanel.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span class="material-symbols-outlined" style="color:var(--primary);animation:t-spin 1s linear infinite;">sync</span>
+                <div style="flex:1;">
+                    <div style="font-weight:500;">Chunking Document...</div>
+                    <div style="font-size:13px;color:var(--on-surface-3);">${data.chunking.message}</div>
+                    <div style="width:100%;background:var(--surface-3);height:4px;border-radius:2px;margin-top:6px;">
+                        <div style="width:${data.chunking.percent}%;background:var(--primary);height:100%;border-radius:2px;transition:width 0.5s;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Chunked, but mapping not started
+    if (data.mapping.status !== 'Completed' && data.mapping.status !== 'Processing' && data.mapping.status !== 'Pending') {
+        statusPanel.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span class="material-symbols-outlined" style="color:var(--cyan);font-size:24px;">map</span>
+                <div style="flex:1;">
+                    <div style="font-weight:500;">Document Not Mapped</div>
+                    <div style="font-size:13px;color:var(--on-surface-3);">Chunks must be mapped to financial taxonomy before analysis.</div>
+                </div>
+                <button onclick="triggerMapping('${docId}')" class="t-btn t-btn-cyan">Map Document</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Mapping in progress
+    if (data.mapping.status === 'Processing' || data.mapping.status === 'Pending') {
+        statusPanel.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span class="material-symbols-outlined" style="color:var(--cyan);animation:t-spin 1s linear infinite;">sync</span>
+                <div style="flex:1;">
+                    <div style="font-weight:500;">Mapping Document...</div>
+                    <div style="font-size:13px;color:var(--on-surface-3);">${data.mapping.message}</div>
+                    <div style="width:100%;background:var(--surface-3);height:4px;border-radius:2px;margin-top:6px;">
+                        <div style="width:${data.mapping.percent}%;background:var(--cyan);height:100%;border-radius:2px;transition:width 0.5s;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Everything Completed!
+    var hasAnalysis = localDocStates[docId].hasAnalysis;
+    var actionBtn = hasAnalysis ? 
+        `<button onclick="triggerAnalysis('${docId}')" class="t-btn t-btn-cyan">Update Analysis</button>` : 
+        `<button onclick="triggerAnalysis('${docId}')" class="t-btn t-btn-green">Create Analysis</button>`;
+        
+    statusPanel.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span class="material-symbols-outlined" style="color:var(--green);font-size:24px;">check_circle</span>
+            <div style="flex:1;">
+                <div style="font-weight:500;color:var(--green);">Ready for Analysis</div>
+                <div style="font-size:13px;color:var(--on-surface-3);">Document is chunked and mapped successfully.</div>
+            </div>
+            ${actionBtn}
+        </div>
+    `;
+}
+
+function triggerChunking(docId) {
+    fetch('/api/chunk', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({document_id: docId})
+    }).then(r => {
+        fetchStatusAndRender();
+    });
+}
+
+function triggerMapping(docId) {
+    fetch('/api/map', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({document_id: docId})
+    }).then(r => {
+        fetchStatusAndRender();
+    });
+}
+
+function triggerAnalysis(docId) {
+    var resultPanel = document.getElementById('ai-analysis-result');
+    resultPanel.style.display = 'block';
+    
+    resultPanel.innerHTML = `
+        <div class="t-panel" style="border-left:4px solid var(--primary);">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span class="material-symbols-outlined" style="color:var(--primary);animation:t-spin 1.5s linear infinite;">auto_awesome</span>
+                <div style="flex:1;">
+                    <div style="font-weight:500;">Generating Analysis...</div>
+                    <div style="font-size:13px;color:var(--on-surface-3);">The AI is reading through mapped financial clauses and querying local model. This may take a minute...</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    fetch('/api/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            document_id: docId,
+            query: "What are the primary operational risks and revenue drivers discussed in the document?"
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            resultPanel.innerHTML = `
+                <div class="t-panel" style="border-left:4px solid var(--red);">
+                    <div style="font-weight:500;color:var(--red);">Analysis Failed</div>
+                    <div style="font-size:13px;color:var(--on-surface-2);">${data.error}</div>
+                </div>
+            `;
+            return;
+        }
+        
+        localDocStates[docId].hasAnalysis = true;
+        fetchStatusAndRender(); // Update button to Update Analysis
+        
+        // Very basic markdown to HTML for response
+        var htmlAnswer = data.answer.replace(/\\n/g, '<br/>')
+                                    .replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>')
+                                    .replace(/\\*(.*?)\\*/g, '<i>$1</i>');
+        
+        resultPanel.innerHTML = `
+            <div class="t-panel" style="animation: fade-in 0.5s ease-out;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--surface-2);padding-bottom:12px;margin-bottom:16px;">
+                    <div style="font-weight:bold;font-size:16px;display:flex;align-items:center;gap:8px;">
+                        <span class="material-symbols-outlined" style="color:var(--primary);">monitoring</span>
+                        AI Financial Analysis Report
+                    </div>
+                </div>
+                
+                <div style="font-size:13px;color:var(--on-surface-2);line-height:1.6;">
+                    ${htmlAnswer}
+                </div>
+                
+                <div style="margin-top:20px;display:flex;gap:8px;">
+                    <button class="t-btn t-btn-sm t-btn-outline"><span class="material-symbols-outlined" style="font-size:14px;">picture_as_pdf</span> Export PDF</button>
+                    <button class="t-btn t-btn-sm t-btn-outline"><span class="material-symbols-outlined" style="font-size:14px;">history</span> View History</button>
+                </div>
+            </div>
+        `;
+    })
+    .catch(err => {
+        resultPanel.innerHTML = `
+            <div class="t-panel" style="border-left:4px solid var(--red);">
+                <div style="font-weight:500;color:var(--red);">Analysis Error</div>
+                <div style="font-size:13px;color:var(--on-surface-2);">${err.message}</div>
+            </div>
+        `;
+    });
+}
 </script>
+
 {% endblock %}

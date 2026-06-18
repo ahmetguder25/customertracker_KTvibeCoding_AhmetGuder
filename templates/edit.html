@@ -4,10 +4,10 @@
 {% block content %}
 <div class="t-page-header">
     <div>
-        <div class="t-page-title">EDIT CUSTOMER</div>
+        <div class="t-page-title">{{ lang_dict.get('lbl_edit_customer', 'EDIT CUSTOMER') }}</div>
         <div class="t-page-subtitle">{{ customer.CustomerName }} (Account #{{ customer.Customerid }})</div>
     </div>
-    <a href="/management" class="t-btn t-btn-outline">← BACK TO MANAGEMENT</a>
+    <a href="/management" class="t-btn t-btn-outline">← {{ lang_dict.get('btn_back_to_mgmt', 'BACK TO MANAGEMENT') }}</a>
 </div>
 
 <div class="t-panel" style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -25,40 +25,40 @@
 
     <form action="/management/edit/{{ customer.Customerid }}" method="POST" enctype="multipart/form-data" style="display:grid; gap: 16px;">
         <div>
-            <label class="t-label" style="display:block; margin-bottom:4px;">COMPANY NAME *</label>
+            <label class="t-label" style="display:block; margin-bottom:4px;">{{ lang_dict.get('lbl_company_name', 'COMPANY NAME *') }}</label>
             <input type="text" name="CustomerName" value="{{ customer.CustomerName }}" required class="t-input" style="width: 100%;">
         </div>
         
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
             <div>
-                <label class="t-label" style="display:block; margin-bottom:4px;">SECTOR</label>
+                <label class="t-label" style="display:block; margin-bottom:4px;">{{ lang_dict.get('lbl_sector', 'SECTOR') }}</label>
                 <select name="sector" class="t-input" style="width: 100%;">
-                    <option value="">— Select Sector —</option>
+                    <option value="">{{ lang_dict.get('lbl_select_sector', '— Select Sector —') }}</option>
                     {% for code, details in sector_map.items() %}
                     <option value="{{ code }}" {% if customer.sector == code %}selected{% endif %}>{{ details.description }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label class="t-label" style="display:block; margin-bottom:4px;">PORTFOLIO MANAGER</label>
+                <label class="t-label" style="display:block; margin-bottom:4px;">{{ lang_dict.get('lbl_portfolio_manager', 'PORTFOLIO MANAGER') }}</label>
                 <input type="text" name="portfolio_manager" value="{{ customer.portfolio_manager or '' }}" class="t-input" style="width: 100%;">
             </div>
         </div>
 
         <div>
-            <label class="t-label" style="display:block; margin-bottom:4px;">COMPANY LOGO</label>
+            <label class="t-label" style="display:block; margin-bottom:4px;">{{ lang_dict.get('lbl_company_logo', 'COMPANY LOGO') }}</label>
             {% if customer.logo_path %}
             <div style="margin-bottom: 8px;">
                 <img src="/static/uploads/{{ customer.logo_path }}" alt="Current Logo" style="max-height: 40px; border-radius: 4px; background: white; padding: 2px;">
             </div>
             {% endif %}
             <input type="file" name="logo" accept="image/*" class="t-input" style="width: 100%;">
-            <div style="font-size: 11px; color: var(--on-surface-3); margin-top: 4px;">Upload a new image to replace the current logo (max 1MB).</div>
+            <div style="font-size: 11px; color: var(--on-surface-3); margin-top: 4px;">{{ lang_dict.get('lbl_upload_logo_hint', 'Upload a new image to replace the current logo (max 1MB).') }}</div>
         </div>
 
         <div style="display:flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
-            <a href="/management" class="t-btn t-btn-outline">CANCEL</a>
-            <button type="submit" class="t-btn t-btn-green">SAVE CHANGES</button>
+            <a href="/management" class="t-btn t-btn-outline">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</a>
+            <button type="submit" class="t-btn t-btn-green">{{ lang_dict.get('btn_save_changes', 'SAVE CHANGES') }}</button>
         </div>
     </form>
 </div>

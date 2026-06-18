@@ -34,17 +34,17 @@ input[type=number] { -moz-appearance: textfield; }
                 <div>
                     <label class="t-label" style="display:block;margin-bottom:2px;">
                         {{ lang_dict.get('mgmt_acc_label', 'ACCOUNT # *') }}
-                        {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:12px;margin-left:4px;">PROD ONLY</span>{% endif %}
+                        {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:12px;margin-left:4px;">{{ lang_dict.get('lbl_prod_only', 'PROD ONLY') }}</span>{% endif %}
                     </label>
                     <div style="position:relative;display:flex;align-items:center;">
                         <input type="number" id="accountNumber" required {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-input" placeholder="{{ lang_dict.get('mgmt_acc_ph', 'Account #') }}" style="padding-right:50px;">
                         <button type="button" id="btn-fetch" {% if session.get('env', 'test') != 'prod' %}disabled{% endif %} class="t-btn t-btn-sm" style="position:absolute;right:2px;">{{ lang_dict.get('mgmt_btn_fetch', 'FETCH') }}</button>
                     </div>
                     <div style="margin-top:2px;">
-                        <p id="lookup-empty" class="hidden" style="font-size:13px;color:var(--red);">Enter account number.</p>
+                        <p id="lookup-empty" class="hidden" style="font-size:13px;color:var(--red);">{{ lang_dict.get('msg_enter_account', 'Enter account number.') }}</p>
                         <p id="lookup-error" class="hidden" style="font-size:13px;color:var(--red);">{{ lang_dict.get('mgmt_err_notfound', 'Customer not found.') }}</p>
-                        <p id="lookup-conn-error" class="hidden" style="font-size:13px;color:var(--red);">⚠ Cannot connect to SRVDNZ.</p>
-                        <p id="lookup-query-error" class="hidden" style="font-size:13px;color:var(--amber);">⚠ Query error.</p>
+                        <p id="lookup-conn-error" class="hidden" style="font-size:13px;color:var(--red);">{{ lang_dict.get('msg_conn_error_srvdnz', '⚠ Cannot connect to SRVDNZ.') }}</p>
+                        <p id="lookup-query-error" class="hidden" style="font-size:13px;color:var(--amber);">{{ lang_dict.get('msg_query_error', '⚠ Query error.') }}</p>
                         <p id="lookup-error-detail" class="hidden" style="font-size:12px;color:var(--on-surface-3);word-break:break-all;"></p>
                         <p id="lookup-already" class="hidden" style="font-size:13px;color:var(--amber);">{{ lang_dict.get('mgmt_err_tracked', 'Already tracked.') }}</p>
                         <p id="lookup-success" class="hidden" style="font-size:13px;color:var(--green);">{{ lang_dict.get('mgmt_success', 'Customer found ✓') }}</p>
@@ -86,7 +86,7 @@ input[type=number] { -moz-appearance: textfield; }
             {% if session.get('env', 'test') != 'prod' %}disabled title="PROD ONLY"{% else %}onclick="startUpdateAll()"{% endif %}
             class="t-btn t-btn-sm t-btn-cyan" style="{% if session.get('env', 'test') != 'prod' %}opacity:0.4;cursor:not-allowed;{% endif %}">
             ↻ {{ lang_dict.get('mgmt_btn_sync', 'SYNC ALL') }}
-            {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:12px;margin-left:4px;">PROD</span>{% endif %}
+            {% if session.get('env', 'test') != 'prod' %}<span style="color:var(--amber);font-size:12px;margin-left:4px;">{{ lang_dict.get('lbl_prod_only', 'PROD ONLY') | replace(" ONLY", "") }}</span>{% endif %}
         </button>
     </div>
     <div style="overflow-x:auto;">
@@ -133,19 +133,19 @@ input[type=number] { -moz-appearance: textfield; }
         <form id="add-stakeholder-form" onsubmit="addStakeholder(event)" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
             <div>
                 <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sh_name', 'NAME') }} *</label>
-                <input type="text" id="sh_name" required class="t-input" placeholder="Jane Doe">
+                <input type="text" id="sh_name" required class="t-input" placeholder="{{ lang_dict.get('ph_jane_doe', 'Jane Doe') }}">
             </div>
             <div>
                 <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sh_org', 'ORG') }}</label>
-                <input type="text" id="sh_org" class="t-input" placeholder="Acme Corp">
+                <input type="text" id="sh_org" class="t-input" placeholder="{{ lang_dict.get('ph_acme_corp', 'Acme Corp') }}">
             </div>
             <div>
                 <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sh_dept', 'DEPT') }}</label>
-                <input type="text" id="sh_dept" class="t-input" placeholder="Engineering">
+                <input type="text" id="sh_dept" class="t-input" placeholder="{{ lang_dict.get('ph_engineering', 'Engineering') }}">
             </div>
             <div>
                 <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('mgmt_sh_email', 'EMAIL') }}</label>
-                <input type="email" id="sh_email" class="t-input" placeholder="jane@example.com">
+                <input type="email" id="sh_email" class="t-input" placeholder="{{ lang_dict.get('ph_jane_email', 'jane@example.com') }}">
             </div>
             <div style="grid-column:span 4;padding-top:4px;">
                 <button type="submit" class="t-btn t-btn-green">{{ lang_dict.get('mgmt_sh_btn_add', '+ ADD STAKEHOLDER') }}</button>
@@ -180,7 +180,7 @@ input[type=number] { -moz-appearance: textfield; }
 <!-- Sync Overlay -->
 <div id="sync-overlay" class="t-modal-backdrop" style="flex-direction:column;">
     <div class="t-modal" style="max-width:420px;text-align:center;">
-        <h3 id="sync-title" style="color:var(--amber);font-family:var(--font-head);font-size:17px;font-weight:800;text-transform:uppercase;margin-bottom:12px;">SYNCHRONIZING...</h3>
+        <h3 id="sync-title" style="color:var(--amber);font-family:var(--font-head);font-size:17px;font-weight:800;text-transform:uppercase;margin-bottom:12px;">{{ lang_dict.get('lbl_syncing', 'SYNCHRONIZING...') }}</h3>
         <div class="t-progress" style="margin-bottom:4px;">
             <div id="sync-progress-bar" class="t-progress-bar" style="width:0%;"></div>
         </div>
@@ -194,8 +194,8 @@ input[type=number] { -moz-appearance: textfield; }
                 <span id="sync-status-icon" style="color:var(--amber);">⟳</span>
             </div>
         </div>
-        <button id="btn-cancel-sync" class="t-btn t-btn-danger hidden" style="width:100%;margin-top:8px;" onclick="cancelSync()">CANCEL</button>
-        <button id="sync-close-btn" class="t-btn hidden" style="width:100%;margin-top:8px;" onclick="window.location.reload()">FINISH & RELOAD</button>
+        <button id="btn-cancel-sync" class="t-btn t-btn-danger hidden" style="width:100%;margin-top:8px;" onclick="cancelSync()">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</button>
+        <button id="sync-close-btn" class="t-btn hidden" style="width:100%;margin-top:8px;" onclick="window.location.reload()">{{ lang_dict.get('btn_finish_reload', 'FINISH & RELOAD') }}</button>
     </div>
 </div>
 
