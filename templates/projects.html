@@ -10,29 +10,45 @@
     <button onclick="document.getElementById('modal-project').classList.add('open')" class="t-btn">{{ lang_dict.get('proj_btn_add', '+ NEW PROJECT') }}</button>
 </div>
 
-{% set statuses = [('Planning','dim'),('Active','green'),('On Hold','amber'),('Completed','cyan')] %}
+{% set statuses = [('Not Started','dim'),('Active','green'),('Completed','cyan')] %}
 {% if projects %}
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">
     {% for status_name, chip_class in statuses %}
+    {% set status_projects = projects | selectattr('computed_status','equalto',status_name) | list %}
     <div style="background:var(--surface);padding:0;">
-        <div class="t-section-header" style="font-size:13px;padding:12px 16px;">{{ status_name | upper }} <span style="color:var(--on-surface-3);font-size:12px;margin-left:4px;">[{{ projects | selectattr('Status','equalto',status_name) | list | length }}]</span></div>
-        {% for p in projects | selectattr('Status','equalto',status_name) | list %}
-        <a href="/projects/{{ p.ProjectID }}" style="display:block;padding:16px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--on-surface);transition:background 0.2s;" onmouseover="this.style.background='var(--surface-high)'" onmouseout="this.style.background='transparent'">
-            <div style="color:var(--amber-text);font-weight:700;font-size:15px;margin-bottom:4px;">{{ p.ProjectName }}</div>
-            {% if p.ObjTitle %}<div style="font-size:13px;color:var(--cyan);margin-bottom:8px;">📎 {{ p.ObjTitle }}</div>{% endif %}
-            {% if p.total_items > 0 %}
-            {% set pct = (p.done_items / p.total_items * 100) | int %}
+        <div class="t-section-header" style="font-size:13px;padding:12px 16px;">{{ status_name | upper }} <span style="color:var(--on-surface-3);font-size:12px;margin-left:4px;">[{{ status_projects | length }}]</span></div>
+        {% for p in status_projects %}
+        <div style="display:block;padding:16px;border-bottom:1px solid var(--border);transition:background 0.2s;" onmouseover="this.style.background='var(--surface-high)'" onmouseout="this.style.background='transparent'">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+                <a href="/projects/{{ p.ProjectID }}" style="color:var(--amber-text);font-weight:700;font-size:15px;text-decoration:none;">{{ p.ProjectName }}</a>
+                <div style="display:flex;gap:3px;align-items:center;flex-shrink:0;">
+                    <button onclick="openEditProject({{ p.ProjectID }}, '{{ p.ProjectName|replace("'", "\\'")|replace('"','&quot;') }}', '{{ (p.Description or '')|replace("'", "\\'")|replace('"','&quot;')|replace('\n',' ') }}', '{{ p.Deadline or '' }}', '{{ p.ObjectiveID or '' }}')"
+                        style="color:var(--amber);background:none;border:none;cursor:pointer;padding:2px;border-radius:4px;display:inline-flex;align-items:center;"
+                        onmouseover="this.style.background='rgba(245,158,11,0.12)'" onmouseout="this.style.background='none'"
+                        title="Edit project">
+                        <span class="material-symbols-outlined" style="font-size:15px;">edit</span>
+                    </button>
+                    <button onclick="deleteProject({{ p.ProjectID }})"
+                        style="color:var(--red);background:none;border:none;cursor:pointer;padding:2px;border-radius:4px;display:inline-flex;align-items:center;"
+                        onmouseover="this.style.background='rgba(248,113,113,0.12)'" onmouseout="this.style.background='none'"
+                        title="Delete project">
+                        <span class="material-symbols-outlined" style="font-size:15px;">delete</span>
+                    </button>
+                </div>
+            </div>
+            {% if p.ObjTitle %}<div style="font-size:13px;color:var(--cyan);margin-bottom:4px;">📎 {{ p.ObjTitle }}</div>{% endif %}
+            {% if p.Description %}<div style="font-size:13px;color:var(--on-surface-3);margin-bottom:4px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.Description }}</div>{% endif %}
+            <!-- Progress bar -->
             <div style="margin-top:8px;">
                 <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-3);margin-bottom:4px;">
-                    <span class="t-num">{{ p.done_items }}/{{ p.total_items }}</span><span class="t-num">{{ pct }}%</span>
+                    <span class="t-num">{{ p.done_items }}/{{ p.total_items }}</span><span class="t-num">{{ p.progress_pct }}%</span>
                 </div>
-                <div class="t-progress"><div class="t-progress-bar" style="width:{{ pct }}%;"></div></div>
+                <div class="t-progress"><div class="t-progress-bar" style="width:{{ p.progress_pct }}%;{% if p.progress_pct >= 100 %}background:var(--green);{% elif p.progress_pct > 0 %}background:var(--primary);{% else %}background:var(--border);{% endif %}"></div></div>
             </div>
-            {% endif %}
-            {% if p.Deadline %}<div style="font-size:12px;color:var(--on-surface-3);margin-top:6px;">DUE {{ p.Deadline.strftime('%d %b %Y') }}</div>{% endif %}
-        </a>
+            {% if p.Deadline %}<div style="font-size:12px;color:var(--on-surface-3);margin-top:6px;">DUE {{ p.Deadline.strftime('%d %b %Y') if p.Deadline.strftime is defined else p.Deadline }}</div>{% endif %}
+        </div>
         {% else %}
-        <div style="padding:8px;font-size:11px;color:var(--on-surface-3);">—</div>
+        <div style="padding:8px;font-size:13px;color:var(--on-surface-3);">—</div>
         {% endfor %}
     </div>
     {% endfor %}
@@ -41,40 +57,120 @@
 <div class="t-panel" style="text-align:center;padding:24px;color:var(--on-surface-3);">{{ lang_dict.get('proj_no_projects', 'NO PROJECTS YET.') }}</div>
 {% endif %}
 
-<!-- Modal -->
+<!-- ═══ New Project Modal ═══ -->
 <div id="modal-project" class="t-modal-backdrop">
     <div class="t-modal">
-        <div class="t-panel-header" style="border:none;margin-bottom:8px;padding:0;">{{ lang_dict.get('proj_modal_title', 'NEW PROJECT') }}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('proj_modal_title', 'NEW PROJECT') }}</div>
+            <button onclick="document.getElementById('modal-project').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
+        </div>
         <div style="display:grid;gap:6px;">
             <div><label class="t-label" style="display:block;margin-bottom:2px;">NAME *</label><input id="p-name" type="text" placeholder="Project name" class="t-input"></div>
             <div><label class="t-label" style="display:block;margin-bottom:2px;">DESCRIPTION</label><textarea id="p-desc" rows="2" class="t-input"></textarea></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                <div><label class="t-label" style="display:block;margin-bottom:2px;">STATUS</label>
-                    <select id="p-status" class="t-input"><option>Planning</option><option>Active</option><option>On Hold</option><option>Completed</option></select>
-                </div>
                 <div><label class="t-label" style="display:block;margin-bottom:2px;">DEADLINE</label><input id="p-deadline" type="date" class="t-input"></div>
+                <div><label class="t-label" style="display:block;margin-bottom:2px;">LINK TO OBJECTIVE</label>
+                    <select id="p-obj" class="t-input"><option value="">None</option>{% for obj in objectives %}<option value="{{ obj.ObjectiveID }}">{{ obj.Title }}</option>{% endfor %}</select>
+                </div>
             </div>
-            <div><label class="t-label" style="display:block;margin-bottom:2px;">LINK TO OBJECTIVE</label>
-                <select id="p-obj" class="t-input"><option value="">None</option>{% for obj in objectives %}<option value="{{ obj.ObjectiveID }}">{{ obj.Title }}</option>{% endfor %}</select>
+            <div style="padding:6px 8px;background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.15);border-radius:4px;font-size:13px;color:var(--on-surface-3);">
+                ℹ️ Status is automatically derived from work items. New projects start as <strong>NOT STARTED</strong>.
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
-            <button onclick="document.getElementById('modal-project').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">{{ lang_dict.get('proj_btn_cancel', 'CANCEL') }}</button>
+            <button onclick="document.getElementById('modal-project').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('proj_btn_cancel', 'CANCEL') }}</button>
             <button onclick="saveProject()" class="t-btn t-btn-green">{{ lang_dict.get('proj_btn_create', 'CREATE') }}</button>
         </div>
     </div>
 </div>
 
+<!-- ═══ Edit Project Modal ═══ -->
+<div id="modal-edit-project" class="t-modal-backdrop">
+    <div class="t-modal">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">EDIT PROJECT</div>
+            <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
+        </div>
+        <input type="hidden" id="ep-id">
+        <div style="display:grid;gap:6px;">
+            <div><label class="t-label" style="display:block;margin-bottom:2px;">NAME *</label><input id="ep-name" type="text" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:2px;">DESCRIPTION</label><textarea id="ep-desc" rows="2" class="t-input"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <div><label class="t-label" style="display:block;margin-bottom:2px;">DEADLINE</label><input id="ep-deadline" type="date" class="t-input"></div>
+                <div><label class="t-label" style="display:block;margin-bottom:2px;">LINK TO OBJECTIVE</label>
+                    <select id="ep-obj" class="t-input"><option value="">None</option>{% for obj in objectives %}<option value="{{ obj.ObjectiveID }}">{{ obj.Title }}</option>{% endfor %}</select>
+                </div>
+            </div>
+            <div style="padding:6px 8px;background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.15);border-radius:4px;font-size:13px;color:var(--on-surface-3);">
+                ℹ️ Status is automatically computed from work items and cannot be changed manually.
+            </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
+            <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" class="t-btn t-btn-outline">CANCEL</button>
+            <button onclick="saveEditProject()" class="t-btn t-btn-cyan">
+                <span class="material-symbols-outlined" style="font-size:15px;">save</span> SAVE
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+// ── Create project ────────────────────────────────────────────────
 async function saveProject() {
     var name = document.getElementById('p-name').value.trim();
     if (!name) return;
     var res = await fetch('/api/projects', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ name:name, description:document.getElementById('p-desc').value, status:document.getElementById('p-status').value, deadline:document.getElementById('p-deadline').value||null, objective_id:document.getElementById('p-obj').value||null })
+        body: JSON.stringify({
+            name: name,
+            description: document.getElementById('p-desc').value,
+            deadline: document.getElementById('p-deadline').value || null,
+            objective_id: document.getElementById('p-obj').value || null
+        })
     });
     var data = await res.json();
     if (data.ok) window.location.href = '/projects/' + data.project_id;
 }
+
+// ── Edit project ──────────────────────────────────────────────────
+function openEditProject(pid, name, desc, deadline, objId) {
+    document.getElementById('ep-id').value = pid;
+    document.getElementById('ep-name').value = name;
+    document.getElementById('ep-desc').value = desc;
+    document.getElementById('ep-deadline').value = deadline;
+    document.getElementById('ep-obj').value = objId || '';
+    document.getElementById('modal-edit-project').classList.add('open');
+}
+
+async function saveEditProject() {
+    var pid  = document.getElementById('ep-id').value;
+    var name = document.getElementById('ep-name').value.trim();
+    if (!name) { alert('Name is required.'); return; }
+    var res = await fetch('/api/projects/' + pid, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+            name: name,
+            description: document.getElementById('ep-desc').value,
+            deadline: document.getElementById('ep-deadline').value || null,
+            objective_id: document.getElementById('ep-obj').value || null
+        })
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+// ── Delete project ────────────────────────────────────────────────
+async function deleteProject(pid) {
+    if (!confirm('Delete this project?')) return;
+    var res = await fetch('/api/projects/' + pid, {method: 'DELETE'});
+    if ((await res.json()).ok) location.reload();
+}
+
+// ── Keyboard escape ───────────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('modal-project').classList.remove('open');
+        document.getElementById('modal-edit-project').classList.remove('open');
+    }
+});
 </script>
 {% endblock %}

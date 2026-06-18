@@ -24,7 +24,7 @@
 <div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
     <span>
         {{ lang_dict.get('lbl_documents', 'Documents') }}
-        <span style="color:var(--on-surface-3);font-size:11px;">[{{ documents|length }}]</span>
+        <span style="color:var(--on-surface-3);font-size:13px;">[{{ documents|length }}]</span>
     </span>
 </div>
 
@@ -58,7 +58,7 @@
                 <!-- File Extension -->
                 <td>
                     <span style="
-                        display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;text-transform:uppercase;
+                        display:inline-block;padding:2px 8px;border-radius:6px;font-size:13px;font-weight:700;text-transform:uppercase;
                         {% set ext = doc['FileExt']|lower %}
                         {% if ext in ['pdf'] %}background:rgba(239,68,68,0.15);color:#f87171;
                         {% elif ext in ['doc','docx'] %}background:rgba(59,130,246,0.15);color:#60a5fa;
@@ -273,7 +273,7 @@ function updateDropLabel(input) {
         var f = input.files[0];
         var sizeKb = (f.size / 1024).toFixed(1);
         label.innerHTML = '<strong style="color:var(--on-surface);">' + f.name + '</strong>'
-                        + '<br><span style="font-size:11px;">' + sizeKb + ' KB</span>';
+                        + '<br><span style="font-size:13px;">' + sizeKb + ' KB</span>';
         document.getElementById('drop-zone').style.borderColor = 'var(--primary)';
     }
 }

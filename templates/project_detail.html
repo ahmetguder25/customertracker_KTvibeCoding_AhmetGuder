@@ -3,73 +3,143 @@
 {% block content %}
 
 <div style="margin-bottom:4px;">
-    <a href="/projects" style="font-size:11px;color:var(--on-surface-3);text-transform:uppercase;">← PROJECTS</a>
+    <a href="/projects" style="font-size:13px;color:var(--on-surface-3);text-transform:uppercase;">← PROJECTS</a>
 </div>
 
+<!-- ── Project Header Card ── -->
 <div class="t-panel" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1px;">
-    <div>
+    <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
             <span class="t-display" style="font-size:17px;">{{ project.ProjectName }}</span>
-            <span class="t-chip {% if project.Status == 'Active' %}t-chip-green{% elif project.Status == 'Completed' %}t-chip-cyan{% elif project.Status == 'On Hold' %}t-chip-amber{% else %}t-chip-dim{% endif %}">{{ project.Status | upper }}</span>
+            <span class="t-chip {% if project.computed_status == 'Active' %}t-chip-green{% elif project.computed_status == 'Completed' %}t-chip-cyan{% else %}t-chip-dim{% endif %}">{{ project.computed_status | upper }}</span>
         </div>
-        <div style="font-size:11px;color:var(--on-surface-3);">
+        <div style="font-size:13px;color:var(--on-surface-3);">
             {% if project.ObjTitle %}📎 {{ project.ObjTitle }} · {% endif %}
-            {% if project.Deadline %}DUE {{ project.Deadline }}{% endif %}
+            {% if project.Deadline %}DUE {{ project.Deadline }} · {% endif %}
+            {% if project.Owner %}OWNER: {{ project.Owner }}{% endif %}
         </div>
     </div>
-    <button onclick="document.getElementById('modal-item').classList.add('open')" class="t-btn">+ ADD ITEM</button>
+    <button onclick="openEditProject()"
+        style="color:var(--amber);background:none;border:1px solid rgba(245,158,11,0.25);cursor:pointer;padding:4px 10px;border-radius:5px;display:inline-flex;align-items:center;gap:4px;font-family:var(--font-head);font-size:13px;font-weight:700;letter-spacing:0.04em;"
+        onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background='none'">
+        <span class="material-symbols-outlined" style="font-size:14px;">edit</span> EDIT
+    </button>
 </div>
 
 {% if project.Description %}
-<div class="t-panel" style="border-top:none;padding:4px 8px;font-size:11px;color:var(--on-surface-3);margin-bottom:1px;">{{ project.Description }}</div>
+<div class="t-panel" style="border-top:none;padding:4px 8px;font-size:13px;color:var(--on-surface-3);margin-bottom:1px;">{{ project.Description }}</div>
 {% endif %}
 
-<!-- Backlog -->
+<!-- ── Progress Bar ── -->
+<div class="t-panel" style="border-top:none;padding:8px 12px;margin-bottom:1px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;font-family:var(--font-head);color:var(--on-surface-2);font-weight:700;letter-spacing:0.04em;">PROGRESS</span>
+        <span style="font-size:13px;font-family:var(--font-mono);color:{% if progress_pct >= 100 %}var(--green){% elif progress_pct > 0 %}var(--primary){% else %}var(--on-surface-3){% endif %};font-weight:700;">{{ progress_pct }}%</span>
+    </div>
+    <div style="height:8px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;">
+        <div style="height:100%;width:{{ progress_pct }}%;border-radius:4px;
+            background:{% if progress_pct >= 100 %}var(--green){% elif progress_pct > 0 %}linear-gradient(90deg, var(--primary), var(--cyan)){% else %}var(--border){% endif %};
+            transition:width 0.6s ease;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:13px;color:var(--on-surface-3);">
+        <span>{{ done_count }} / {{ total_count }} ITEMS DONE</span>
+        <span style="font-style:italic;">
+            {% if progress_pct >= 100 %}✓ ALL COMPLETE
+            {% elif total_count == 0 %}NO WORK ITEMS YET
+            {% else %}{{ total_count - done_count }} REMAINING
+            {% endif %}
+        </span>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     WORK ITEMS PORTAL PANEL
+     Connected to Global Backlog — items editable from both places
+     ══════════════════════════════════════════════════════════ -->
 <div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;">
-    <span>BACKLOG <span style="font-size:11px;color:var(--on-surface-3);">[{{ items|length }}]</span></span>
-    {% if items %}
-    {% set done = items | selectattr('Status','equalto','done') | list | length %}
-    <span style="font-size:11px;color:var(--on-surface-3);">{{ done }}/{{ items|length }} DONE</span>
-    {% endif %}
+    <span style="display:flex;align-items:center;gap:8px;">
+        WORK ITEMS
+        <span style="font-size:13px;color:var(--on-surface-3);">[{{ total_count }}]</span>
+        <!-- Portal badge -->
+        <a href="/backlog" style="display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--primary);text-decoration:none;background:rgba(45,212,191,0.08);border:1px solid rgba(45,212,191,0.2);border-radius:4px;padding:1px 6px;" title="View all in Global Backlog">
+            <span class="material-symbols-outlined" style="font-size:12px;">link</span> BACKLOG
+        </a>
+    </span>
+    <button onclick="document.getElementById('modal-item').classList.add('open')" class="t-btn t-btn-sm">
+        + ADD ITEM
+    </button>
 </div>
 
 {% if items %}
 {% for item in items %}
-{% set prereqs = prereq_map.get(item.ItemID, []) %}
-{% set subs = subitems_map.get(item.ItemID, []) %}
+{% set prereqs   = prereq_map.get(item.ItemID, []) %}
+{% set subs      = subitems_map.get(item.ItemID, []) %}
 {% set is_blocked = prereqs | length > 0 and items | selectattr('ItemID','in',prereqs) | selectattr('Status','ne','done') | list | length > 0 %}
-<div class="t-panel" style="border-top:none;padding:4px 8px;{% if is_blocked %}opacity:0.5;{% endif %}" id="item-{{ item.ItemID }}">
-    <div style="display:flex;align-items:flex-start;gap:6px;">
-        <button onclick="toggleStatus({{ item.ItemID }}, '{{ item.Status }}')" {% if is_blocked %}disabled{% endif %}
-            style="flex-shrink:0;width:14px;height:14px;margin-top:1px;border:1px solid {% if item.Status == 'done' %}var(--green){% elif item.Status == 'in_progress' %}var(--amber){% elif is_blocked or item.Status == 'blocked' %}var(--red){% else %}var(--border){% endif %};background:{% if item.Status == 'done' %}var(--green){% else %}transparent{% endif %};cursor:pointer;font-size:10px;color:var(--bg);display:flex;align-items:center;justify-content:center;">{% if item.Status == 'done' %}✓{% endif %}</button>
+<div class="t-panel" style="border-top:none;padding:6px 10px;{% if is_blocked %}opacity:0.55;{% endif %}" id="item-{{ item.ItemID }}">
+    <div style="display:flex;align-items:flex-start;gap:7px;">
+        <!-- Status button -->
+        <button onclick="toggleStatus({{ item.ItemID }}, '{{ item.Status }}')"
+            {% if is_blocked %}disabled{% endif %}
+            style="flex-shrink:0;width:15px;height:15px;margin-top:2px;border:2px solid {% if item.Status == 'done' %}var(--green){% elif item.Status == 'in_progress' %}var(--amber){% elif is_blocked or item.Status == 'blocked' %}var(--red){% else %}var(--border){% endif %};
+                background:{% if item.Status == 'done' %}var(--green){% else %}transparent{% endif %};
+                border-radius:3px;cursor:pointer;font-size:12px;color:var(--bg);
+                display:flex;align-items:center;justify-content:center;">
+            {% if item.Status == 'done' %}✓{% endif %}
+        </button>
         <div style="flex:1;min-width:0;">
-            <div style="display:flex;justify-content:space-between;">
-                <span style="font-size:12px;font-weight:700;color:{% if item.Status == 'done' %}var(--on-surface-3){% else %}var(--amber-text){% endif %};{% if item.Status == 'done' %}text-decoration:line-through;{% endif %}">{{ item.Title }}</span>
-                <div style="display:flex;align-items:center;gap:4px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <span style="font-size:13px;font-weight:700;
+                    color:{% if item.Status == 'done' %}var(--on-surface-3){% else %}var(--amber-text){% endif %};
+                    {% if item.Status == 'done' %}text-decoration:line-through;{% endif %}">
+                    {{ item.Title }}
+                </span>
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:8px;">
                     {% set item_assignees = assignees_map.get(item.ItemID, []) %}
-                    {% if item_assignees %}<span style="font-size:10px;color:var(--primary);margin-right:8px;" title="{{ item_assignees | join(', ') }}">👤 {{ item_assignees | join(', ') }}</span>{% endif %}
-                    {% if item.Deadline %}<span style="font-size:10px;color:var(--on-surface-3);">{{ item.Deadline }}</span>{% endif %}
-                    <button onclick="deleteItem({{ item.ItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:11px;">✕</button>
+                    {% if item_assignees %}
+                    <span style="font-size:12px;color:var(--primary);" title="{{ item_assignees | join(', ') }}">👤 {{ item_assignees | join(', ') }}</span>
+                    {% endif %}
+                    {% if item.Deadline %}
+                    <span style="font-size:12px;color:var(--on-surface-3);font-family:var(--font-mono);">{{ item.Deadline }}</span>
+                    {% endif %}
+                    <!-- Status chip -->
+                    <span class="t-chip {% if item.Status == 'in_progress' %}t-chip-green{% elif item.Status == 'blocked' %}t-chip-red{% elif item.Status == 'done' %}t-chip-cyan{% else %}t-chip-dim{% endif %}" style="font-size:12px;">
+                        {{ item.Status.replace('_',' ') | upper }}
+                    </span>
+                    <button onclick="deleteItem({{ item.ItemID }})"
+                        style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px;padding:1px 2px;"
+                        title="Remove">✕</button>
                 </div>
             </div>
-            {% if prereqs %}<div style="font-size:10px;color:var(--on-surface-3);">REQ: {% for rid in prereqs %}#{{ rid }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
-            {% if is_blocked %}<div style="font-size:10px;color:var(--red);">⊘ BLOCKED</div>{% endif %}
+            {% if item.Description %}
+            <div style="font-size:13px;color:var(--on-surface-3);margin-top:2px;">{{ item.Description }}</div>
+            {% endif %}
+            {% if prereqs %}
+            <div style="font-size:12px;color:var(--on-surface-3);">REQ: {% for rid in prereqs %}#{{ rid }}{% if not loop.last %}, {% endif %}{% endfor %}</div>
+            {% endif %}
+            {% if is_blocked %}<div style="font-size:12px;color:var(--red);">⊘ BLOCKED BY PREREQUISITES</div>{% endif %}
+            <!-- Sub-items -->
             {% if subs %}
-            <div style="margin-top:4px;">
+            <div style="margin-top:5px;">
                 {% for s in subs %}
-                <div class="t-nested-row" style="display:flex;align-items:center;gap:6px;padding:4px 8px;margin-bottom:2px;">
-                    <button onclick="toggleSubStatus({{ s.SubItemID }}, '{{ s.Status }}')" style="width:12px;height:12px;border:1px solid {% if s.Status == 'done' %}var(--green){% else %}var(--border){% endif %};background:{% if s.Status == 'done' %}var(--green){% else %}transparent{% endif %};cursor:pointer;font-size:9px;color:var(--bg);display:flex;align-items:center;justify-content:center;">{% if s.Status == 'done' %}✓{% endif %}</button>
+                <div class="t-nested-row" style="display:flex;align-items:center;gap:6px;padding:3px 8px;margin-bottom:2px;">
+                    <button onclick="toggleSubStatus({{ s.SubItemID }}, '{{ s.Status }}')"
+                        style="width:12px;height:12px;border:1px solid {% if s.Status == 'done' %}var(--green){% else %}var(--border){% endif %};
+                            background:{% if s.Status == 'done' %}var(--green){% else %}transparent{% endif %};
+                            cursor:pointer;font-size:12px;color:var(--bg);display:flex;align-items:center;justify-content:center;">
+                        {% if s.Status == 'done' %}✓{% endif %}
+                    </button>
                     <span style="font-size:12px;color:var(--on-surface-2);{% if s.Status == 'done' %}text-decoration:line-through;{% endif %}">{{ s.Title }}</span>
-                    {% if s.Deadline %}<span class="t-num" style="font-size:11px;color:var(--on-surface-3);margin-left:auto;">{{ s.Deadline }}</span>{% endif %}
-                    <button onclick="deleteSubItem({{ s.SubItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:13px;" title="Delete Sub-item">✕</button>
+                    {% if s.Deadline %}<span class="t-num" style="font-size:13px;color:var(--on-surface-3);margin-left:auto;">{{ s.Deadline }}</span>{% endif %}
+                    <button onclick="deleteSubItem({{ s.SubItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px;" title="Remove sub-item">✕</button>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
-            <button onclick="showAddSub({{ item.ItemID }})" style="font-size:10px;color:var(--on-surface-3);background:none;border:none;cursor:pointer;margin-top:2px;">+ SUB</button>
-            <div id="sub-form-{{ item.ItemID }}" style="display:none;margin-top:3px;">
+            <button onclick="showAddSub({{ item.ItemID }})" style="font-size:12px;color:var(--on-surface-3);background:none;border:none;cursor:pointer;margin-top:3px;">+ SUB-ITEM</button>
+            <div id="sub-form-{{ item.ItemID }}" style="display:none;margin-top:4px;">
                 <div style="display:flex;gap:4px;">
-                    <input type="text" id="sub-title-{{ item.ItemID }}" placeholder="Sub-item..." class="t-input" style="flex:1;font-size:11px;padding:2px 6px;">
+                    <input type="text" id="sub-title-{{ item.ItemID }}" placeholder="Sub-item..." class="t-input" style="flex:1;font-size:13px;padding:2px 6px;">
                     <button onclick="saveSub({{ item.ItemID }})" class="t-btn t-btn-sm">ADD</button>
                 </div>
             </div>
@@ -78,36 +148,71 @@
 </div>
 {% endfor %}
 {% else %}
-<div class="t-panel" style="border-top:none;text-align:center;padding:12px;color:var(--on-surface-3);font-size:11px;">NO ITEMS YET.</div>
+<div class="t-panel" style="border-top:none;text-align:center;padding:16px;color:var(--on-surface-3);font-size:13px;">
+    NO WORK ITEMS YET. ADD ONE ABOVE OR FROM THE
+    <a href="/backlog" style="color:var(--primary);">GLOBAL BACKLOG</a>.
+</div>
 {% endif %}
 
-<!-- Add Work Item Modal -->
+
+<!-- ═══ Add Work Item Modal ═══ -->
 <div id="modal-item" class="t-modal-backdrop">
-    <div class="t-modal" style="max-width:420px;">
-        <div class="t-panel-header" style="border:none;margin-bottom:8px;padding:0;">ADD WORK ITEM</div>
-        <div style="display:grid;gap:6px;">
-            <div><label class="t-label" style="display:block;margin-bottom:2px;">TITLE *</label><input id="wi-title" type="text" placeholder="Work item title" class="t-input"></div>
-            <div><label class="t-label" style="display:block;margin-bottom:2px;">DESCRIPTION</label><textarea id="wi-desc" rows="2" class="t-input"></textarea></div>
-            <div><label class="t-label" style="display:block;margin-bottom:2px;">DEADLINE</label><input id="wi-deadline" type="date" class="t-input"></div>
+    <div class="t-modal" style="max-width:440px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">ADD WORK ITEM</div>
+            <button onclick="document.getElementById('modal-item').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
+        </div>
+        <div style="display:grid;gap:8px;">
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">TITLE *</label><input id="wi-title" type="text" placeholder="Work item title" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">DESCRIPTION</label><textarea id="wi-desc" rows="2" class="t-input"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <div>
+                    <label class="t-label" style="display:block;margin-bottom:3px;">STATUS</label>
+                    <select id="wi-status" class="t-input">
+                        <option value="not_started">NOT STARTED</option>
+                        <option value="in_progress">IN PROGRESS</option>
+                        <option value="blocked">BLOCKED</option>
+                    </select>
+                </div>
+                <div><label class="t-label" style="display:block;margin-bottom:3px;">DEADLINE</label><input id="wi-deadline" type="date" class="t-input"></div>
+            </div>
             <div>
-                <label class="t-label" style="display:block;margin-bottom:2px;">ASSIGNED TO</label>
-                <select id="wi-assignees" multiple class="t-input" style="height:auto; min-height: 80px;">
-                    <optgroup label="Users">
-                        {% for u in users %}
-                        <option value="U-{{ u.id }}">{{ u.username }} {% if u.surname %}{{ u.surname }}{% endif %}</option>
-                        {% endfor %}
-                    </optgroup>
-                    <optgroup label="Stakeholders">
-                        {% for s in stakeholders %}
-                        <option value="S-{{ s.StakeholderID }}">{{ s.FullName }}</option>
-                        {% endfor %}
-                    </optgroup>
-                </select>
+                <label class="t-label" style="display:block;margin-bottom:3px;">ASSIGNEES</label>
+                <div id="wi-assignees-picker"></div>
             </div>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
-            <button onclick="document.getElementById('modal-item').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">CANCEL</button>
+        <div style="display:flex;justify-content:flex-end;gap:5px;padding-top:10px;">
+            <button onclick="document.getElementById('modal-item').classList.remove('open')" class="t-btn t-btn-outline">CANCEL</button>
             <button onclick="saveItem()" class="t-btn t-btn-green">ADD</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Edit Project Modal ═══ -->
+<div id="modal-edit-project" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:440px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">EDIT PROJECT</div>
+            <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
+        </div>
+        <div style="display:grid;gap:8px;">
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">NAME *</label><input id="ep-name" type="text" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">DESCRIPTION</label><textarea id="ep-desc" rows="2" class="t-input"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <div><label class="t-label" style="display:block;margin-bottom:3px;">DEADLINE</label><input id="ep-deadline" type="date" class="t-input"></div>
+                <div><label class="t-label" style="display:block;margin-bottom:3px;">LINK TO OBJECTIVE</label>
+                    <select id="ep-obj" class="t-input"><option value="">None</option>{% for obj in objectives %}<option value="{{ obj.ObjectiveID }}">{{ obj.Title }}</option>{% endfor %}</select>
+                </div>
+            </div>
+            <div style="padding:6px 8px;background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.15);border-radius:4px;font-size:13px;color:var(--on-surface-3);">
+                ℹ️ Status is automatically computed from work items and cannot be changed manually.
+            </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:5px;padding-top:10px;">
+            <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" class="t-btn t-btn-outline">CANCEL</button>
+            <button onclick="saveEditProject()" class="t-btn t-btn-cyan">
+                <span class="material-symbols-outlined" style="font-size:15px;">save</span> SAVE
+            </button>
         </div>
     </div>
 </div>
@@ -115,12 +220,113 @@
 <script>
 var PROJECT_ID = {{ project.ProjectID }};
 var STATUS_CYCLE = {'not_started':'in_progress','in_progress':'done','done':'not_started','blocked':'in_progress'};
-async function toggleStatus(iid,current){await fetch('/api/workitems/'+iid+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:STATUS_CYCLE[current]||'in_progress'})});location.reload();}
-async function toggleSubStatus(sid,current){await fetch('/api/subitems/'+sid+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:current==='done'?'not_started':'done'})});location.reload();}
-async function saveItem(){var t=document.getElementById('wi-title').value.trim();if(!t)return;var assigns=Array.from(document.getElementById('wi-assignees').selectedOptions).map(o=>o.value);await fetch('/api/workitems',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({parent_type:'project',parent_id:PROJECT_ID,title:t,description:document.getElementById('wi-desc').value,deadline:document.getElementById('wi-deadline').value||null,assignees:assigns})});location.reload();}
-async function deleteItem(iid){if(!confirm('Remove?'))return;await fetch('/api/workitems/'+iid,{method:'DELETE'});location.reload();}
-function showAddSub(iid){var el=document.getElementById('sub-form-'+iid);el.style.display=el.style.display==='none'?'block':'none';}
-async function saveSub(iid){var t=document.getElementById('sub-title-'+iid).value.trim();if(!t)return;await fetch('/api/subitems',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({parent_item_id:iid,title:t})});location.reload();}
-async function deleteSubItem(sid){await fetch('/api/subitems/'+sid,{method:'DELETE'});location.reload();}
+
+// ── Work item status toggle ───────────────────────────────────────
+async function toggleStatus(iid, current) {
+    var next = STATUS_CYCLE[current] || 'in_progress';
+    var res = await fetch('/api/workitems/' + iid + '/status', {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: next})
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+async function toggleSubStatus(sid, current) {
+    var res = await fetch('/api/subitems/' + sid + '/status', {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: current === 'done' ? 'not_started' : 'done'})
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+// ── Add work item ─────────────────────────────────────────────────
+async function saveItem() {
+    var t = document.getElementById('wi-title').value.trim();
+    if (!t) return;
+    var assigns = document.getElementById('wi-assignees-picker').getValues();
+    var res = await fetch('/api/workitems', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            parent_type: 'project', parent_id: PROJECT_ID,
+            title: t, description: document.getElementById('wi-desc').value,
+            status: document.getElementById('wi-status').value,
+            deadline: document.getElementById('wi-deadline').value || null,
+            assignees: assigns
+        })
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+// ── Delete work item ──────────────────────────────────────────────
+async function deleteItem(iid) {
+    if (!confirm('Remove this work item?')) return;
+    var res = await fetch('/api/workitems/' + iid, {method: 'DELETE'});
+    if ((await res.json()).ok) {
+        var el = document.getElementById('item-' + iid);
+        if (el) { el.style.opacity='0'; el.style.transition='opacity 0.25s'; setTimeout(function(){ location.reload(); }, 260); }
+    }
+}
+
+// ── Sub-items ─────────────────────────────────────────────────────
+function showAddSub(iid) {
+    var el = document.getElementById('sub-form-' + iid);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveSub(iid) {
+    var t = document.getElementById('sub-title-' + iid).value.trim();
+    if (!t) return;
+    var res = await fetch('/api/subitems', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({parent_item_id: iid, title: t})
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+async function deleteSubItem(sid) {
+    var res = await fetch('/api/subitems/' + sid, {method: 'DELETE'});
+    if ((await res.json()).ok) location.reload();
+}
+
+// ── Edit project ──────────────────────────────────────────────────
+function openEditProject() {
+    document.getElementById('ep-name').value     = {{ project.ProjectName | tojson }};
+    document.getElementById('ep-desc').value     = {{ (project.Description or '') | tojson }};
+    document.getElementById('ep-deadline').value = '{{ project.Deadline or '' }}';
+    document.getElementById('ep-obj').value      = '{{ project.ObjectiveID or '' }}';
+    document.getElementById('modal-edit-project').classList.add('open');
+}
+
+async function saveEditProject() {
+    var name = document.getElementById('ep-name').value.trim();
+    if (!name) { alert('Name is required.'); return; }
+    var res = await fetch('/api/projects/' + PROJECT_ID, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            name: name,
+            description: document.getElementById('ep-desc').value,
+            deadline: document.getElementById('ep-deadline').value || null,
+            objective_id: document.getElementById('ep-obj').value || null
+        })
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+// ── Keyboard escape ───────────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('modal-item').classList.remove('open');
+        document.getElementById('modal-edit-project').classList.remove('open');
+    }
+});
+</script>
+
+{% include '_assignee_picker.html' %}
+<script>
+(function() {
+    var u = [{% for u in users %}{id:{{ u.id }},username:{{ u.username|tojson }},surname:{{ (u.surname or '')|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
+    var s = [{% for st in stakeholders %}{StakeholderID:{{ st.StakeholderID }},FullName:{{ st.FullName|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
+    initAssigneePicker('wi-assignees-picker', u, s);
+})();
 </script>
 {% endblock %}

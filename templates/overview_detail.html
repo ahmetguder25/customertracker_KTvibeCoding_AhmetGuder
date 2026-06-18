@@ -4,7 +4,7 @@
 {% block content %}
 <!-- Back -->
 <div style="margin-bottom:4px;">
-    <a href="/overview" style="font-size:11px;color:var(--on-surface-3);text-transform:uppercase;">← {{ lang_dict.get('overview_back', 'BACK TO OVERVIEW') }}</a>
+    <a href="/overview" style="font-size:13px;color:var(--on-surface-3);text-transform:uppercase;">← {{ lang_dict.get('overview_back', 'BACK TO OVERVIEW') }}</a>
 </div>
 
 <!-- ═══ HEADER ═══ -->
@@ -86,7 +86,7 @@
     {% endif %}
 
     <!-- MEMOS -->
-    <div class="t-section-header">{{ lang_dict.get('ov_comments_title', 'TEAM MEMOS') }} <span style="color:var(--on-surface-3);font-size:11px;margin-left:6px;">[{{ comments|length }}]</span></div>
+    <div class="t-section-header">{{ lang_dict.get('ov_comments_title', 'TEAM MEMOS') }} <span style="color:var(--on-surface-3);font-size:13px;margin-left:6px;">[{{ comments|length }}]</span></div>
     <div class="t-panel" style="border-top:none;">
         <div style="max-height:300px;overflow-y:auto;margin-bottom:8px;" id="memo-list">
             {% if comments %}
@@ -141,7 +141,7 @@
                     {% if node.has_children %}onclick="toggleChildren({{ node.id }})" style="cursor:pointer;{% if node.depth > 0 %}display:none;{% endif %}"
                     {% else %}style="{% if node.depth > 0 %}display:none;{% endif %}"{% endif %}>
                     <td style="padding-left:{{ (node.depth * 12) + 8 }}px;{% if node.depth == 0 %}color:var(--amber);font-weight:800;{% else %}color:var(--on-surface-3);{% endif %}">
-                        {% if node.has_children %}<span id="icon-{{ node.id }}" style="display:inline-block;width:12px;text-align:center;font-size:10px;">▶</span>{% else %}<span style="display:inline-block;width:12px;"></span>{% endif %}
+                        {% if node.has_children %}<span id="icon-{{ node.id }}" style="display:inline-block;width:12px;text-align:center;font-size:12px;">▶</span>{% else %}<span style="display:inline-block;width:12px;"></span>{% endif %}
                         {{ node.code }}
                     </td>
                     <td style="{% if node.depth == 0 %}color:var(--amber-text);font-weight:800;{% endif %}">{{ node.name }}</td>

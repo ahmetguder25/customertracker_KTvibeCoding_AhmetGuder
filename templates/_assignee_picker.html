@@ -1,0 +1,189 @@
+{# ═══════════════════════════════════════════════════════════
+   SEARCHABLE MULTI-SELECT ASSIGNEE WIDGET
+   Usage:  {% include '_assignee_picker.html' %}
+   Then call:  initAssigneePicker('my-picker-id', users, stakeholders)
+   ═══════════════════════════════════════════════════════════ #}
+
+<style>
+.ap-container { position:relative; }
+.ap-chips {
+    display:flex; flex-wrap:wrap; gap:4px; padding:5px 6px;
+    border:1px solid var(--border); border-radius:4px;
+    background:var(--surface); min-height:32px; cursor:text;
+    transition:border-color 0.2s;
+}
+.ap-chips:focus-within { border-color:var(--primary); }
+.ap-chip {
+    display:inline-flex; align-items:center; gap:3px;
+    background:rgba(45,212,191,0.1); border:1px solid rgba(45,212,191,0.25);
+    color:var(--primary); border-radius:3px; padding:1px 6px;
+    font-size:12px; font-family:var(--font-head); letter-spacing:0.02em;
+    white-space:nowrap;
+}
+.ap-chip-x {
+    cursor:pointer; color:var(--on-surface-3); font-size:12px; line-height:1;
+    margin-left:2px; border:none; background:none; padding:0;
+}
+.ap-chip-x:hover { color:var(--red); }
+.ap-search {
+    flex:1; min-width:60px; border:none; background:transparent;
+    color:var(--on-surface); font-size:12px; outline:none;
+    font-family:var(--font-body);
+}
+.ap-search::placeholder { color:var(--on-surface-3); }
+.ap-dropdown {
+    position:absolute; left:0; right:0; top:100%; z-index:20;
+    max-height:180px; overflow-y:auto; display:none;
+    background:var(--surface-high); border:1px solid var(--border);
+    border-top:none; border-radius:0 0 4px 4px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.3);
+}
+.ap-dropdown.open { display:block; }
+.ap-group-label {
+    padding:4px 8px; font-size:12px; font-family:var(--font-head);
+    color:var(--on-surface-3); letter-spacing:0.06em; text-transform:uppercase;
+    background:rgba(255,255,255,0.02); border-top:1px solid var(--border);
+}
+.ap-option {
+    padding:5px 10px; font-size:12px; color:var(--on-surface-2);
+    cursor:pointer; display:flex; align-items:center; gap:6px;
+    transition:background 0.15s;
+}
+.ap-option:hover { background:rgba(45,212,191,0.08); }
+.ap-option.selected { color:var(--primary); }
+.ap-option.selected::before { content:'✓'; font-size:12px; color:var(--green); }
+.ap-option.hidden { display:none; }
+.ap-empty { padding:8px 10px; font-size:12px; color:var(--on-surface-3); text-align:center; }
+</style>
+
+<script>
+/**
+ * Initialise a searchable multi-select assignee picker.
+ * @param {string}  containerId  - ID of the container div
+ * @param {Array}   users        - [{id, username, surname}, ...]
+ * @param {Array}   stakeholders - [{StakeholderID, FullName}, ...]
+ * @param {Array}   [preselected] - ['U-1','S-2', ...] initial values
+ */
+function initAssigneePicker(containerId, users, stakeholders, preselected) {
+    var container = document.getElementById(containerId);
+    if (!container || container._apInit) return;
+    container._apInit = true;
+
+    // Build options data
+    var options = [];
+    (users || []).forEach(function(u) {
+        var label = u.username + (u.surname ? ' ' + u.surname : '');
+        options.push({ value: 'U-' + u.id, label: label, group: 'Users' });
+    });
+    (stakeholders || []).forEach(function(s) {
+        var label = s.FullName || s.fullname || '';
+        options.push({ value: 'S-' + s.StakeholderID, label: label, group: 'Stakeholders' });
+    });
+
+    // Selected values
+    var selected = new Set(preselected || []);
+
+    // Build DOM
+    container.classList.add('ap-container');
+    container.innerHTML = '';
+
+    var chipsDiv = document.createElement('div');
+    chipsDiv.className = 'ap-chips';
+
+    var searchInput = document.createElement('input');
+    searchInput.className = 'ap-search';
+    searchInput.placeholder = 'Search assignees...';
+    searchInput.type = 'text';
+    chipsDiv.appendChild(searchInput);
+
+    var dropdown = document.createElement('div');
+    dropdown.className = 'ap-dropdown';
+
+    container.appendChild(chipsDiv);
+    container.appendChild(dropdown);
+
+    function renderChips() {
+        // Remove old chips but keep search input
+        var oldChips = chipsDiv.querySelectorAll('.ap-chip');
+        oldChips.forEach(function(c) { c.remove(); });
+        selected.forEach(function(val) {
+            var opt = options.find(function(o) { return o.value === val; });
+            if (!opt) return;
+            var chip = document.createElement('span');
+            chip.className = 'ap-chip';
+            chip.textContent = opt.label;
+            var x = document.createElement('button');
+            x.className = 'ap-chip-x';
+            x.type = 'button';
+            x.textContent = '✕';
+            x.onclick = function(e) { e.stopPropagation(); selected.delete(val); renderChips(); renderDropdown(); };
+            chip.appendChild(x);
+            chipsDiv.insertBefore(chip, searchInput);
+        });
+    }
+
+    function renderDropdown(filter) {
+        dropdown.innerHTML = '';
+        var filt = (filter || '').toLowerCase();
+        var groups = {};
+        var visibleCount = 0;
+        options.forEach(function(opt) {
+            if (filt && opt.label.toLowerCase().indexOf(filt) === -1) return;
+            if (!groups[opt.group]) groups[opt.group] = [];
+            groups[opt.group].push(opt);
+            visibleCount++;
+        });
+        if (visibleCount === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'ap-empty';
+            empty.textContent = filt ? 'No matches' : 'No assignees available';
+            dropdown.appendChild(empty);
+            return;
+        }
+        Object.keys(groups).forEach(function(g) {
+            var label = document.createElement('div');
+            label.className = 'ap-group-label';
+            label.textContent = g;
+            dropdown.appendChild(label);
+            groups[g].forEach(function(opt) {
+                var div = document.createElement('div');
+                div.className = 'ap-option' + (selected.has(opt.value) ? ' selected' : '');
+                div.textContent = opt.label;
+                div.onclick = function() {
+                    if (selected.has(opt.value)) {
+                        selected.delete(opt.value);
+                    } else {
+                        selected.add(opt.value);
+                    }
+                    renderChips();
+                    renderDropdown(searchInput.value);
+                    searchInput.focus();
+                };
+                dropdown.appendChild(div);
+            });
+        });
+    }
+
+    // Events
+    chipsDiv.onclick = function() { searchInput.focus(); };
+    searchInput.onfocus = function() { dropdown.classList.add('open'); renderDropdown(searchInput.value); };
+    searchInput.oninput = function() { renderDropdown(searchInput.value); };
+
+    // Close dropdown on outside click
+    document.addEventListener('click', function(e) {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove('open');
+        }
+    });
+
+    // Expose getValues method
+    container.getValues = function() { return Array.from(selected); };
+    container.setValues = function(vals) {
+        selected = new Set(vals || []);
+        renderChips();
+    };
+
+    renderChips();
+    renderDropdown();
+}
+</script>

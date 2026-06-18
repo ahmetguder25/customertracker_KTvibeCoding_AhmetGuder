@@ -6,7 +6,7 @@
     <title>{% block title %}CUSTOMER TRACKER{% endblock %}</title>
     <meta name="description" content="Structured Finance Customer Tracking System">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='4') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='15') }}">
     {% block head %}{% endblock %}
 </head>
 <body{% if session.get('user_id') %} class="has-sidebar"{% endif %}>
@@ -25,7 +25,7 @@
         </div>
 
         <div class="t-sidebar-nav" id="sidebar-nav">
-            <a data-href="/dashboard" data-label="{{ lang_dict.get('nav_dashboard', 'Dashboard') }}" class="t-sidebar-link">
+            <a data-href="/app" data-label="{{ lang_dict.get('nav_dashboard', 'Dashboard') }}" class="t-sidebar-link">
                 <span class="material-symbols-outlined">dashboard</span> {{ lang_dict.get('nav_dashboard', 'Dashboard') }}
             </a>
             <a data-href="/backlog" data-label="{{ lang_dict.get('nav_backlog', 'Backlog') }}" class="t-sidebar-link">
@@ -68,12 +68,12 @@
                     <span style="color:var(--on-surface-3);">▼</span>
                 </button>
                 <div class="t-user-dropdown">
-                    <div style="padding:6px 12px;font-size:11px;color:var(--on-surface-3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_lang', 'LANG') }}</div>
+                    <div style="padding:6px 12px;font-size:13px;color:var(--on-surface-3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_lang', 'LANG') }}</div>
                     <div class="t-lang-row">
-                        <a href="/set_language/0" class="{% if current_lang == 0 %}active{% endif %}">ENG</a>
+                        <a href="/set_language/2" class="{% if current_lang == 2 %}active{% endif %}">ENG</a>
                         <a href="/set_language/1" class="{% if current_lang == 1 %}active{% endif %}">TR</a>
                     </div>
-                    <div style="padding:6px 12px;font-size:11px;color:var(--on-surface-3);border-bottom:1px solid var(--border);border-top:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_theme', 'THEME') }}</div>
+                    <div style="padding:6px 12px;font-size:13px;color:var(--on-surface-3);border-bottom:1px solid var(--border);border-top:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_theme', 'THEME') }}</div>
                     <div class="t-lang-row">
                         <a href="/set_theme/light" class="{% if session.get('theme') == 'light' %}active{% endif %}">{{ lang_dict.get('menu_light', 'LIGHT') }}</a>
                         <a href="/set_theme/dark" class="{% if session.get('theme', 'dark') == 'dark' %}active{% endif %}">{{ lang_dict.get('menu_dark', 'DARK') }}</a>
@@ -122,9 +122,14 @@
         var ctxTabId = null;
         var pendingCloseId = null;
 
+        // Map sidebar hrefs to labels
         var labelMap = {};
+        var sidebarSections = [];
+        // Aliases: URLs that should be treated as the same section
+        var sectionAliases = { '/dashboard': '/app' };
         document.querySelectorAll('#sidebar-nav .t-sidebar-link').forEach(function(a) {
             labelMap[a.dataset.href] = a.dataset.label;
+            sidebarSections.push(a.dataset.href);
         });
 
         function getLabel(url) {
@@ -140,7 +145,38 @@
 
         function baseUrl(u) { return u.split('?')[0]; }
 
-        function findTab(url) {
+        /**
+         * Get the "section root" for a URL, e.g. /projects/5 → /projects
+         * This matches against known sidebar sections.
+         */
+        function getSection(url) {
+            var b = baseUrl(url);
+            // Check aliases first
+            if (sectionAliases[b]) return sectionAliases[b];
+            for (var i = 0; i < sidebarSections.length; i++) {
+                if (b === sidebarSections[i] || b.indexOf(sidebarSections[i] + '/') === 0) {
+                    return sidebarSections[i];
+                }
+            }
+            return b;
+        }
+
+        /**
+         * Find an existing tab whose URL belongs to the same section.
+         * E.g. if url=/projects, it will match a tab at /projects/5
+         */
+        function findTabBySection(url) {
+            var section = getSection(url);
+            for (var i = 0; i < tabs.length; i++) {
+                if (getSection(tabs[i].url) === section) return tabs[i];
+            }
+            return null;
+        }
+
+        /**
+         * Find a tab with an exact base URL match.
+         */
+        function findTabExact(url) {
             var b = baseUrl(url);
             for (var i = 0; i < tabs.length; i++) {
                 if (baseUrl(tabs[i].url) === b) return tabs[i];
@@ -148,9 +184,25 @@
             return null;
         }
 
-        window.tabOpen = function(url, label) {
-            var existing = findTab(url);
-            if (existing) { activateTab(existing.id); return; }
+        /**
+         * Open or focus a tab.
+         * - If a tab in the same section already exists, activate it.
+         * - If navigateTo is true (sidebar click), also navigate the iframe
+         *   to the requested URL if different from the current one.
+         */
+        window.tabOpen = function(url, label, navigateTo) {
+            var existing = findTabBySection(url);
+            if (existing) {
+                activateTab(existing.id);
+                // If sidebar click and the tab is on a different page, navigate it
+                if (navigateTo && baseUrl(existing.url) !== baseUrl(url)) {
+                    existing.url = url;
+                    existing.label = label || getLabel(url);
+                    existing.iframe.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_frame=1';
+                    renderTabs();
+                }
+                return;
+            }
 
             var id = 'tab-' + (++tabIdCounter);
             var iframe = document.createElement('iframe');
@@ -164,6 +216,8 @@
             renderTabs();
             activateTab(id);
 
+            // When the iframe navigates (detail page click, back link, etc.),
+            // update the tab's URL and label — this keeps the tab in sync
             iframe.addEventListener('load', function() {
                 try {
                     var p = iframe.contentWindow.location.pathname;
@@ -172,6 +226,7 @@
                     var t = iframe.contentDocument.title;
                     if (t) { var d = t.indexOf('—'); if (d > 0) tab.label = t.substring(0, d).trim(); }
                     renderTabs();
+                    updateSidebarActive();
                 } catch(e) {}
             });
         };
@@ -187,7 +242,7 @@
             var active = tabs.find(function(t) { return t.id === activeTabId; });
             document.querySelectorAll('#sidebar-nav .t-sidebar-link').forEach(function(a) {
                 a.classList.remove('active');
-                if (active && baseUrl(active.url) === a.dataset.href) a.classList.add('active');
+                if (active && getSection(active.url) === a.dataset.href) a.classList.add('active');
             });
         }
 
@@ -271,15 +326,15 @@
             });
         });
 
-        /* Wire sidebar */
+        /* Wire sidebar — pass navigateTo=true so existing tabs get redirected */
         document.querySelectorAll('#sidebar-nav .t-sidebar-link').forEach(function(a) {
-            a.addEventListener('click', function(e) { e.preventDefault(); tabOpen(this.dataset.href, this.dataset.label); });
+            a.addEventListener('click', function(e) { e.preventDefault(); tabOpen(this.dataset.href, this.dataset.label, true); });
         });
 
         /* Initial tab */
         var initPath = '{{ request.path }}';
-        if (initPath && initPath !== '/' && initPath !== '/user-login' && initPath !== '/env-login') tabOpen(initPath);
-        else tabOpen('/dashboard', 'Dashboard');
+        if (initPath && initPath !== '/' && initPath !== '/user-login' && initPath !== '/env-login' && initPath !== '/dashboard') tabOpen(initPath);
+        else tabOpen('/app', 'Dashboard');
 
         setInterval(renderTabs, 2000);
     })();

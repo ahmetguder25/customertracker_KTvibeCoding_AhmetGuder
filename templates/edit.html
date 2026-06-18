@@ -1,0 +1,65 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}EDIT CUSTOMER — {{ customer.CustomerName | upper }}{% endblock %}
+
+{% block content %}
+<div class="t-page-header">
+    <div>
+        <div class="t-page-title">EDIT CUSTOMER</div>
+        <div class="t-page-subtitle">{{ customer.CustomerName }} (Account #{{ customer.Customerid }})</div>
+    </div>
+    <a href="/management" class="t-btn t-btn-outline">← BACK TO MANAGEMENT</a>
+</div>
+
+<div class="t-panel" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div style="margin-bottom: 16px;">
+        {% for category, message in messages %}
+          <div style="padding: 8px 12px; border-radius: 4px; font-size: 13px; margin-bottom: 4px; {% if category == 'error' %}background: rgba(248,113,113,0.1); border: 1px solid var(--red); color: var(--red);{% else %}background: rgba(45,212,191,0.1); border: 1px solid var(--green); color: var(--green);{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form action="/management/edit/{{ customer.Customerid }}" method="POST" enctype="multipart/form-data" style="display:grid; gap: 16px;">
+        <div>
+            <label class="t-label" style="display:block; margin-bottom:4px;">COMPANY NAME *</label>
+            <input type="text" name="CustomerName" value="{{ customer.CustomerName }}" required class="t-input" style="width: 100%;">
+        </div>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+                <label class="t-label" style="display:block; margin-bottom:4px;">SECTOR</label>
+                <select name="sector" class="t-input" style="width: 100%;">
+                    <option value="">— Select Sector —</option>
+                    {% for code, details in sector_map.items() %}
+                    <option value="{{ code }}" {% if customer.sector == code %}selected{% endif %}>{{ details.description }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="t-label" style="display:block; margin-bottom:4px;">PORTFOLIO MANAGER</label>
+                <input type="text" name="portfolio_manager" value="{{ customer.portfolio_manager or '' }}" class="t-input" style="width: 100%;">
+            </div>
+        </div>
+
+        <div>
+            <label class="t-label" style="display:block; margin-bottom:4px;">COMPANY LOGO</label>
+            {% if customer.logo_path %}
+            <div style="margin-bottom: 8px;">
+                <img src="/static/uploads/{{ customer.logo_path }}" alt="Current Logo" style="max-height: 40px; border-radius: 4px; background: white; padding: 2px;">
+            </div>
+            {% endif %}
+            <input type="file" name="logo" accept="image/*" class="t-input" style="width: 100%;">
+            <div style="font-size: 11px; color: var(--on-surface-3); margin-top: 4px;">Upload a new image to replace the current logo (max 1MB).</div>
+        </div>
+
+        <div style="display:flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+            <a href="/management" class="t-btn t-btn-outline">CANCEL</a>
+            <button type="submit" class="t-btn t-btn-green">SAVE CHANGES</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

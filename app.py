@@ -285,7 +285,7 @@ def get_param_map(param_type, conn=None):
     close_conn = conn is None
     if close_conn:
         conn = get_db()
-    lang_id = session.get("lang", 0) if has_request_context() else 0
+    lang_id = session.get("lang", 2) if has_request_context() else 2
     rows = conn.execute(load_query("get_parameters"), (param_type, lang_id)).fetchall()
     if close_conn:
         conn.close()
@@ -308,7 +308,7 @@ def inject_lang_dict():
     """Inject lang_dict + current_lang into all templates."""
     if not has_request_context():
         return dict(lang_dict={}, current_lang=0)
-    lang_id = session.get("lang", 0)
+    lang_id = session.get("lang", 2)
     try:
         conn = get_db()
         rows = conn.execute(load_query("get_dictionary"), (lang_id,)).fetchall()
@@ -450,7 +450,7 @@ def disconnect():
 
 @app.route("/set_language/<int:lang_id>")
 def set_language(lang_id):
-    if lang_id in (0, 1):
+    if lang_id in (1, 2):
         session["lang"] = lang_id
         user_id = session.get("user_id")
         if user_id:
@@ -539,16 +539,32 @@ def syndication_detail(deal_id):
         "JOIN BOA.CUS.Customer c ON m.CustomerId = c.Customerid "
         "WHERE m.DealId = ?", (deal_id,)
     ).fetchone()
-    
+
     if not syn:
         conn.close()
         return redirect(url_for("syndications_list"))
-        
-    details = conn.execute("SELECT * FROM BOA.STR.SyndicationBanks WHERE DealId = ?", (deal_id,)).fetchall()
-    fec_map = get_param_map("FEC", conn)
-    status_map = get_param_map("Status", conn)
+
+    details      = conn.execute("SELECT * FROM BOA.STR.SyndicationBanks WHERE DealId = ?", (deal_id,)).fetchall()
+    fec_map      = get_param_map("FEC", conn)
+    status_map   = get_param_map("Status", conn)
+    # Work items portal
+    wit_items, wit_prereq_map, wit_subitems_map, wit_assignees_map = _load_backlog(conn, "syndication", deal_id)
+    stakeholders = conn.execute("SELECT StakeholderID, FullName FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
+    users        = conn.execute("SELECT id, username, surname FROM BOA.COR.[User] ORDER BY username").fetchall()
     conn.close()
-    return render_template("syndication_detail.html", syn=syn, details=details, fec_map=fec_map, status_map=status_map)
+    return render_template(
+        "syndication_detail.html",
+        syn=syn,
+        details=details,
+        fec_map=fec_map,
+        status_map=status_map,
+        wit_items=wit_items,
+        wit_prereq_map=wit_prereq_map,
+        wit_subitems_map=wit_subitems_map,
+        wit_assignees_map=wit_assignees_map,
+        stakeholders=stakeholders,
+        users=users
+    )
 
 @app.route("/syndications/<int:deal_id>/detail", methods=["POST"])
 def add_syndication_detail(deal_id):
@@ -967,7 +983,7 @@ def overview_detail(customer_id):
     same_sector  = conn.execute(load_query("overview_same_sector"),  (customer["sector"],)).fetchone()["cnt"]
     total_cust   = conn.execute(load_query("overview_total_customers")).fetchone()["cnt"]
 
-    lang_id      = session.get("lang", 0)
+    lang_id      = session.get("lang", 2)
 
     status_map    = get_param_map("Status",   conn)
     deal_type_map = get_param_map("DealType", conn)
@@ -1101,20 +1117,28 @@ app.register_blueprint(admin_bp)
 
 # ── Entry Point ────────────────────────────────────────────────────────────────
 
-def _col_exists(conn, table: str, column: str) -> bool:
+def _col_exists(conn, table: str, column: str, schema: str = "ZZZ") -> bool:
     row = conn.execute(
         "SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS "
-        "WHERE TABLE_SCHEMA='ZZZ' AND TABLE_NAME=? AND COLUMN_NAME=?",
-        (table, column)
+        "WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?",
+        (schema, table, column)
     ).fetchone()
     return row and int(row["cnt"]) > 0
 
 
-def _table_exists(conn, table: str) -> bool:
+def _table_exists(conn, table: str, schema: str = "ZZZ") -> bool:
     row = conn.execute(
         "SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.TABLES "
-        "WHERE TABLE_SCHEMA='ZZZ' AND TABLE_NAME=?",
-        (table,)
+        "WHERE TABLE_SCHEMA=? AND TABLE_NAME=?",
+        (schema, table)
+    ).fetchone()
+    return row and int(row["cnt"]) > 0
+
+
+def _schema_exists(conn, schema: str) -> bool:
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=?",
+        (schema,)
     ).fetchone()
     return row and int(row["cnt"]) > 0
 
@@ -1160,7 +1184,7 @@ def _run_platform_migrations():
             print("[startup] Stakeholder exists — skipping")
 
         # 110xxxx — Product
-        if not _table_exists(conn, "Product"):
+        if not _table_exists(conn, "Product", "COR"):
             conn.execute("""
                 CREATE TABLE BOA.COR.Product (
                     ProductID           INT IDENTITY(1,1) PRIMARY KEY,
@@ -1308,7 +1332,7 @@ def _run_platform_migrations():
 
 
         # Syndications Tables
-        if not _table_exists(conn, "MainDeals"):
+        if not _table_exists(conn, "MainDeals", "STR"):
             conn.execute("""
                 CREATE TABLE BOA.STR.MainDeals (
                     DealId INT IDENTITY(1,1) PRIMARY KEY,
@@ -1582,11 +1606,11 @@ def _recalc_all_krs(conn):
             elif kr["MeasurementType"] == "project" and kr["LinkedProjectID"]:
                 # Project % done = closed work items / total work items * TargetValue
                 total_row = conn.execute(
-                    "SELECT COUNT(*) AS cnt FROM BOA.ZZZ.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1",
+                    "SELECT COUNT(*) AS cnt FROM BOA.WIT.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1",
                     (kr["LinkedProjectID"],)
                 ).fetchone()
                 done_row = conn.execute(
-                    "SELECT COUNT(*) AS cnt FROM BOA.ZZZ.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1 AND Status='done'",
+                    "SELECT COUNT(*) AS cnt FROM BOA.WIT.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1 AND Status='done'",
                     (kr["LinkedProjectID"],)
                 ).fetchone()
                 total_cnt = total_row["cnt"] if total_row else 0
@@ -1720,16 +1744,61 @@ def api_okrs_recalculate():
 
 # ── Projects ─────────────────────────────────────────────────────────────────────────
 
+def _compute_project_status(total_items, done_items, in_progress_items=0):
+    """Derive project status and progress from work item counts.
+    Rules:
+        - No work items → Not Started (0%)
+        - All items done → Completed (100%)
+        - At least 1 in_progress/done → Active (done/total %)
+        - Items exist but none started → Not Started (0%)
+    """
+    if total_items == 0:
+        return "Not Started", 0
+    if done_items >= total_items:
+        return "Completed", 100
+    if done_items > 0 or in_progress_items > 0:
+        pct = int(done_items / total_items * 100)
+        return "Active", pct
+    return "Not Started", 0
+
+
+def _sync_project_status(conn, project_id):
+    """Update the Project.Status column in the DB to match computed status."""
+    row = conn.execute(
+        "SELECT "
+        "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1) AS total_items, "
+        "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1 AND Status='done') AS done_items, "
+        "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem WHERE ParentType='project' AND ParentID=? AND IsActive=1 AND Status IN ('in_progress','blocked')) AS in_progress_items",
+        (project_id, project_id, project_id)
+    ).fetchone()
+    status, _ = _compute_project_status(
+        row["total_items"] or 0, row["done_items"] or 0, row["in_progress_items"] or 0
+    )
+    conn.execute(
+        "UPDATE BOA.ZZZ.Project SET Status=?, UpdatedAt=GETDATE() WHERE ProjectID=?",
+        (status, project_id)
+    )
+    conn.commit()
+
 @app.route("/projects")
 def projects_list():
     conn = get_db()
-    projects = conn.execute(
+    projects_raw = conn.execute(
         "SELECT p.*, o.Title AS ObjTitle, "
-        "  (SELECT COUNT(*) FROM BOA.ZZZ.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1) AS total_items,"
-        "  (SELECT COUNT(*) FROM BOA.ZZZ.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1 AND w.Status='done') AS done_items "
+        "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1) AS total_items,"
+        "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1 AND w.Status='done') AS done_items, "
+        "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1 AND w.Status IN ('in_progress','blocked')) AS in_progress_items "
         "FROM BOA.ZZZ.Project p LEFT JOIN BOA.ZZZ.Objective o ON p.ObjectiveID=o.ObjectiveID "
         "WHERE p.IsActive=1 ORDER BY p.CreatedAt DESC"
     ).fetchall()
+    # Compute status from work items for each project
+    projects = []
+    for p in projects_raw:
+        d = dict(p)
+        d["computed_status"], d["progress_pct"] = _compute_project_status(
+            d["total_items"] or 0, d["done_items"] or 0, d["in_progress_items"] or 0
+        )
+        projects.append(d)
     objectives = conn.execute("SELECT ObjectiveID, Title FROM BOA.ZZZ.Objective WHERE IsActive=1 ORDER BY Title").fetchall()
     conn.close()
     return render_template("projects.html", projects=projects, objectives=objectives)
@@ -1738,19 +1807,41 @@ def projects_list():
 @app.route("/projects/<int:project_id>")
 def project_detail(project_id):
     conn = get_db()
-    project = conn.execute(
+    project_row = conn.execute(
         "SELECT p.*, o.Title AS ObjTitle FROM BOA.ZZZ.Project p "
         "LEFT JOIN BOA.ZZZ.Objective o ON p.ObjectiveID=o.ObjectiveID "
         "WHERE p.ProjectID=? AND p.IsActive=1", (project_id,)
     ).fetchone()
-    if not project:
+    if not project_row:
         conn.close()
         return "Project not found", 404
     items, prereq_map, subitems_map, assignees_map = _load_backlog(conn, "project", project_id)
     stakeholders = conn.execute("SELECT StakeholderID, FullName, Organization FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
     users = conn.execute("SELECT id, username, surname FROM BOA.COR.[User] ORDER BY username").fetchall()
+    objectives = conn.execute("SELECT ObjectiveID, Title FROM BOA.ZZZ.Objective WHERE IsActive=1 ORDER BY Title").fetchall()
+    done_count  = sum(1 for i in items if i["Status"] == "done")
+    in_progress_count = sum(1 for i in items if i["Status"] in ("in_progress", "blocked"))
+    total_count = len(items)
+    computed_status, progress_pct = _compute_project_status(total_count, done_count, in_progress_count)
+    # Build a mutable dict so template can read computed values
+    project = dict(project_row)
+    project["computed_status"] = computed_status
+    project["progress_pct"]    = progress_pct
     conn.close()
-    return render_template("project_detail.html", project=project, items=items, prereq_map=prereq_map, subitems_map=subitems_map, assignees_map=assignees_map, stakeholders=stakeholders, users=users)
+    return render_template(
+        "project_detail.html",
+        project=project,
+        items=items,
+        prereq_map=prereq_map,
+        subitems_map=subitems_map,
+        assignees_map=assignees_map,
+        stakeholders=stakeholders,
+        users=users,
+        objectives=objectives,
+        done_count=done_count,
+        total_count=total_count,
+        progress_pct=progress_pct
+    )
 
 
 @app.route("/api/projects", methods=["POST"])
@@ -1759,7 +1850,7 @@ def api_project_create():
     conn = get_db()
     conn.execute(
         "INSERT INTO BOA.ZZZ.Project (ProjectName,Description,Status,Owner,StartDate,Deadline,ObjectiveID) VALUES (?,?,?,?,?,?,?)",
-        (data.get("name",""), data.get("description",""), data.get("status","Planning"),
+        (data.get("name",""), data.get("description",""), "Not Started",
          session.get("username",""), data.get("start_date") or None, data.get("deadline") or None, data.get("objective_id") or None)
     )
     conn.commit()
@@ -1770,13 +1861,15 @@ def api_project_create():
 
 @app.route("/api/projects/<int:pid>", methods=["PATCH"])
 def api_project_update(pid):
+    """Update project fields. Status is NOT accepted — it's always computed from work items."""
     data = request.get_json(silent=True) or {}
     conn = get_db()
     conn.execute(
-        "UPDATE BOA.ZZZ.Project SET ProjectName=?,Description=?,Status=?,Deadline=?,ObjectiveID=?,UpdatedAt=GETDATE() WHERE ProjectID=?",
-        (data.get("name"), data.get("description"), data.get("status"), data.get("deadline") or None, data.get("objective_id") or None, pid)
+        "UPDATE BOA.ZZZ.Project SET ProjectName=?,Description=?,Deadline=?,ObjectiveID=?,UpdatedAt=GETDATE() WHERE ProjectID=?",
+        (data.get("name"), data.get("description"), data.get("deadline") or None, data.get("objective_id") or None, pid)
     )
-    conn.commit(); conn.close()
+    _sync_project_status(conn, pid)
+    conn.close()
     return jsonify({"ok": True})
 
 
@@ -1790,22 +1883,27 @@ def api_project_delete(pid):
 
 # ── Work Items (shared) ───────────────────────────────────────────────────────────────
 
+# ── Work Item Parent Types ────────────────────────────────────────────────────
+_PARENT_TYPES = ("project", "syndication")
+
+
 def _load_backlog(conn, parent_type, parent_id):
+    """Load work items and related data for a specific parent (project or syndication)."""
     items = conn.execute(
-        "SELECT * FROM BOA.ZZZ.WorkItem WHERE ParentType=? AND ParentID=? AND IsActive=1 ORDER BY SortOrder, Deadline, ItemID",
+        "SELECT * FROM BOA.WIT.WorkItem WHERE ParentType=? AND ParentID=? AND IsActive=1 ORDER BY SortOrder, Deadline, ItemID",
         (parent_type, parent_id)
     ).fetchall()
     item_ids = [i["ItemID"] for i in items]
     prereq_map, subitems_map, assignees_map = {}, {}, {}
     if item_ids:
         ph = ",".join("?" * len(item_ids))
-        for p in conn.execute(f"SELECT ItemID,RequiresItemID FROM BOA.ZZZ.WorkItemPrerequisite WHERE ItemID IN ({ph}) AND IsActive=1", item_ids).fetchall():
+        for p in conn.execute(f"SELECT ItemID,RequiresItemID FROM BOA.WIT.WorkItemPrerequisite WHERE ItemID IN ({ph}) AND IsActive=1", item_ids).fetchall():
             prereq_map.setdefault(p["ItemID"], []).append(p["RequiresItemID"])
-        for s in conn.execute(f"SELECT * FROM BOA.ZZZ.WorkSubItem WHERE ParentItemID IN ({ph}) AND IsActive=1 ORDER BY SortOrder,SubItemID", item_ids).fetchall():
+        for s in conn.execute(f"SELECT * FROM BOA.WIT.WorkSubItem WHERE ParentItemID IN ({ph}) AND IsActive=1 ORDER BY SortOrder,SubItemID", item_ids).fetchall():
             subitems_map.setdefault(s["ParentItemID"], []).append(dict(s))
         for a in conn.execute(
             f"SELECT wa.ItemID, COALESCE(s.FullName, u.username + ' ' + ISNULL(u.surname, '')) AS AssigneeName "
-            f"FROM BOA.ZZZ.WorkItemAssignee wa "
+            f"FROM BOA.WIT.WorkItemAssignee wa "
             f"LEFT JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
             f"LEFT JOIN BOA.COR.[User] u ON wa.UserID = u.id "
             f"WHERE wa.ItemID IN ({ph}) AND wa.IsActive=1", item_ids
@@ -1814,24 +1912,67 @@ def _load_backlog(conn, parent_type, parent_id):
     return items, prereq_map, subitems_map, assignees_map
 
 
+def _load_backlog_json(conn, parent_type, parent_id):
+    """Load work items as dicts for JSON API responses (portal panels)."""
+    items, prereq_map, subitems_map, assignees_map = _load_backlog(conn, parent_type, parent_id)
+    result = []
+    for item in items:
+        d = dict(item)
+        d["Deadline"] = str(d["Deadline"]) if d["Deadline"] else None
+        d["CreatedAt"] = str(d["CreatedAt"]) if d["CreatedAt"] else None
+        d["UpdatedAt"] = str(d["UpdatedAt"]) if d["UpdatedAt"] else None
+        d["prereqs"] = prereq_map.get(item["ItemID"], [])
+        d["subitems"] = subitems_map.get(item["ItemID"], [])
+        d["assignees"] = assignees_map.get(item["ItemID"], [])
+        # Serialise subitems
+        serialised_subs = []
+        for s in d["subitems"]:
+            sc = dict(s)
+            sc["Deadline"] = str(sc["Deadline"]) if sc["Deadline"] else None
+            sc["CreatedAt"] = str(sc["CreatedAt"]) if sc["CreatedAt"] else None
+            serialised_subs.append(sc)
+        d["subitems"] = serialised_subs
+        result.append(d)
+    return result
+
+
+@app.route("/api/workitems", methods=["GET"])
+def api_workitems_list():
+    """JSON endpoint: list work items for a specific parent (used by portal panels)."""
+    parent_type = request.args.get("parent_type")
+    parent_id   = request.args.get("parent_id", type=int)
+    if not parent_type or not parent_id or parent_type not in _PARENT_TYPES:
+        return jsonify({"ok": False, "error": "Invalid parent_type or parent_id"}), 400
+    conn = get_db()
+    items = _load_backlog_json(conn, parent_type, parent_id)
+    conn.close()
+    return jsonify({"ok": True, "items": items})
+
+
 @app.route("/api/workitems", methods=["POST"])
 def api_workitem_create():
     data = request.get_json(silent=True) or {}
+    parent_type = data.get("parent_type", "")
+    if parent_type not in _PARENT_TYPES:
+        return jsonify({"ok": False, "error": f"parent_type must be one of {_PARENT_TYPES}"}), 400
     conn = get_db()
     conn.execute(
-        "INSERT INTO BOA.ZZZ.WorkItem (ParentType,ParentID,Title,Description,Deadline,SortOrder) VALUES (?,?,?,?,?,?)",
-        (data.get("parent_type"), data.get("parent_id"), data.get("title",""), data.get("description",""), data.get("deadline") or None, data.get("sort_order",0))
+        "INSERT INTO BOA.WIT.WorkItem (ParentType,ParentID,Title,Description,Deadline,SortOrder) VALUES (?,?,?,?,?,?)",
+        (parent_type, data.get("parent_id"), data.get("title",""), data.get("description",""), data.get("deadline") or None, data.get("sort_order",0))
     )
     conn.commit()
-    iid = conn.execute("SELECT MAX(ItemID) AS id FROM BOA.ZZZ.WorkItem").fetchone()["id"]
+    iid = conn.execute("SELECT MAX(ItemID) AS id FROM BOA.WIT.WorkItem").fetchone()["id"]
     assignees = data.get("assignees", [])
     if assignees:
         for a in assignees:
             if a.startswith("U-"):
-                conn.execute("INSERT INTO BOA.ZZZ.WorkItemAssignee (ItemID, UserID) VALUES (?, ?)", (iid, int(a[2:])))
+                conn.execute("INSERT INTO BOA.WIT.WorkItemAssignee (ItemID, UserID) VALUES (?, ?)", (iid, int(a[2:])))
             elif a.startswith("S-"):
-                conn.execute("INSERT INTO BOA.ZZZ.WorkItemAssignee (ItemID, StakeholderID) VALUES (?, ?)", (iid, int(a[2:])))
+                conn.execute("INSERT INTO BOA.WIT.WorkItemAssignee (ItemID, StakeholderID) VALUES (?, ?)", (iid, int(a[2:])))
         conn.commit()
+    # Sync project status if parent is a project
+    if parent_type == "project":
+        _sync_project_status(conn, data.get("parent_id"))
     conn.close()
     return jsonify({"ok": True, "item_id": iid})
 
@@ -1840,9 +1981,39 @@ def api_workitem_create():
 def api_workitem_update(iid):
     data = request.get_json(silent=True) or {}
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.WorkItem SET Title=?,Description=?,Status=?,Deadline=?,UpdatedAt=GETDATE() WHERE ItemID=?",
-                 (data.get("title"), data.get("description"), data.get("status"), data.get("deadline") or None, iid))
-    conn.commit(); conn.close()
+    # Optional re-parenting: if parent_type/parent_id provided, update them too
+    parent_type = data.get("parent_type")
+    parent_id   = data.get("parent_id")
+    if parent_type and parent_id and parent_type in _PARENT_TYPES:
+        conn.execute(
+            "UPDATE BOA.WIT.WorkItem SET Title=?,Description=?,Status=?,Deadline=?,ParentType=?,ParentID=?,UpdatedAt=GETDATE() WHERE ItemID=?",
+            (data.get("title"), data.get("description"), data.get("status"),
+             data.get("deadline") or None, parent_type, parent_id, iid)
+        )
+    else:
+        conn.execute(
+            "UPDATE BOA.WIT.WorkItem SET Title=?,Description=?,Status=?,Deadline=?,UpdatedAt=GETDATE() WHERE ItemID=?",
+            (data.get("title"), data.get("description"), data.get("status"),
+             data.get("deadline") or None, iid)
+        )
+    # Update assignees if provided
+    new_assignees = data.get("assignees")
+    if new_assignees is not None:
+        conn.execute("UPDATE BOA.WIT.WorkItemAssignee SET IsActive=0 WHERE ItemID=?", (iid,))
+        for a in new_assignees:
+            if a.startswith("U-"):
+                conn.execute("INSERT INTO BOA.WIT.WorkItemAssignee (ItemID, UserID) VALUES (?, ?)", (iid, int(a[2:])))
+            elif a.startswith("S-"):
+                conn.execute("INSERT INTO BOA.WIT.WorkItemAssignee (ItemID, StakeholderID) VALUES (?, ?)", (iid, int(a[2:])))
+    conn.commit()
+    # Sync project status for old and (optionally) new parent
+    wi = conn.execute("SELECT ParentType, ParentID FROM BOA.WIT.WorkItem WHERE ItemID=?", (iid,)).fetchone()
+    if wi and wi["ParentType"] == "project":
+        _sync_project_status(conn, wi["ParentID"])
+    # If re-parented away from a project, sync the old parent too
+    if parent_type and parent_type == "project" and parent_id and (not wi or parent_id != wi["ParentID"]):
+        _sync_project_status(conn, parent_id)
+    conn.close()
     return jsonify({"ok": True})
 
 
@@ -1850,16 +2021,26 @@ def api_workitem_update(iid):
 def api_workitem_status(iid):
     data = request.get_json(silent=True) or {}
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.WorkItem SET Status=?,UpdatedAt=GETDATE() WHERE ItemID=?", (data.get("status"), iid))
-    conn.commit(); conn.close()
+    conn.execute("UPDATE BOA.WIT.WorkItem SET Status=?,UpdatedAt=GETDATE() WHERE ItemID=?", (data.get("status"), iid))
+    conn.commit()
+    # Sync project status
+    wi = conn.execute("SELECT ParentType, ParentID FROM BOA.WIT.WorkItem WHERE ItemID=?", (iid,)).fetchone()
+    if wi and wi["ParentType"] == "project":
+        _sync_project_status(conn, wi["ParentID"])
+    conn.close()
     return jsonify({"ok": True})
 
 
 @app.route("/api/workitems/<int:iid>", methods=["DELETE"])
 def api_workitem_delete(iid):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.WorkItem SET IsActive=0 WHERE ItemID=?", (iid,))
-    conn.commit(); conn.close()
+    # Get parent info before soft-deleting
+    wi = conn.execute("SELECT ParentType, ParentID FROM BOA.WIT.WorkItem WHERE ItemID=?", (iid,)).fetchone()
+    conn.execute("UPDATE BOA.WIT.WorkItem SET IsActive=0 WHERE ItemID=?", (iid,))
+    conn.commit()
+    if wi and wi["ParentType"] == "project":
+        _sync_project_status(conn, wi["ParentID"])
+    conn.close()
     return jsonify({"ok": True})
 
 
@@ -1868,8 +2049,8 @@ def api_workitem_add_prereq(iid):
     data = request.get_json(silent=True) or {}
     req_id = data.get("requires_item_id")
     conn = get_db()
-    if not conn.execute("SELECT LinkID FROM BOA.ZZZ.WorkItemPrerequisite WHERE ItemID=? AND RequiresItemID=? AND IsActive=1", (iid, req_id)).fetchone():
-        conn.execute("INSERT INTO BOA.ZZZ.WorkItemPrerequisite (ItemID,RequiresItemID) VALUES (?,?)", (iid, req_id))
+    if not conn.execute("SELECT LinkID FROM BOA.WIT.WorkItemPrerequisite WHERE ItemID=? AND RequiresItemID=? AND IsActive=1", (iid, req_id)).fetchone():
+        conn.execute("INSERT INTO BOA.WIT.WorkItemPrerequisite (ItemID,RequiresItemID) VALUES (?,?)", (iid, req_id))
         conn.commit()
     conn.close()
     return jsonify({"ok": True})
@@ -1878,7 +2059,7 @@ def api_workitem_add_prereq(iid):
 @app.route("/api/workitems/<int:iid>/prerequisites/<int:req_id>", methods=["DELETE"])
 def api_workitem_remove_prereq(iid, req_id):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.WorkItemPrerequisite SET IsActive=0 WHERE ItemID=? AND RequiresItemID=?", (iid, req_id))
+    conn.execute("UPDATE BOA.WIT.WorkItemPrerequisite SET IsActive=0 WHERE ItemID=? AND RequiresItemID=?", (iid, req_id))
     conn.commit(); conn.close()
     return jsonify({"ok": True})
 
@@ -1887,7 +2068,7 @@ def api_workitem_remove_prereq(iid, req_id):
 def api_subitem_create():
     data = request.get_json(silent=True) or {}
     conn = get_db()
-    conn.execute("INSERT INTO BOA.ZZZ.WorkSubItem (ParentItemID,Title,Deadline,SortOrder) VALUES (?,?,?,?)",
+    conn.execute("INSERT INTO BOA.WIT.WorkSubItem (ParentItemID,Title,Deadline,SortOrder) VALUES (?,?,?,?)",
                  (data.get("parent_item_id"), data.get("title",""), data.get("deadline") or None, data.get("sort_order",0)))
     conn.commit(); conn.close()
     return jsonify({"ok": True})
@@ -1897,7 +2078,7 @@ def api_subitem_create():
 def api_subitem_status(sid):
     data = request.get_json(silent=True) or {}
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.WorkSubItem SET Status=? WHERE SubItemID=?", (data.get("status"), sid))
+    conn.execute("UPDATE BOA.WIT.WorkSubItem SET Status=? WHERE SubItemID=?", (data.get("status"), sid))
     conn.commit(); conn.close()
     return jsonify({"ok": True})
 
@@ -1905,7 +2086,7 @@ def api_subitem_status(sid):
 @app.route("/api/subitems/<int:sid>", methods=["DELETE"])
 def api_subitem_delete(sid):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.WorkSubItem SET IsActive=0 WHERE SubItemID=?", (sid,))
+    conn.execute("UPDATE BOA.WIT.WorkSubItem SET IsActive=0 WHERE SubItemID=?", (sid,))
     conn.commit(); conn.close()
     return jsonify({"ok": True})
 
@@ -1916,29 +2097,28 @@ def api_subitem_delete(sid):
 @app.route("/backlog")
 def global_backlog():
     conn = get_db()
-    items = conn.execute(
-        "SELECT w.*, "
-        "  CASE w.ParentType "
-        "    WHEN 'project' THEN (SELECT ProjectName FROM BOA.ZZZ.Project WHERE ProjectID=w.ParentID) "
-        "    WHEN 'deal' THEN (SELECT TOP 1 c.CustomerName + ' Deal #'+CAST(d.DealId AS NVARCHAR) "
-        "                     FROM BOA.STR.MainDeals d JOIN BOA.CUS.Customer c ON d.CustomerId=c.Customerid "
-        "                     WHERE d.DealId=w.ParentID) "
-        "  END AS ParentName, "
-        "  (SELECT STRING_AGG(COALESCE('S-'+CAST(wa.StakeholderID AS NVARCHAR), 'U-'+CAST(wa.UserID AS NVARCHAR)), ',') "
-        "   FROM BOA.ZZZ.WorkItemAssignee wa "
-        "   WHERE wa.ItemID = w.ItemID AND wa.IsActive=1) AS AssigneeIDs, "
-        "  (SELECT STRING_AGG(COALESCE(s.FullName, u.username + ' ' + ISNULL(u.surname, '')), ', ') "
-        "   FROM BOA.ZZZ.WorkItemAssignee wa "
-        "   LEFT JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
-        "   LEFT JOIN BOA.COR.[User] u ON wa.UserID = u.id "
-        "   WHERE wa.ItemID = w.ItemID AND wa.IsActive=1) AS Assignees "
-        "FROM BOA.ZZZ.WorkItem w WHERE w.IsActive=1 AND w.Status != 'done' "
-        "ORDER BY w.Deadline ASC, w.SortOrder ASC, w.ItemID ASC"
-    ).fetchall()
+    items = conn.execute(load_query("wit_global_backlog")).fetchall()
     stakeholders = conn.execute("SELECT StakeholderID, FullName FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
+    users        = conn.execute("SELECT id, username, surname FROM BOA.COR.[User] ORDER BY username").fetchall()
+    projects     = conn.execute("SELECT ProjectID, ProjectName FROM BOA.ZZZ.Project WHERE IsActive=1 ORDER BY ProjectName").fetchall()
+    syndications = conn.execute(
+        "SELECT m.DealId, c.CustomerName + ' / Syndication #' + CAST(m.DealId AS NVARCHAR) AS DisplayName "
+        "FROM BOA.STR.MainDeals m "
+        "JOIN BOA.CUS.Customer c ON m.CustomerId = c.Customerid "
+        "WHERE m.ProductCode = 'SYNDICATION' "
+        "ORDER BY m.DealId"
+    ).fetchall()
     conn.close()
     from datetime import datetime as _dt
-    return render_template("backlog.html", items=items, stakeholders=stakeholders, now=_dt.utcnow())
+    return render_template(
+        "backlog.html",
+        items=items,
+        stakeholders=stakeholders,
+        users=users,
+        projects=projects,
+        syndications=syndications,
+        now=_dt.utcnow()
+    )
 
 
 try:
@@ -2045,7 +2225,244 @@ def ask_document():
     )
 
 
+def _ensure_wit_schema():
+    """
+    Idempotently create the WIT schema and migrate WorkItem tables from ZZZ.
+
+    Steps:
+    1. Create BOA.WIT schema if it does not exist.
+    2. For each of the 4 WIT tables: if the WIT table does not exist, create it
+       (matching the original ZZZ column definitions, but with WIT-correct FKs).
+    3. Copy any rows that are in the old ZZZ table but not yet in WIT (by PK).
+    4. Fix any ParentType='deal' → 'syndication' in WIT.WorkItem.
+    5. Deactivate WIT.WorkItem rows whose parent no longer exists.
+    """
+    try:
+        conn = get_db()
+
+        # ── 1. Create WIT schema ──────────────────────────────────────────────
+        if not _schema_exists(conn, "WIT"):
+            conn.execute("CREATE SCHEMA WIT")
+            conn.commit()
+            print("[startup] Created schema BOA.WIT")
+        else:
+            print("[startup] Schema BOA.WIT exists — skipping")
+
+        # ── 2 & 3. WorkItem ───────────────────────────────────────────────────
+        if not _table_exists(conn, "WorkItem", "WIT"):
+            conn.execute("""
+                CREATE TABLE BOA.WIT.WorkItem (
+                    ItemID      INT IDENTITY(4100001,1) PRIMARY KEY,
+                    ParentType  NVARCHAR(20) NOT NULL,
+                    ParentID    INT NOT NULL,
+                    Title       NVARCHAR(300) NOT NULL,
+                    Description NVARCHAR(MAX),
+                    Status      NVARCHAR(20) NOT NULL DEFAULT 'not_started',
+                    Deadline    DATE,
+                    SortOrder   INT NOT NULL DEFAULT 0,
+                    IsActive    TINYINT NOT NULL DEFAULT 1,
+                    CreatedAt   DATETIME NOT NULL DEFAULT GETDATE(),
+                    UpdatedAt   DATETIME
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.WIT.WorkItem")
+            # Copy from ZZZ if source table exists
+            if _table_exists(conn, "WorkItem", "ZZZ"):
+                conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkItem ON")
+                conn.execute("""
+                    INSERT INTO BOA.WIT.WorkItem
+                        (ItemID, ParentType, ParentID, Title, Description,
+                         Status, Deadline, SortOrder, IsActive, CreatedAt, UpdatedAt)
+                    SELECT ItemID, ParentType, ParentID, Title, Description,
+                           Status, Deadline, SortOrder, IsActive, CreatedAt, UpdatedAt
+                    FROM BOA.ZZZ.WorkItem
+                """)
+                conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkItem OFF")
+                conn.commit()
+                print("[startup] Copied rows from BOA.ZZZ.WorkItem → BOA.WIT.WorkItem")
+        else:
+            # Table exists: do a catch-up copy for any rows in ZZZ not yet in WIT
+            if _table_exists(conn, "WorkItem", "ZZZ"):
+                missing = conn.execute(
+                    "SELECT COUNT(*) AS cnt FROM BOA.ZZZ.WorkItem z WHERE NOT EXISTS (SELECT 1 FROM BOA.WIT.WorkItem w WHERE w.ItemID = z.ItemID)"
+                ).fetchone()
+                if missing and int(missing["cnt"]) > 0:
+                    conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkItem ON")
+                    conn.execute("""
+                        INSERT INTO BOA.WIT.WorkItem
+                            (ItemID, ParentType, ParentID, Title, Description,
+                             Status, Deadline, SortOrder, IsActive, CreatedAt, UpdatedAt)
+                        SELECT ItemID, ParentType, ParentID, Title, Description,
+                               Status, Deadline, SortOrder, IsActive, CreatedAt, UpdatedAt
+                        FROM BOA.ZZZ.WorkItem z
+                        WHERE NOT EXISTS (SELECT 1 FROM BOA.WIT.WorkItem w WHERE w.ItemID = z.ItemID)
+                    """)
+                    conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkItem OFF")
+                    conn.commit()
+                    print(f"[startup] Catch-up copied {missing['cnt']} WorkItem rows ZZZ → WIT")
+                else:
+                    print("[startup] BOA.WIT.WorkItem exists and up-to-date — skipping")
+            else:
+                print("[startup] BOA.WIT.WorkItem exists — skipping")
+
+        # ── 2 & 3. WorkSubItem ────────────────────────────────────────────────
+        if not _table_exists(conn, "WorkSubItem", "WIT"):
+            conn.execute("""
+                CREATE TABLE BOA.WIT.WorkSubItem (
+                    SubItemID    INT IDENTITY(4110001,1) PRIMARY KEY,
+                    ParentItemID INT NOT NULL,
+                    Title        NVARCHAR(300) NOT NULL,
+                    Status       NVARCHAR(20) NOT NULL DEFAULT 'not_started',
+                    Deadline     DATE,
+                    SortOrder    INT NOT NULL DEFAULT 0,
+                    IsActive     TINYINT NOT NULL DEFAULT 1,
+                    CreatedAt    DATETIME NOT NULL DEFAULT GETDATE(),
+                    FOREIGN KEY (ParentItemID) REFERENCES BOA.WIT.WorkItem(ItemID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.WIT.WorkSubItem")
+            if _table_exists(conn, "WorkSubItem", "ZZZ"):
+                conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkSubItem ON")
+                conn.execute("""
+                    INSERT INTO BOA.WIT.WorkSubItem
+                        (SubItemID, ParentItemID, Title, Status, Deadline,
+                         SortOrder, IsActive, CreatedAt)
+                    SELECT si.SubItemID, si.ParentItemID, si.Title, si.Status, si.Deadline,
+                           si.SortOrder, si.IsActive, si.CreatedAt
+                    FROM BOA.ZZZ.WorkSubItem si
+                    WHERE EXISTS (
+                        SELECT 1 FROM BOA.WIT.WorkItem wi WHERE wi.ItemID = si.ParentItemID
+                    )
+                """)
+                conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkSubItem OFF")
+                conn.commit()
+                print("[startup] Copied rows from BOA.ZZZ.WorkSubItem → BOA.WIT.WorkSubItem")
+        else:
+            if _table_exists(conn, "WorkSubItem", "ZZZ"):
+                missing = conn.execute(
+                    "SELECT COUNT(*) AS cnt FROM BOA.ZZZ.WorkSubItem z WHERE NOT EXISTS (SELECT 1 FROM BOA.WIT.WorkSubItem w WHERE w.SubItemID = z.SubItemID)"
+                ).fetchone()
+                if missing and int(missing["cnt"]) > 0:
+                    conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkSubItem ON")
+                    conn.execute("""
+                        INSERT INTO BOA.WIT.WorkSubItem
+                            (SubItemID, ParentItemID, Title, Status, Deadline, SortOrder, IsActive, CreatedAt)
+                        SELECT z.SubItemID, z.ParentItemID, z.Title, z.Status, z.Deadline, z.SortOrder, z.IsActive, z.CreatedAt
+                        FROM BOA.ZZZ.WorkSubItem z
+                        WHERE NOT EXISTS (SELECT 1 FROM BOA.WIT.WorkSubItem w WHERE w.SubItemID = z.SubItemID)
+                          AND EXISTS (SELECT 1 FROM BOA.WIT.WorkItem wi WHERE wi.ItemID = z.ParentItemID)
+                    """)
+                    conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkSubItem OFF")
+                    conn.commit()
+                    print(f"[startup] Catch-up copied {missing['cnt']} WorkSubItem rows ZZZ → WIT")
+            else:
+                print("[startup] BOA.WIT.WorkSubItem exists — skipping")
+
+        # ── 2 & 3. WorkItemPrerequisite ───────────────────────────────────────
+        if not _table_exists(conn, "WorkItemPrerequisite", "WIT"):
+            conn.execute("""
+                CREATE TABLE BOA.WIT.WorkItemPrerequisite (
+                    LinkID         INT IDENTITY(4120001,1) PRIMARY KEY,
+                    ItemID         INT NOT NULL,
+                    RequiresItemID INT NOT NULL,
+                    IsActive       TINYINT NOT NULL DEFAULT 1,
+                    FOREIGN KEY (ItemID)         REFERENCES BOA.WIT.WorkItem(ItemID),
+                    FOREIGN KEY (RequiresItemID) REFERENCES BOA.WIT.WorkItem(ItemID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.WIT.WorkItemPrerequisite")
+            if _table_exists(conn, "WorkItemPrerequisite", "ZZZ"):
+                conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkItemPrerequisite ON")
+                conn.execute("""
+                    INSERT INTO BOA.WIT.WorkItemPrerequisite
+                        (LinkID, ItemID, RequiresItemID, IsActive)
+                    SELECT p.LinkID, p.ItemID, p.RequiresItemID, p.IsActive
+                    FROM BOA.ZZZ.WorkItemPrerequisite p
+                    WHERE EXISTS (SELECT 1 FROM BOA.WIT.WorkItem wi WHERE wi.ItemID = p.ItemID)
+                      AND EXISTS (SELECT 1 FROM BOA.WIT.WorkItem wi WHERE wi.ItemID = p.RequiresItemID)
+                """)
+                conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkItemPrerequisite OFF")
+                conn.commit()
+                print("[startup] Copied rows BOA.ZZZ.WorkItemPrerequisite → BOA.WIT.WorkItemPrerequisite")
+        else:
+            print("[startup] BOA.WIT.WorkItemPrerequisite exists — skipping")
+
+        # ── 2 & 3. WorkItemAssignee ───────────────────────────────────────────
+        if not _table_exists(conn, "WorkItemAssignee", "WIT"):
+            # Check if UserID column exists in the ZZZ version (may have been added later)
+            has_user_col = _col_exists(conn, "WorkItemAssignee", "UserID", "ZZZ")
+            conn.execute(f"""
+                CREATE TABLE BOA.WIT.WorkItemAssignee (
+                    AssigneeID    INT IDENTITY(4130001,1) PRIMARY KEY,
+                    ItemID        INT NOT NULL,
+                    StakeholderID INT,
+                    UserID        INT,
+                    IsActive      TINYINT NOT NULL DEFAULT 1,
+                    FOREIGN KEY (ItemID) REFERENCES BOA.WIT.WorkItem(ItemID)
+                )""")
+            conn.commit()
+            print("[startup] Created BOA.WIT.WorkItemAssignee")
+            if _table_exists(conn, "WorkItemAssignee", "ZZZ"):
+                conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkItemAssignee ON")
+                if has_user_col:
+                    conn.execute("""
+                        INSERT INTO BOA.WIT.WorkItemAssignee
+                            (AssigneeID, ItemID, StakeholderID, UserID, IsActive)
+                        SELECT a.AssigneeID, a.ItemID, a.StakeholderID, a.UserID, a.IsActive
+                        FROM BOA.ZZZ.WorkItemAssignee a
+                        WHERE EXISTS (SELECT 1 FROM BOA.WIT.WorkItem wi WHERE wi.ItemID = a.ItemID)
+                    """)
+                else:
+                    conn.execute("""
+                        INSERT INTO BOA.WIT.WorkItemAssignee
+                            (AssigneeID, ItemID, StakeholderID, IsActive)
+                        SELECT a.AssigneeID, a.ItemID, a.StakeholderID, a.IsActive
+                        FROM BOA.ZZZ.WorkItemAssignee a
+                        WHERE EXISTS (SELECT 1 FROM BOA.WIT.WorkItem wi WHERE wi.ItemID = a.ItemID)
+                    """)
+                conn.execute("SET IDENTITY_INSERT BOA.WIT.WorkItemAssignee OFF")
+                conn.commit()
+                print("[startup] Copied rows BOA.ZZZ.WorkItemAssignee → BOA.WIT.WorkItemAssignee")
+        else:
+            print("[startup] BOA.WIT.WorkItemAssignee exists — skipping")
+
+        # ── 4. Fix legacy ParentType='deal' → 'syndication' ──────────────────
+        result = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM BOA.WIT.WorkItem WHERE ParentType='deal' AND IsActive=1"
+        ).fetchone()
+        if result and int(result["cnt"]) > 0:
+            conn.execute(
+                "UPDATE BOA.WIT.WorkItem SET ParentType='syndication' WHERE ParentType='deal'"
+            )
+            conn.commit()
+            print(f"[startup] Remapped {result['cnt']} legacy 'deal' items → 'syndication'")
+        else:
+            print("[startup] No legacy 'deal' ParentType rows found — skipping remap")
+
+        # ── 5. Deactivate orphaned items ──────────────────────────────────────
+        # Syndication items whose DealId no longer exists
+        conn.execute("""
+            UPDATE BOA.WIT.WorkItem SET IsActive=0
+            WHERE ParentType='syndication' AND IsActive=1
+              AND ParentID NOT IN (SELECT DealId FROM BOA.STR.MainDeals)
+        """)
+        # Project items whose ProjectID no longer exists
+        conn.execute("""
+            UPDATE BOA.WIT.WorkItem SET IsActive=0
+            WHERE ParentType='project' AND IsActive=1
+              AND ParentID NOT IN (SELECT ProjectID FROM BOA.ZZZ.Project)
+        """)
+        conn.commit()
+        print("[startup] Orphaned work items deactivated")
+
+        conn.close()
+    except Exception as e:
+        print(f"[startup] WIT schema migration warning (non-fatal): {e}")
+        import traceback; traceback.print_exc()
+
+
 if __name__ == "__main__":
     _ensure_isactive_columns()
     _run_platform_migrations()
+    _ensure_wit_schema()
     app.run(debug=True, port=5000)

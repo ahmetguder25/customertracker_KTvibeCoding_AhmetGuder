@@ -15,11 +15,11 @@ admin_bp = Blueprint(
 )
 
 # Only these tables are editable through the admin module (whitelist).
-# Value = primary key column name used for update/delete operations.
-ALLOWED_TABLES: dict[str, str] = {
-    "Parameter": "RowId",
-    "Dictionary": "RowId",
-    "User": "id",
+# Value = dict with 'pk' (primary key column) and 'schema' (SQL Server schema).
+ALLOWED_TABLES: dict[str, dict] = {
+    "Parameter": {"pk": "RowId", "schema": "COR"},
+    "Dictionary": {"pk": "RowId", "schema": "ZZZ"},
+    "User": {"pk": "id", "schema": "COR"},
 }
 
 
@@ -38,20 +38,28 @@ def is_local_env() -> bool:
 
 def get_pk_column(table_name: str) -> str:
     """Return the primary key column name for the given allowed table."""
-    return ALLOWED_TABLES.get(table_name, "id")
+    info = ALLOWED_TABLES.get(table_name, {})
+    return info.get("pk", "id") if isinstance(info, dict) else "id"
+
+
+def get_schema(table_name: str) -> str:
+    """Return the SQL Server schema for the given allowed table."""
+    info = ALLOWED_TABLES.get(table_name, {})
+    return info.get("schema", "ZZZ") if isinstance(info, dict) else "ZZZ"
 
 
 def get_table_columns(table_name: str) -> list[str]:
     """Return editable column names (excluding the PK and hidden cols) via INFORMATION_SCHEMA."""
     pk_col = get_pk_column(table_name)
+    schema = get_schema(table_name)
     # Columns that exist in the DB but should not appear in the admin editor
     hidden = set()
     conn = get_db()
     rows = conn.execute(
         "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
-        "WHERE TABLE_SCHEMA = 'ZZZ' AND TABLE_NAME = ? "
+        "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? "
         "ORDER BY ORDINAL_POSITION",
-        (table_name,)
+        (schema, table_name,)
     ).fetchall()
     conn.close()
     return [r["COLUMN_NAME"] for r in rows
@@ -74,11 +82,12 @@ def admin_edit(table_name):
         return redirect(url_for("admin.admin_index"))
 
     pk_col   = get_pk_column(table_name)
+    schema   = get_schema(table_name)
     col_names = get_table_columns(table_name)
 
     conn = get_db()
     rows = conn.execute(
-        f"SELECT t.*, t.[{pk_col}] AS rowid FROM BOA.ZZZ.[{table_name}] t ORDER BY t.[{pk_col}]"
+        f"SELECT t.*, t.[{pk_col}] AS rowid FROM BOA.{schema}.[{table_name}] t ORDER BY t.[{pk_col}]"
     ).fetchall()
     conn.close()
 
@@ -120,13 +129,14 @@ def admin_add_row(table_name):
         return redirect(url_for("admin.admin_edit", table_name=table_name))
 
     col_names = get_table_columns(table_name)
+    schema    = get_schema(table_name)
     values = [request.form.get(col, "") or None for col in col_names]
     placeholders = ", ".join("?" for _ in col_names)
     col_list = ", ".join(f"[{c}]" for c in col_names)
 
     try:
         conn = get_db()
-        conn.execute(f"INSERT INTO BOA.ZZZ.[{table_name}] ({col_list}) VALUES ({placeholders})", values)
+        conn.execute(f"INSERT INTO BOA.{schema}.[{table_name}] ({col_list}) VALUES ({placeholders})", values)
         conn.commit()
         conn.close()
         flash(f"Row added to {table_name} successfully.", "success")
@@ -148,6 +158,7 @@ def admin_update_row(table_name, rowid):
         return redirect(url_for("admin.admin_edit", table_name=table_name))
 
     pk_col    = get_pk_column(table_name)
+    schema    = get_schema(table_name)
     col_names = get_table_columns(table_name)
 
     set_clause = ", ".join(f"[{col}] = ?" for col in col_names)
@@ -156,7 +167,7 @@ def admin_update_row(table_name, rowid):
 
     try:
         conn = get_db()
-        conn.execute(f"UPDATE BOA.ZZZ.[{table_name}] SET {set_clause} WHERE [{pk_col}] = ?", values)
+        conn.execute(f"UPDATE BOA.{schema}.[{table_name}] SET {set_clause} WHERE [{pk_col}] = ?", values)
         conn.commit()
         conn.close()
         flash(f"Row {rowid} updated successfully.", "success")
@@ -178,10 +189,11 @@ def admin_delete_row(table_name, rowid):
         return redirect(url_for("admin.admin_edit", table_name=table_name))
 
     pk_col = get_pk_column(table_name)
+    schema = get_schema(table_name)
 
     try:
         conn = get_db()
-        conn.execute(f"DELETE FROM BOA.ZZZ.[{table_name}] WHERE [{pk_col}] = ?", (rowid,))
+        conn.execute(f"DELETE FROM BOA.{schema}.[{table_name}] WHERE [{pk_col}] = ?", (rowid,))
         conn.commit()
         conn.close()
         flash(f"Row {rowid} deleted from {table_name}.", "success")
@@ -203,7 +215,7 @@ def admin_dictionary_editor():
     query = """
     SELECT
         Id,
-        MAX(CASE WHEN LanguageId = 0 THEN Description END) AS lang_en,
+        MAX(CASE WHEN LanguageId = 2 THEN Description END) AS lang_en,
         MAX(CASE WHEN LanguageId = 1 THEN Description END) AS lang_tr
     FROM BOA.ZZZ.Dictionary
     GROUP BY Id
@@ -249,7 +261,7 @@ def admin_dictionary_save():
                     INSERT (Id, LanguageId, Description)
                     VALUES (source.Id, source.LanguageId, source.Description);
             """
-            conn.execute(upsert_sql, (key_id, 0, en_val))
+            conn.execute(upsert_sql, (key_id, 2, en_val))
             conn.execute(upsert_sql, (key_id, 1, tr_val))
 
         conn.commit()

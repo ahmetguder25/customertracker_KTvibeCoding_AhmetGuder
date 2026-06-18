@@ -24,14 +24,14 @@
     <div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;">
         <div>
             {{ obj.Title }}
-            {% if obj.Period %}<span style="color:var(--on-surface-3);font-size:11px;margin-left:6px;">{{ obj.Period }}</span>{% endif %}
+            {% if obj.Period %}<span style="color:var(--on-surface-3);font-size:13px;margin-left:6px;">{{ obj.Period }}</span>{% endif %}
         </div>
         <div style="display:flex;gap:4px;">
             <button onclick="showAddKR({{ obj.ObjectiveID }})" class="t-btn t-btn-sm t-btn-cyan">+ KR</button>
             <button onclick="deleteObjective({{ obj.ObjectiveID }})" class="t-btn t-btn-sm t-btn-danger" style="padding:0 8px;" title="Delete Objective">✕</button>
         </div>
     </div>
-    {% if obj.Description %}<div class="t-panel" style="border-top:none;padding:4px 8px;font-size:11px;color:var(--on-surface-3);">{{ obj.Description }}</div>{% endif %}
+    {% if obj.Description %}<div class="t-panel" style="border-top:none;padding:4px 8px;font-size:13px;color:var(--on-surface-3);">{{ obj.Description }}</div>{% endif %}
 
     {% for kr in obj_krs %}
     {% set achieved_pct  = [(kr.AchievedValue  / kr.TargetValue * 100) if kr.TargetValue > 0 else 0, 100] | min %}
@@ -43,27 +43,27 @@
                 <span style="color:var(--amber-text);font-weight:700;font-size:12px;">{{ kr.Title }}</span>
                 <!-- Measurement type badge -->
                 {% if mtype == 'product' %}
-                <span class="t-chip" style="background:rgba(45,212,191,0.1);color:var(--primary);font-size:10px;">
-                    <span class="material-symbols-outlined" style="font-size:11px;vertical-align:middle;">inventory_2</span>
+                <span class="t-chip" style="background:rgba(45,212,191,0.1);color:var(--primary);font-size:12px;">
+                    <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">inventory_2</span>
                     AUTO · {{ kr.LinkedProductCode or 'Product' }}
                 </span>
                 {% elif mtype == 'project' %}
-                <span class="t-chip" style="background:rgba(249,115,22,0.1);color:var(--amber);font-size:10px;">
-                    <span class="material-symbols-outlined" style="font-size:11px;vertical-align:middle;">folder</span>
+                <span class="t-chip" style="background:rgba(249,115,22,0.1);color:var(--amber);font-size:12px;">
+                    <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">folder</span>
                     AUTO · Project
                 </span>
                 {% else %}
-                <span class="t-chip t-chip-dim" style="font-size:10px;">MANUAL</span>
+                <span class="t-chip t-chip-dim" style="font-size:12px;">MANUAL</span>
                 {% endif %}
             </div>
-            <div style="font-size:10px;color:var(--on-surface-3);margin-top:1px;">{{ kr.CalcMethod | upper }} · {{ kr.Unit or '—' }}</div>
+            <div style="font-size:12px;color:var(--on-surface-3);margin-top:1px;">{{ kr.CalcMethod | upper }} · {{ kr.Unit or '—' }}</div>
             <div style="margin-top:4px;position:relative;">
                 <div class="t-progress" style="height:3px;">
                     <div class="t-progress-bar" style="width:{{ pipeline_pct }}%;opacity:0.3;position:absolute;"></div>
                     <div class="t-progress-bar" style="width:{{ achieved_pct }}%;"></div>
                 </div>
             </div>
-            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--on-surface-3);margin-top:2px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-3);margin-top:2px;">
                 <span>{{ '%.0f' | format(achieved_pct) }}% {{ lang_dict.get('lbl_achieved', 'ACHIEVED') }}</span>
                 <div style="display:flex;gap:4px;align-items:center;">
                     <button
@@ -98,14 +98,14 @@
                 {{ '{:,.0f}'.format(kr.AchievedValue) }}
                 <span style="color:var(--on-surface-3);font-weight:500;">/ {{ '{:,.0f}'.format(kr.TargetValue) }}</span>
             </div>
-            {% if kr.Unit %}<div style="font-size:10px;color:var(--on-surface-3);">{{ kr.Unit }}</div>{% endif %}
+            {% if kr.Unit %}<div style="font-size:12px;color:var(--on-surface-3);">{{ kr.Unit }}</div>{% endif %}
             {% if kr.PipelineValue > 0 %}
-            <div class="t-num" style="font-size:10px;color:var(--amber);">+{{ '{:,.0f}'.format(kr.PipelineValue) }} pipeline</div>
+            <div class="t-num" style="font-size:12px;color:var(--amber);">+{{ '{:,.0f}'.format(kr.PipelineValue) }} pipeline</div>
             {% endif %}
         </div>
     </div>
     {% else %}
-    <div class="t-panel" style="border-top:none;padding:8px;color:var(--on-surface-3);font-size:11px;">{{ lang_dict.get('okr_no_krs', 'NO KEY RESULTS YET.') }}</div>
+    <div class="t-panel" style="border-top:none;padding:8px;color:var(--on-surface-3);font-size:13px;">{{ lang_dict.get('okr_no_krs', 'NO KEY RESULTS YET.') }}</div>
     {% endfor %}
 </div>
 {% endfor %}
@@ -211,7 +211,7 @@
                     <div style="display:flex;flex-wrap:wrap;gap:6px;" id="kr-status-checks">
                         {% for code, info in status_map.items()|sort %}
                         <div class="kr-status-pill" data-code="{{ code }}"
-                             style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);font-size:11px;color:var(--on-surface-2);user-select:none;">
+                             style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);font-size:13px;color:var(--on-surface-2);user-select:none;">
                             {{ info.get('description', code) }}
                         </div>
                         {% endfor %}
@@ -228,7 +228,7 @@
                     <option value="{{ proj.ProjectID }}">{{ proj.ProjectName }}</option>
                     {% endfor %}
                 </select>
-                <div style="margin-top:6px;font-size:11px;color:var(--on-surface-3);">
+                <div style="margin-top:6px;font-size:13px;color:var(--on-surface-3);">
                     AchievedValue will be automatically set to <em>(done work items / total work items) × target</em>
                 </div>
             </div>
@@ -318,7 +318,7 @@
                     <div style="display:flex;flex-wrap:wrap;gap:6px;" id="edit-kr-status-checks">
                         {% for code, info in status_map.items()|sort %}
                         <div class="edt-status-pill" data-code="{{ code }}"
-                             style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);font-size:11px;color:var(--on-surface-2);user-select:none;">
+                             style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);font-size:13px;color:var(--on-surface-2);user-select:none;">
                             {{ info.get('description', code) }}
                         </div>
                         {% endfor %}
