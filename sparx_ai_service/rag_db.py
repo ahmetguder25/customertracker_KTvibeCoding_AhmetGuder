@@ -5,7 +5,8 @@ import time
 DB_PATH = os.path.join(os.path.dirname(__file__), 'rag_state.db')
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=20.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
     conn.row_factory = sqlite3.Row
     return conn
 

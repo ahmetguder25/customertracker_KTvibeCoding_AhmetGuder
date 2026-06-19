@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+huey
+langchain-text-splitters
+pymupdf
+networkx
+python-louvain
+numpy
+scikit-learn
+sentence-transformers
+requests
+python-dotenv

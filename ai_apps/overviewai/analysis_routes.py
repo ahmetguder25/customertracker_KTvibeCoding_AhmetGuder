@@ -1,12 +1,13 @@
 from flask import Blueprint, request, jsonify
 import os
+import requests
 
 ai_analysis_bp = Blueprint('ai_analysis', __name__)
 
+SPARX_API_URL = os.getenv("SPARX_API_URL", "http://10.19.57.150:8000")
+
 @ai_analysis_bp.route("/api/chunk", methods=["POST"])
 def api_chunk_document():
-    from . import tasks
-    from . import rag_db
     from app import get_db, CUSTOMER_DOCS_FOLDER
     data = request.get_json() or {}
     doc_id = str(data.get("document_id", ""))
@@ -24,35 +25,37 @@ def api_chunk_document():
         
     filepath = os.path.join(CUSTOMER_DOCS_FOLDER, row["FileName"])
     
-    # Initialize state
-    rag_db.upsert_task(doc_id, "Chunking", "Pending", "Added to queue...")
-    
-    # Dispatch
-    tasks.process_chunking_task(doc_id, filepath)
-    
-    return jsonify({"message": "Chunking task dispatched", "document_id": doc_id}), 202
+    if not os.path.exists(filepath):
+        return jsonify({"error": "Document file not found on disk"}), 404
+        
+    # Send file to Sparx API
+    try:
+        with open(filepath, 'rb') as f:
+            files = {'file': (row["FileName"], f, 'application/pdf')}
+            data_payload = {'document_id': doc_id}
+            resp = requests.post(f"{SPARX_API_URL}/api/chunk", files=files, data=data_payload, timeout=10)
+            resp.raise_for_status()
+            return jsonify(resp.json()), resp.status_code
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Failed to reach Sparx AI service: {e}"}), 502
 
 @ai_analysis_bp.route("/api/map", methods=["POST"])
 def api_map_document():
-    from . import tasks
-    from . import rag_db
     data = request.get_json() or {}
     doc_id = str(data.get("document_id", ""))
     
     if not doc_id:
         return jsonify({"error": "Missing document_id"}), 400
         
-    # Initialize state
-    rag_db.upsert_task(doc_id, "Mapping", "Pending", "Added to queue...")
-    
-    # Dispatch
-    tasks.process_mapping_task(doc_id)
-    
-    return jsonify({"message": "Mapping task dispatched", "document_id": doc_id}), 202
+    try:
+        resp = requests.post(f"{SPARX_API_URL}/api/map", data={'document_id': doc_id}, timeout=5)
+        resp.raise_for_status()
+        return jsonify(resp.json()), resp.status_code
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Failed to reach Sparx AI service: {e}"}), 502
 
 @ai_analysis_bp.route("/api/status", methods=["GET", "POST"])
 def api_status():
-    from . import rag_db
     if request.method == "POST":
         data = request.get_json() or {}
         doc_id = str(data.get("document_id", ""))
@@ -62,28 +65,24 @@ def api_status():
     if not doc_id:
         return jsonify({"error": "Missing document_id"}), 400
         
-    task_list = rag_db.get_task_status(doc_id)
-    
-    status_map = {
-        "chunking": {"status": "Not Started", "message": "", "percent": 0},
-        "mapping": {"status": "Not Started", "message": "", "percent": 0}
-    }
-    
-    for t in task_list:
-        task_type = t["task_type"].lower()
-        if task_type in status_map:
-            status_map[task_type] = {
-                "status": t["status"],
-                "message": t["progress_message"],
-                "percent": t["percent_complete"]
-            }
-            
-    return jsonify(status_map)
+    try:
+        resp = requests.get(f"{SPARX_API_URL}/api/status", params={'document_id': doc_id}, timeout=5)
+        if resp.status_code == 200:
+            return jsonify(resp.json())
+        else:
+            return jsonify({
+                "chunking": {"status": "Failed", "message": f"Sparx HTTP {resp.status_code}: {resp.text}", "percent": 0},
+                "mapping": {"status": "Failed", "message": f"Sparx HTTP {resp.status_code}: {resp.text}", "percent": 0}
+            }), 502
+    except requests.exceptions.RequestException as e:
+        # Provide a fallback status if Sparx is unreachable so the UI doesn't crash
+        return jsonify({
+            "chunking": {"status": "Failed", "message": "Sparx Offline", "percent": 0},
+            "mapping": {"status": "Failed", "message": "Sparx Offline", "percent": 0}
+        }), 502
 
 @ai_analysis_bp.route("/api/analyze", methods=["POST"])
 def api_analyze():
-    from . import tasks
-    from . import rag_db
     data = request.get_json() or {}
     doc_id = str(data.get("document_id", ""))
     query = data.get("query", "").strip()
@@ -91,29 +90,10 @@ def api_analyze():
     if not doc_id or not query:
         return jsonify({"error": "Missing document_id or query"}), 400
         
-    # Simple synchronous analysis endpoint for the prototype
     try:
-        # Check if Ollama is alive
-        ok, msg = tasks.check_ollama_status()
-        if not ok:
-            return jsonify({"error": msg}), 500
-            
-        # Get summaries to act as global context
-        summaries = rag_db.get_summaries(doc_id)
-        if not summaries:
-            return jsonify({"error": "No graph summaries found for this document. Have you run Mapping?"}), 400
-            
-        context = "\n\n".join([s["summary_text"] for s in summaries])
-        
-        prompt = f"Given the following financial graph community summaries:\n\n{context}\n\nAnswer the query: {query}"
-        system = "You are a financial analyst. Synthesize the context to answer the question accurately."
-        
-        response = tasks.query_ollama(prompt, system=system)
-        
-        return jsonify({
-            "answer": response,
-            "document_id": doc_id,
-            "query": query
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        payload = {'document_id': doc_id, 'query': query}
+        resp = requests.post(f"{SPARX_API_URL}/api/analyze", data=payload, timeout=600)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Failed to reach Sparx AI service: {e}"}), 502

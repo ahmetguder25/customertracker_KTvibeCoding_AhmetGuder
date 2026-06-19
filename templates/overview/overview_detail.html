@@ -748,6 +748,7 @@ function renderAiStatus(docId, data) {
                         <div style="width:${data.mapping.percent}%;background:var(--cyan);height:100%;border-radius:2px;transition:width 0.5s;"></div>
                     </div>
                 </div>
+                <button onclick="triggerMapping('${docId}')" class="t-btn t-btn-outline" style="font-size:11px;">Force Retry</button>
             </div>
         `;
         return;
@@ -755,18 +756,22 @@ function renderAiStatus(docId, data) {
     
     // Everything Completed!
     var hasAnalysis = localDocStates[docId].hasAnalysis;
-    var actionBtn = hasAnalysis ? 
-        `<button onclick="triggerAnalysis('${docId}')" class="t-btn t-btn-cyan">Update Analysis</button>` : 
-        `<button onclick="triggerAnalysis('${docId}')" class="t-btn t-btn-green">Create Analysis</button>`;
+    var btnText = hasAnalysis ? "Analizi Güncelle" : "Analiz Oluştur";
         
     statusPanel.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;">
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;">
             <span class="material-symbols-outlined" style="color:var(--green);font-size:24px;">check_circle</span>
             <div style="flex:1;">
-                <div style="font-weight:500;color:var(--green);">Ready for Analysis</div>
-                <div style="font-size:13px;color:var(--on-surface-3);">Document is chunked and mapped successfully.</div>
+                <div style="font-weight:500;color:var(--green);">Analiz İçin Hazır</div>
+                <div style="font-size:13px;color:var(--on-surface-3);">Doküman parçalandı ve haritalandı. Yapay zekaya sorunuzu aşağıya yazın.</div>
             </div>
-            ${actionBtn}
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+            <textarea id="ai-query-input-${docId}" rows="2" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--surface-3);background:var(--surface-1);color:var(--on-surface-1);font-family:inherit;" placeholder="Örn: Bu şirketin temel operasyonel riskleri ve gelir kaynakları nelerdir?">Bu belgede bahsedilen temel operasyonel riskler ve gelir kaynakları detaylı olarak nelerdir?</textarea>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <button onclick="triggerAnalysis('${docId}')" class="t-btn t-btn-green" style="white-space:nowrap;">${btnText}</button>
+                <button onclick="triggerChunking('${docId}')" class="t-btn t-btn-outline" style="white-space:nowrap;font-size:11px;color:var(--on-surface-3);">Baştan Başlat</button>
+            </div>
         </div>
     `;
 }
@@ -792,6 +797,9 @@ function triggerMapping(docId) {
 }
 
 function triggerAnalysis(docId) {
+    var queryInput = document.getElementById('ai-query-input-' + docId);
+    var queryText = queryInput ? queryInput.value.trim() : "Bu belgede bahsedilen temel operasyonel riskler ve gelir kaynakları nelerdir?";
+
     var resultPanel = document.getElementById('ai-analysis-result');
     resultPanel.style.display = 'block';
     
@@ -800,8 +808,8 @@ function triggerAnalysis(docId) {
             <div style="display:flex;align-items:center;gap:12px;">
                 <span class="material-symbols-outlined" style="color:var(--primary);animation:t-spin 1.5s linear infinite;">auto_awesome</span>
                 <div style="flex:1;">
-                    <div style="font-weight:500;">Generating Analysis...</div>
-                    <div style="font-size:13px;color:var(--on-surface-3);">The AI is reading through mapped financial clauses and querying local model. This may take a minute...</div>
+                    <div style="font-weight:500;">Analiz Üretiliyor...</div>
+                    <div style="font-size:13px;color:var(--on-surface-3);">Yapay zeka finansal grafiği inceliyor ve sentezliyor. Bu işlem biraz zaman alabilir...</div>
                 </div>
             </div>
         </div>
@@ -812,7 +820,7 @@ function triggerAnalysis(docId) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             document_id: docId,
-            query: "What are the primary operational risks and revenue drivers discussed in the document?"
+            query: queryText
         })
     })
     .then(r => r.json())
@@ -831,9 +839,9 @@ function triggerAnalysis(docId) {
         fetchStatusAndRender(); // Update button to Update Analysis
         
         // Very basic markdown to HTML for response
-        var htmlAnswer = data.answer.replace(/\\n/g, '<br/>')
-                                    .replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>')
-                                    .replace(/\\*(.*?)\\*/g, '<i>$1</i>');
+        var htmlAnswer = data.answer.replace(/\n/g, '<br/>')
+                                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                                    .replace(/\*(.*?)\*/g, '<i>$1</i>');
         
         resultPanel.innerHTML = `
             <div class="t-panel" style="animation: fade-in 0.5s ease-out;">
