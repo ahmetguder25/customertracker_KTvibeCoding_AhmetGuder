@@ -3,7 +3,7 @@ import sys
 import time
 import os
 from dotenv import load_dotenv
-import rag_db
+from ai_apps.overviewai import rag_db
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,7 +15,7 @@ def main():
     print("Starting Huey Background Worker...")
     # Start the huey consumer in a subprocess
     huey_process = subprocess.Popen(
-        [sys.executable, "-m", "huey.bin.huey_consumer", "tasks.huey", "-w", "2"],
+        [sys.executable, "-m", "huey.bin.huey_consumer", "ai_apps.overviewai.tasks.huey", "-w", "2"],
         stdout=sys.stdout,
         stderr=sys.stderr
     )

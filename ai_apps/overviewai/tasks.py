@@ -9,7 +9,7 @@ import fitz  # PyMuPDF
 from huey import SqliteHuey
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
-import rag_db
+from . import rag_db
 import numpy as np
 from sklearn.cluster import KMeans
 from sentence_transformers import SentenceTransformer
@@ -18,7 +18,8 @@ from sentence_transformers import SentenceTransformer
 load_dotenv()
 
 # Initialize Huey with a local SQLite database for the queue
-huey = SqliteHuey('rag_tasks', filename='huey_queue.db')
+huey_db_path = os.path.join(os.path.dirname(__file__), 'huey_queue.db')
+huey = SqliteHuey('rag_tasks', filename=huey_db_path)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "").strip()
 if OLLAMA_BASE_URL:
@@ -228,7 +229,7 @@ You MUST return ONLY a valid JSON object matching this schema, with no markdown 
             rag_db.upsert_task(document_id, 'Mapping', 'Processing', f'Summarizing communities ({i+1}/{total_clusters})...', pct)
             
         # Save NetworkX graph to disk
-        graphs_dir = os.path.join(os.path.dirname(__file__), 'static', 'graphs')
+        graphs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static', 'graphs')
         os.makedirs(graphs_dir, exist_ok=True)
         nx.write_gml(G, os.path.join(graphs_dir, f"{document_id}.gml"))
             

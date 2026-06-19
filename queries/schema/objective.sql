@@ -1,0 +1,9 @@
+CREATE TABLE BOA.ZZZ.Objective (
+    ObjectiveID INT IDENTITY(3100001,1) PRIMARY KEY,
+    Title       NVARCHAR(300) NOT NULL,
+    Description NVARCHAR(MAX),
+    Period      NVARCHAR(50),
+    Owner       NVARCHAR(100),
+    IsActive    TINYINT NOT NULL DEFAULT 1,
+    CreatedAt   DATETIME NOT NULL DEFAULT GETDATE()
+)
