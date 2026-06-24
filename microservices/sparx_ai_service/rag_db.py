@@ -43,9 +43,14 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             document_id TEXT,
             community_id INTEGER,
-            summary_text TEXT
+            summary_text TEXT,
+            embedding TEXT
         )
     ''')
+    try:
+        c.execute("ALTER TABLE graph_summaries ADD COLUMN embedding TEXT")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
@@ -95,13 +100,13 @@ def clear_chunks(document_id):
     conn.commit()
     conn.close()
 
-def save_summary(document_id, community_id, summary_text):
+def save_summary(document_id, community_id, summary_text, embedding=None):
     conn = get_db()
     c = conn.cursor()
     c.execute('''
-        INSERT INTO graph_summaries (document_id, community_id, summary_text)
-        VALUES (?, ?, ?)
-    ''', (document_id, community_id, summary_text))
+        INSERT INTO graph_summaries (document_id, community_id, summary_text, embedding)
+        VALUES (?, ?, ?, ?)
+    ''', (document_id, community_id, summary_text, embedding))
     conn.commit()
     conn.close()
 

@@ -8,10 +8,10 @@ okrs_bp = Blueprint("okrs", __name__)
 def okrs_list():
     conn = get_db()
     _recalc_all_krs(conn)
-    objectives = conn.execute("SELECT * FROM BOA.ZZZ.Objective WHERE IsActive=1 ORDER BY Period DESC, ObjectiveID").fetchall()
-    krs        = conn.execute("SELECT * FROM BOA.ZZZ.KeyResult WHERE IsActive=1 ORDER BY ObjectiveID, KRID").fetchall()
+    objectives = conn.execute("SELECT * FROM BOA.WIT.Objective WHERE IsActive=1 ORDER BY Period DESC, ObjectiveID").fetchall()
+    krs        = conn.execute("SELECT * FROM BOA.WIT.KeyResult WHERE IsActive=1 ORDER BY ObjectiveID, KRID").fetchall()
     products   = conn.execute("SELECT * FROM BOA.COR.Product WHERE IsActive=1").fetchall()
-    projects   = conn.execute("SELECT ProjectID, ProjectName FROM BOA.ZZZ.Project WHERE IsActive=1 ORDER BY ProjectName").fetchall()
+    projects   = conn.execute("SELECT ProjectID, ProjectName FROM BOA.STR.Project WHERE IsActive=1 ORDER BY ProjectName").fetchall()
     status_map = get_param_map("Status", conn)
     conn.close()
     return render_template("okrs/okrs.html", objectives=objectives, krs=krs,
@@ -21,7 +21,7 @@ def okrs_list():
 def api_objective_create():
     data = request.get_json(silent=True) or {}
     conn = get_db()
-    conn.execute("INSERT INTO BOA.ZZZ.Objective (Title,Description,Period,Owner) VALUES (?,?,?,?)",
+    conn.execute("INSERT INTO BOA.WIT.Objective (Title,Description,Period,Owner) VALUES (?,?,?,?)",
                  (data.get("title",""), data.get("description",""), data.get("period",""), session.get("username","")))
     conn.commit()
     conn.close()
@@ -30,7 +30,7 @@ def api_objective_create():
 @okrs_bp.route("/api/okrs/objectives/<int:oid>", methods=["DELETE"])
 def api_objective_delete(oid):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.Objective SET IsActive=0 WHERE ObjectiveID=?", (oid,))
+    conn.execute("UPDATE BOA.WIT.Objective SET IsActive=0 WHERE ObjectiveID=?", (oid,))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
@@ -45,7 +45,7 @@ def api_kr_create():
     linked_project  = data.get("linked_project_id") or None
     conn = get_db()
     conn.execute(
-        "INSERT INTO BOA.ZZZ.KeyResult "
+        "INSERT INTO BOA.WIT.KeyResult "
         "(ObjectiveID,Title,TargetValue,Unit,CalcMethod,MeasurementType,LinkedProductCode,LinkedStatusCodes,LinkedProjectID) "
         "VALUES (?,?,?,?,?,?,?,?,?)",
         (data.get("objective_id"), data.get("title",""), float(data.get("target",0)),
@@ -61,7 +61,7 @@ def api_kr_update(krid):
     import json as _json
     data = request.get_json(silent=True) or {}
     conn = get_db()
-    kr = conn.execute("SELECT * FROM BOA.ZZZ.KeyResult WHERE KRID=?", (krid,)).fetchone()
+    kr = conn.execute("SELECT * FROM BOA.WIT.KeyResult WHERE KRID=?", (krid,)).fetchone()
     if not kr:
         conn.close()
         return jsonify({"ok": False, "error": "KR not found"}), 404
@@ -75,7 +75,7 @@ def api_kr_update(krid):
     linked_project  = data.get("linked_project_id") or None
 
     conn.execute(
-        "UPDATE BOA.ZZZ.KeyResult SET "
+        "UPDATE BOA.WIT.KeyResult SET "
         "Title=?, TargetValue=?, Unit=?, CalcMethod=?, "
         "MeasurementType=?, LinkedProductCode=?, LinkedStatusCodes=?, LinkedProjectID=?, "
         "AchievedValue=?, PipelineValue=? "
@@ -99,7 +99,7 @@ def api_kr_update(krid):
 @okrs_bp.route("/api/okrs/krs/<int:krid>", methods=["DELETE"])
 def api_kr_delete(krid):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.KeyResult SET IsActive=0 WHERE KRID=?", (krid,))
+    conn.execute("UPDATE BOA.WIT.KeyResult SET IsActive=0 WHERE KRID=?", (krid,))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
@@ -133,7 +133,7 @@ def _sync_project_status(conn, project_id):
         row["total_items"] or 0, row["done_items"] or 0, row["in_progress_items"] or 0
     )
     conn.execute(
-        "UPDATE BOA.ZZZ.Project SET Status=?, UpdatedAt=GETDATE() WHERE ProjectID=?",
+        "UPDATE BOA.STR.Project SET Status=?, UpdatedAt=GETDATE() WHERE ProjectID=?",
         (status, project_id)
     )
     conn.commit()
@@ -146,7 +146,7 @@ def projects_list():
         "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1) AS total_items,"
         "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1 AND w.Status='done') AS done_items, "
         "  (SELECT COUNT(*) FROM BOA.WIT.WorkItem w WHERE w.ParentType='project' AND w.ParentID=p.ProjectID AND w.IsActive=1 AND w.Status IN ('in_progress','blocked')) AS in_progress_items "
-        "FROM BOA.ZZZ.Project p LEFT JOIN BOA.ZZZ.Objective o ON p.ObjectiveID=o.ObjectiveID "
+        "FROM BOA.STR.Project p LEFT JOIN BOA.WIT.Objective o ON p.ObjectiveID=o.ObjectiveID "
         "WHERE p.IsActive=1 ORDER BY p.CreatedAt DESC"
     ).fetchall()
     projects = []
@@ -156,7 +156,7 @@ def projects_list():
             d["total_items"] or 0, d["done_items"] or 0, d["in_progress_items"] or 0
         )
         projects.append(d)
-    objectives = conn.execute("SELECT ObjectiveID, Title FROM BOA.ZZZ.Objective WHERE IsActive=1 ORDER BY Title").fetchall()
+    objectives = conn.execute("SELECT ObjectiveID, Title FROM BOA.WIT.Objective WHERE IsActive=1 ORDER BY Title").fetchall()
     conn.close()
     return render_template("okrs/projects.html", projects=projects, objectives=objectives)
 
@@ -164,17 +164,17 @@ def projects_list():
 def project_detail(project_id):
     conn = get_db()
     project_row = conn.execute(
-        "SELECT p.*, o.Title AS ObjTitle FROM BOA.ZZZ.Project p "
-        "LEFT JOIN BOA.ZZZ.Objective o ON p.ObjectiveID=o.ObjectiveID "
+        "SELECT p.*, o.Title AS ObjTitle FROM BOA.STR.Project p "
+        "LEFT JOIN BOA.WIT.Objective o ON p.ObjectiveID=o.ObjectiveID "
         "WHERE p.ProjectID=? AND p.IsActive=1", (project_id,)
     ).fetchone()
     if not project_row:
         conn.close()
         return "Project not found", 404
     items, prereq_map, subitems_map, assignees_map = _load_backlog(conn, "project", project_id)
-    stakeholders = conn.execute("SELECT StakeholderID, FullName, Organization FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
+    stakeholders = conn.execute("SELECT StakeholderID, FullName, Organization FROM BOA.COR.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
     users = conn.execute("SELECT id, username, surname FROM BOA.COR.[User] ORDER BY username").fetchall()
-    objectives = conn.execute("SELECT ObjectiveID, Title FROM BOA.ZZZ.Objective WHERE IsActive=1 ORDER BY Title").fetchall()
+    objectives = conn.execute("SELECT ObjectiveID, Title FROM BOA.WIT.Objective WHERE IsActive=1 ORDER BY Title").fetchall()
     done_count  = sum(1 for i in items if i["Status"] == "done")
     in_progress_count = sum(1 for i in items if i["Status"] in ("in_progress", "blocked"))
     total_count = len(items)
@@ -203,12 +203,12 @@ def api_project_create():
     data = request.get_json(silent=True) or {}
     conn = get_db()
     conn.execute(
-        "INSERT INTO BOA.ZZZ.Project (ProjectName,Description,Status,Owner,StartDate,Deadline,ObjectiveID) VALUES (?,?,?,?,?,?,?)",
+        "INSERT INTO BOA.STR.Project (ProjectName,Description,Status,Owner,StartDate,Deadline,ObjectiveID) VALUES (?,?,?,?,?,?,?)",
         (data.get("name",""), data.get("description",""), "Not Started",
          session.get("username",""), data.get("start_date") or None, data.get("deadline") or None, data.get("objective_id") or None)
     )
     conn.commit()
-    pid = conn.execute("SELECT MAX(ProjectID) AS id FROM BOA.ZZZ.Project").fetchone()["id"]
+    pid = conn.execute("SELECT MAX(ProjectID) AS id FROM BOA.STR.Project").fetchone()["id"]
     conn.close()
     return jsonify({"ok": True, "project_id": pid})
 
@@ -217,7 +217,7 @@ def api_project_update(pid):
     data = request.get_json(silent=True) or {}
     conn = get_db()
     conn.execute(
-        "UPDATE BOA.ZZZ.Project SET ProjectName=?,Description=?,Deadline=?,ObjectiveID=?,UpdatedAt=GETDATE() WHERE ProjectID=?",
+        "UPDATE BOA.STR.Project SET ProjectName=?,Description=?,Deadline=?,ObjectiveID=?,UpdatedAt=GETDATE() WHERE ProjectID=?",
         (data.get("name"), data.get("description"), data.get("deadline") or None, data.get("objective_id") or None, pid)
     )
     _sync_project_status(conn, pid)
@@ -227,7 +227,7 @@ def api_project_update(pid):
 @okrs_bp.route("/api/projects/<int:pid>", methods=["DELETE"])
 def api_project_delete(pid):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.Project SET IsActive=0 WHERE ProjectID=?", (pid,))
+    conn.execute("UPDATE BOA.STR.Project SET IsActive=0 WHERE ProjectID=?", (pid,))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})

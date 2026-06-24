@@ -1,0 +1,138 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}NEWS CRAWLER AI — CUSTOMER TRACKER{% endblock %}
+
+{% block content %}
+<div class="t-page-header">
+    <div>
+        <div class="t-page-title" style="display:flex;align-items:center;gap:8px;">
+            <a href="/microservices" style="color:var(--cyan);text-decoration:none;"><span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span></a>
+            NEWS CRAWLER JOBS
+        </div>
+        <div class="t-page-subtitle">CONFIGURE AND RUN AUTONOMOUS NEWS SEARCHES</div>
+    </div>
+</div>
+
+<div style="display:flex; gap:24px;">
+    <!-- LEFT: NEW JOB FORM -->
+    <div class="t-panel" style="flex:1;">
+        <div class="t-section-header" style="margin-bottom:16px;">Create New Crawl</div>
+        <form id="crawler-form" onsubmit="addJob(event)">
+            <div class="t-form-group">
+                <label class="t-label">Keywords</label>
+                <input type="text" id="keywords" class="t-input" placeholder="e.g., Apple Inc financial results" required>
+            </div>
+            <div class="t-form-group">
+                <label class="t-label">Time Limit</label>
+                <select id="time_limit" class="t-input" required>
+                    <option value="d">Past Day</option>
+                    <option value="w" selected>Past Week</option>
+                    <option value="m">Past Month</option>
+                </select>
+            </div>
+            <div class="t-form-group">
+                <label class="t-label">Customer ID (Optional)</label>
+                <select id="customer_id" class="t-input">
+                    <option value="">-- No Customer --</option>
+                    {% for c in customers %}
+                    <option value="{{ c['Customerid'] }}">{{ c['CustomerName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="t-btn t-btn-cyan" style="width:100%;">START CRAWL</button>
+        </form>
+    </div>
+
+    <!-- RIGHT: EXISTING JOBS -->
+    <div class="t-panel" style="flex:2;">
+        <div class="t-section-header" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+            Past & Active Crawls
+            <button class="t-btn t-btn-sm t-btn-outline" onclick="loadJobs()"><span class="material-symbols-outlined" style="font-size:16px;">refresh</span></button>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="t-table" id="jobs-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>KEYWORDS</th>
+                        <th>TIME LIMIT</th>
+                        <th>CUSTOMER</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-body">
+                    <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const API_URL = 'http://127.0.0.1:5004/api';
+
+    function loadJobs() {
+        fetch(`${API_URL}/jobs`).then(r => r.json()).then(data => {
+            const tbody = document.getElementById('jobs-body');
+            tbody.innerHTML = '';
+            if(!data.jobs || data.jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--on-surface-3);">No jobs configured yet.</td></tr>';
+                return;
+            }
+            data.jobs.forEach(job => {
+                let statusColor = job.status === 'Running' ? 'var(--yellow)' : (job.status === 'Completed' ? 'var(--green)' : 'var(--on-surface)');
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="color:var(--on-surface-2);">${job.id}</td>
+                        <td style="font-weight:bold;">${job.keywords}</td>
+                        <td style="color:var(--on-surface-3);">${job.time_limit}</td>
+                        <td style="color:var(--on-surface-3);">${job.customer_id || '—'}</td>
+                        <td>
+                            <div style="color:${statusColor};font-size:12px;font-weight:bold;">${job.status}</div>
+                            <div style="font-size:11px;color:var(--on-surface-3);">${job.last_message || ''}</div>
+                        </td>
+                        <td>
+                            <button class="t-btn t-btn-sm t-btn-red" onclick="deleteJob(${job.id})"><span class="material-symbols-outlined" style="font-size:14px;">delete</span></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }).catch(e => {
+            document.getElementById('jobs-body').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--red);">Error connecting to News Crawler service.</td></tr>';
+        });
+    }
+
+    function addJob(e) {
+        e.preventDefault();
+        const keywords = document.getElementById('keywords').value;
+        const time_limit = document.getElementById('time_limit').value;
+        const customer_id = document.getElementById('customer_id').value;
+
+        fetch(`${API_URL}/crawl`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({keywords, time_limit, customer_id})
+        }).then(r => r.json()).then(data => {
+            if(data.success) {
+                document.getElementById('crawler-form').reset();
+                loadJobs();
+            } else {
+                alert("Error: " + data.error);
+            }
+        });
+    }
+
+    function deleteJob(jobId) {
+        if(!confirm("Delete this job?")) return;
+        fetch(`${API_URL}/jobs/${jobId}`, { method: 'DELETE' }).then(r=>r.json()).then(d=>{
+            loadJobs();
+        });
+    }
+
+    loadJobs();
+    setInterval(loadJobs, 5000);
+</script>
+{% endblock %}

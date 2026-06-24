@@ -13,7 +13,7 @@ def management():
     sector_map   = get_param_map("Sector", conn)
     customers    = conn.execute(load_query("mgmt_list_customers")).fetchall()
     stakeholders = conn.execute(
-        "SELECT * FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName"
+        "SELECT * FROM BOA.COR.Stakeholder WHERE IsActive=1 ORDER BY FullName"
     ).fetchall()
     conn.close()
     return render_template("management/management.html", customers=customers, sector_map=sector_map,
@@ -25,12 +25,12 @@ def api_stakeholder_create():
     data = request.get_json(silent=True) or {}
     conn = get_db()
     conn.execute(
-        "INSERT INTO BOA.ZZZ.Stakeholder (FullName,Organization,Department,Email) VALUES (?,?,?,?)",
+        "INSERT INTO BOA.COR.Stakeholder (FullName,Organization,Department,Email) VALUES (?,?,?,?)",
         (data.get("full_name", ""), data.get("organization", ""),
          data.get("department", ""), data.get("email", ""))
     )
     conn.commit()
-    sid = conn.execute("SELECT MAX(StakeholderID) AS id FROM BOA.ZZZ.Stakeholder").fetchone()["id"]
+    sid = conn.execute("SELECT MAX(StakeholderID) AS id FROM BOA.COR.Stakeholder").fetchone()["id"]
     conn.close()
     return jsonify({"ok": True, "stakeholder_id": sid})
 
@@ -40,7 +40,7 @@ def api_stakeholder_update(sid):
     data = request.get_json(silent=True) or {}
     conn = get_db()
     conn.execute(
-        "UPDATE BOA.ZZZ.Stakeholder SET FullName=?,Organization=?,Department=?,Email=? WHERE StakeholderID=?",
+        "UPDATE BOA.COR.Stakeholder SET FullName=?,Organization=?,Department=?,Email=? WHERE StakeholderID=?",
         (data.get("full_name"), data.get("organization"), data.get("department"), data.get("email"), sid)
     )
     conn.commit()
@@ -51,7 +51,7 @@ def api_stakeholder_update(sid):
 @management_bp.route("/api/stakeholders/<int:sid>", methods=["DELETE"])
 def api_stakeholder_delete(sid):
     conn = get_db()
-    conn.execute("UPDATE BOA.ZZZ.Stakeholder SET IsActive=0 WHERE StakeholderID=?", (sid,))
+    conn.execute("UPDATE BOA.COR.Stakeholder SET IsActive=0 WHERE StakeholderID=?", (sid,))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})

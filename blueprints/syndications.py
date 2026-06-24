@@ -57,7 +57,7 @@ def syndication_detail(deal_id):
     status_map   = get_param_map("Status", conn)
     # Work items portal
     wit_items, wit_prereq_map, wit_subitems_map, wit_assignees_map = _load_backlog(conn, "syndication", deal_id)
-    stakeholders = conn.execute("SELECT StakeholderID, FullName FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
+    stakeholders = conn.execute("SELECT StakeholderID, FullName FROM BOA.COR.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
     users        = conn.execute("SELECT id, username, surname FROM BOA.COR.[User] ORDER BY username").fetchall()
     conn.close()
     return render_template(

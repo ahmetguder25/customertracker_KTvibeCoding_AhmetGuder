@@ -83,7 +83,7 @@ def generate_chat_reply(message_id, prompt, selected_docs=None, language="Englis
 
     try:
         stream = _ollama.chat(
-            model="qwen2.5:7b",
+            model="gemma2",
             messages=[
                 {"role": "system", "content": build_system_prompt(language)},
                 {"role": "user",   "content": user_message},

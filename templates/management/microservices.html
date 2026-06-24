@@ -146,12 +146,58 @@
         </div>
     </div>
     
+    <!-- News Crawler Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">newspaper</span> News Crawler
+            </span>
+            <span id="newscrawler-badge" class="t-chip t-chip-{% if state.get('news_crawler', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('news_crawler', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="newscrawler-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="newscrawler-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('news_crawler', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('news_crawler', false)" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span> DISCONNECT
+                </button>
+                <button class="t-btn t-btn-cyan" onclick="window.location.href='/microservices/news_crawler'" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">manage_search</span> MANAGE JOBS
+                </button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('news_crawler', true)" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span> RECONNECT
+                </button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('news_crawler')" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span> RESET TASKS
+                </button>
+            </div>
+        </div>
+    </div>
+    
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const PORTS = { "chatbot": 5001, "sparx_ai": 5002, "web_crawler": 5003 };
+    const PORTS = { "chatbot": 5001, "sparx_ai": 5002, "web_crawler": 5003, "news_crawler": 5004 };
     
     function toggleService(serviceId, enable) {
         fetch('/api/microservices/toggle', {
@@ -182,6 +228,10 @@
             fetch('http://127.0.0.1:5003/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
             return;
         }
+        if (serviceId === 'news_crawler') {
+            fetch('http://127.0.0.1:5004/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
+            return;
+        }
         fetch('/api/microservices/reset', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -198,8 +248,8 @@
 
     function checkHealth(serviceId) {
         let port = PORTS[serviceId];
-        let statusEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-status' : (serviceId === 'sparx_ai' ? 'sparx-status' : 'crawler-status'));
-        let procEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-process' : (serviceId === 'sparx_ai' ? 'sparx-process' : 'crawler-process'));
+        let statusEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-status' : (serviceId === 'sparx_ai' ? 'sparx-status' : (serviceId === 'news_crawler' ? 'newscrawler-status' : 'crawler-status')));
+        let procEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-process' : (serviceId === 'sparx_ai' ? 'sparx-process' : (serviceId === 'news_crawler' ? 'newscrawler-process' : 'crawler-process')));
 
         
         fetch(`http://127.0.0.1:${port}/api/health`)
@@ -228,10 +278,12 @@
     checkHealth('chatbot');
     checkHealth('sparx_ai');
     checkHealth('web_crawler');
+    checkHealth('news_crawler');
     setInterval(() => {
         checkHealth('chatbot');
         checkHealth('sparx_ai');
         checkHealth('web_crawler');
+        checkHealth('news_crawler');
     }, 3000);
 </script>
 {% endblock %}

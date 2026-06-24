@@ -69,7 +69,26 @@ async def analyze_document(document_id: str = Form(...), query: str = Form(...))
         if not summaries:
             raise HTTPException(status_code=400, detail="No graph summaries found for this document. Have you run Mapping?")
             
-        context = "\n\n".join([s["summary_text"] for s in summaries])
+        import json
+        import numpy as np
+        query_emb = tasks.embedder.encode(query)
+        scored_summaries = []
+        for s in summaries:
+            if s.get("embedding"):
+                try:
+                    s_emb = np.array(json.loads(s["embedding"]))
+                    score = np.dot(query_emb, s_emb) / (np.linalg.norm(query_emb) * np.linalg.norm(s_emb))
+                    scored_summaries.append((score, s["summary_text"]))
+                except Exception:
+                    pass
+                    
+        scored_summaries.sort(key=lambda x: x[0], reverse=True)
+        top_summaries = [s[1] for s in scored_summaries[:15]]
+        
+        if not top_summaries:
+            top_summaries = [s["summary_text"] for s in summaries[:15]]
+            
+        context = "\n\n".join(top_summaries)
         prompt = f"Aşağıdaki finansal grafik topluluk özetlerini dikkate alarak:\n\n{context}\n\nŞu soruyu cevapla: {query}"
         system = "Sen uzman bir finansal analistsin. Verilen bağlamı sentezleyerek soruyu doğru, detaylı ve profesyonel bir Türkçe rapor olarak cevapla."
         

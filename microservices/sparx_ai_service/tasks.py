@@ -19,6 +19,8 @@ from sentence_transformers import SentenceTransformer
 # Load environment variables from .env file
 load_dotenv()
 
+embedder = SentenceTransformer('all-MiniLM-L6-v2')
+
 # Initialize Huey with a local SQLite database for the queue
 huey_db_path = os.path.join(os.path.dirname(__file__), 'huey_queue.db')
 huey = SqliteHuey('rag_tasks', filename=huey_db_path)
@@ -31,7 +33,7 @@ else:
     OLLAMA_URL = "http://localhost:11434"
     print("GraphRAG: Running in local mode using local Ollama at 11434")
 
-LLM_MODEL = "qwen2.5:7b"
+LLM_MODEL = "gemma2"
 
 def check_vllm_status():
     """Verify vLLM is running and the required model is loaded."""
@@ -225,7 +227,8 @@ KESİNLİKLE VE SADECE aşağıdaki formata birebir uyan geçerli bir JSON objes
                 rag_db.upsert_task(document_id, 'Mapping', 'Failed', f"Network Error: Unable to reach remote Ollama server", pct)
                 return
                 
-            rag_db.save_summary(document_id, comm_id, summary)
+            emb = embedder.encode(summary).tolist()
+            rag_db.save_summary(document_id, comm_id, summary, json.dumps(emb))
             
             pct = 80 + int((i / total_clusters) * 20)
             rag_db.upsert_task(document_id, 'Mapping', 'Processing', f'Kümeler özetleniyor ({i+1}/{total_clusters})...', pct)

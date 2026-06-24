@@ -52,6 +52,7 @@
     <button onclick="switchTab('credit')" id="btn-tab-credit" class="t-tab">CREDIT ANALYSIS</button>
     <button onclick="switchTab('documents')" id="btn-tab-documents" class="t-tab">COMPANY DOCUMENTS</button>
     <button onclick="switchTab('ai')" id="btn-tab-ai" class="t-tab">AI ANALYSIS</button>
+    <button onclick="switchTab('news')" id="btn-tab-news" class="t-tab">NEWS CRAWLER</button>
 </div>
 
 <!-- ═══ TAB: OVERVIEW ═══ -->
@@ -429,6 +430,47 @@
     {% endif %}
 </div>
 
+<!-- ═══ TAB: NEWS CRAWLER ═══ -->
+<div id="tab-news" style="display:none;">
+    {% if microservices_state.get('news_crawler', {}).get('enabled', True) %}
+    <div class="t-section-header" style="margin-bottom:16px;">NEWS CRAWLER DASHBOARD</div>
+    
+    <div class="t-panel" style="margin-bottom:16px;">
+        <div style="font-weight:bold;margin-bottom:8px;">Initiate New Crawl</div>
+        <div style="display:flex;gap:12px;align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="display:block;font-size:11px;color:var(--on-surface-3);margin-bottom:4px;">Keywords</label>
+                <input type="text" id="news-keywords" class="t-input" style="width:100%;" placeholder="e.g. Arçelik financial results">
+            </div>
+            <div style="width:150px;">
+                <label style="display:block;font-size:11px;color:var(--on-surface-3);margin-bottom:4px;">Time Limit</label>
+                <select id="news-timelimit" class="t-input" style="width:100%;">
+                    <option value="d">Past Day</option>
+                    <option value="w" selected>Past Week</option>
+                    <option value="m">Past Month</option>
+                </select>
+            </div>
+            <div>
+                <button class="t-btn t-btn-green" onclick="startNewsCrawl()">START CRAWL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="t-section-header" style="margin-bottom:16px;margin-top:24px;">PREVIOUS CRAWLS</div>
+    <div id="news-jobs-container">
+        <div style="color:var(--on-surface-3);font-size:13px;">Loading crawls...</div>
+    </div>
+    {% else %}
+    <div class="t-panel" style="display: flex; align-items:center; justify-content:center; height: 150px; margin-top: 16px; background:var(--surface-2); border:1px solid var(--border); border-radius:12px;">
+        <div style="text-align:center;">
+            <span class="material-symbols-outlined" style="font-size:40px; color:var(--red); margin-bottom:12px; display:block;">power_off</span>
+            <div style="font-weight:bold; color:var(--on-surface); margin-bottom:8px; font-size:15px; text-transform:uppercase;">Microservice Disconnected</div>
+            <div style="color:var(--on-surface-3); font-size:13px;">The News Crawler service has been disconnected by an Administrator.</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -443,20 +485,24 @@ function switchTab(tabName) {
     var tabCr = document.getElementById('tab-credit');
     var tabDoc = document.getElementById('tab-documents');
     var tabAi = document.getElementById('tab-ai');
+    var tabNews = document.getElementById('tab-news');
     var btnOv = document.getElementById('btn-tab-overview');
     var btnCr = document.getElementById('btn-tab-credit');
     var btnDoc = document.getElementById('btn-tab-documents');
     var btnAi = document.getElementById('btn-tab-ai');
+    var btnNews = document.getElementById('btn-tab-news');
     
     tabOv.style.display = 'none';
     tabCr.style.display = 'none';
     if(tabDoc) tabDoc.style.display = 'none';
     if(tabAi) tabAi.style.display = 'none';
+    if(tabNews) tabNews.style.display = 'none';
     
     btnOv.classList.remove('active');
     btnCr.classList.remove('active');
     if(btnDoc) btnDoc.classList.remove('active');
     if(btnAi) btnAi.classList.remove('active');
+    if(btnNews) btnNews.classList.remove('active');
     
     if (tabName === 'overview') {
         tabOv.style.display = ''; btnOv.classList.add('active');
@@ -468,8 +514,145 @@ function switchTab(tabName) {
     } else if (tabName === 'ai') {
         if(tabAi) tabAi.style.display = '';
         if(btnAi) btnAi.classList.add('active');
+    } else if (tabName === 'news') {
+        if(tabNews) tabNews.style.display = '';
+        if(btnNews) btnNews.classList.add('active');
+        loadNewsJobs();
     }
 }
+
+// === NEWS CRAWLER LOGIC ===
+const NEWS_CUSTOMER_ID = "{{ customer['Customerid'] }}";
+
+function startNewsCrawl() {
+    const keywords = document.getElementById('news-keywords').value.trim();
+    const time_limit = document.getElementById('news-timelimit').value;
+    if(!keywords) {
+        alert("Please enter keywords for the crawl.");
+        return;
+    }
+    
+    fetch('http://127.0.0.1:5004/api/crawl', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ keywords: keywords, time_limit: time_limit, customer_id: NEWS_CUSTOMER_ID })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            document.getElementById('news-keywords').value = '';
+            loadNewsJobs();
+        } else {
+            alert("Error: " + data.error);
+        }
+    })
+    .catch(e => {
+        alert("Microservice might be down. " + e);
+    });
+}
+
+function loadNewsJobs() {
+    const container = document.getElementById('news-jobs-container');
+    if(!container) return;
+    
+    fetch(`http://127.0.0.1:5004/api/jobs?customer_id=${NEWS_CUSTOMER_ID}`)
+    .then(r => r.json())
+    .then(data => {
+        if(!data.jobs || data.jobs.length === 0) {
+            container.innerHTML = '<div style="color:var(--on-surface-3);font-size:13px;">No crawls found for this customer.</div>';
+            return;
+        }
+        
+        let html = '';
+        data.jobs.forEach(job => {
+            const isRunning = job.status === 'Running';
+            const statusColor = isRunning ? 'var(--blue)' : (job.status==='Completed' ? 'var(--green)' : 'var(--on-surface-3)');
+            const dateStr = new Date(job.created_at * 1000).toLocaleString();
+            
+            html += `
+                <div class="t-panel" style="margin-bottom:8px; border-left: 3px solid ${statusColor};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleNewsJob(${job.id}, '${job.status}')">
+                        <div>
+                            <div style="font-weight:bold;font-size:14px;color:var(--on-surface);">Keywords: ${job.keywords}</div>
+                            <div style="font-size:12px;color:var(--on-surface-3);margin-top:2px;">
+                                ${dateStr} | Status: <span style="color:${statusColor}">${job.status}</span> | ${job.last_message || ''}
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            ${isRunning ? `<span class="material-symbols-outlined" style="animation: t-spin 2s linear infinite;color:var(--blue);">refresh</span>` : ''}
+                            <button class="t-btn t-btn-red" style="padding:4px 8px;font-size:11px;" onclick="event.stopPropagation(); deleteNewsJob(${job.id})">DELETE</button>
+                        </div>
+                    </div>
+                    <div id="news-job-content-${job.id}" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;"></div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        
+        // Auto refresh if any job is running
+        if(data.jobs.some(j => j.status === 'Running')) {
+            setTimeout(loadNewsJobs, 5000);
+        }
+    })
+    .catch(e => {
+        container.innerHTML = '<div style="color:var(--red);font-size:13px;">Failed to connect to News Crawler Microservice.</div>';
+    });
+}
+
+function toggleNewsJob(jobId, status) {
+    const el = document.getElementById(`news-job-content-${jobId}`);
+    if(el.style.display === 'none') {
+        el.style.display = 'block';
+        if(status === 'Completed') {
+            el.innerHTML = '<div style="color:var(--on-surface-3);font-size:12px;">Loading articles...</div>';
+            loadNewsArticles(jobId, el);
+        } else {
+            el.innerHTML = '<div style="color:var(--on-surface-3);font-size:12px;">Job is currently ' + status + '. Articles will appear here when completed.</div>';
+        }
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function loadNewsArticles(jobId, containerEl) {
+    fetch(`http://127.0.0.1:5004/api/jobs/${jobId}/articles`)
+    .then(r => r.json())
+    .then(data => {
+        if(!data.articles || data.articles.length === 0) {
+            containerEl.innerHTML = '<div style="color:var(--on-surface-3);font-size:13px;">No articles found.</div>';
+            return;
+        }
+        
+        let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+        data.articles.forEach(art => {
+            html += `
+                <div style="background:var(--surface-1);padding:12px;border-radius:6px;border:1px solid var(--border);">
+                    <a href="${art.url}" target="_blank" style="font-weight:bold;color:var(--blue);text-decoration:none;font-size:14px;margin-bottom:4px;display:block;">${art.title}</a>
+                    <div style="font-size:11px;color:var(--on-surface-3);margin-bottom:8px;">Published: ${art.published_date || 'Unknown'}</div>
+                    <div style="font-size:13px;color:var(--on-surface);line-height:1.5;background:var(--surface-2);padding:8px;border-radius:4px;">
+                        <div style="font-weight:bold;color:var(--amber);margin-bottom:4px;font-size:11px;text-transform:uppercase;">AI Summary</div>
+                        ${art.ai_summary}
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        containerEl.innerHTML = html;
+    })
+    .catch(e => {
+        containerEl.innerHTML = '<div style="color:var(--red);font-size:13px;">Failed to load articles.</div>';
+    });
+}
+
+function deleteNewsJob(jobId) {
+    if(!confirm("Are you sure you want to delete this crawl?")) return;
+    fetch(`http://127.0.0.1:5004/api/jobs/${jobId}`, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(data => {
+        loadNewsJobs();
+    });
+}
+
 
 var allExpanded = false;
 function toggleChildren(parentId) {

@@ -157,9 +157,9 @@ def api_subitem_delete(sid):
 def global_backlog():
     conn = get_db()
     items = conn.execute(load_query("wit_global_backlog")).fetchall()
-    stakeholders = conn.execute("SELECT StakeholderID, FullName FROM BOA.ZZZ.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
+    stakeholders = conn.execute("SELECT StakeholderID, FullName FROM BOA.COR.Stakeholder WHERE IsActive=1 ORDER BY FullName").fetchall()
     users        = conn.execute("SELECT id, username, surname FROM BOA.COR.[User] ORDER BY username").fetchall()
-    projects     = conn.execute("SELECT ProjectID, ProjectName FROM BOA.ZZZ.Project WHERE IsActive=1 ORDER BY ProjectName").fetchall()
+    projects     = conn.execute("SELECT ProjectID, ProjectName FROM BOA.STR.Project WHERE IsActive=1 ORDER BY ProjectName").fetchall()
     syndications = conn.execute(
         "SELECT m.DealId, c.CustomerName + ' / Syndication #' + CAST(m.DealId AS NVARCHAR) AS DisplayName "
         "FROM BOA.STR.MainDeals m "

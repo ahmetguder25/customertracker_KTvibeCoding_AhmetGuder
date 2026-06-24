@@ -15,7 +15,7 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 huey = SqliteHuey(filename=os.path.join(BASE_DIR, 'crawler_queue.db'))
 
 CHATBOT_API_URL = "http://127.0.0.1:5001/api"
-LLM_MODEL = "qwen2.5:7b"
+LLM_MODEL = "gemma2"
 
 @huey.task()
 def crawl_task(job_id):
