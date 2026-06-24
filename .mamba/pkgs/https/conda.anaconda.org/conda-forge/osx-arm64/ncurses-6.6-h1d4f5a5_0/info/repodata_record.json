@@ -1,0 +1,22 @@
+{
+    "arch": "arm64",
+    "build": "h1d4f5a5_0",
+    "build_number": 0,
+    "build_string": "h1d4f5a5_0",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "__osx >=11.0"
+    ],
+    "fn": "ncurses-6.6-h1d4f5a5_0.conda",
+    "license": "X11 AND BSD-3-Clause",
+    "md5": "343d10ed5b44030a2f67193905aea159",
+    "name": "ncurses",
+    "platform": "osx",
+    "sha256": "4ea6c620b87bd1d42bb2ccc2c87cd2483fa2d7f9e905b14c223f11ff3f4c455d",
+    "size": 805509,
+    "subdir": "osx-arm64",
+    "timestamp": 1777423252,
+    "url": "https://conda.anaconda.org/conda-forge/osx-arm64/ncurses-6.6-h1d4f5a5_0.conda",
+    "version": "6.6"
+}

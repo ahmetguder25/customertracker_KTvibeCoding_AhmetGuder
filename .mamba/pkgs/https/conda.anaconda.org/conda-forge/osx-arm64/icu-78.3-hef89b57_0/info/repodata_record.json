@@ -1,0 +1,22 @@
+{
+    "arch": "arm64",
+    "build": "hef89b57_0",
+    "build_number": 0,
+    "build_string": "hef89b57_0",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "__osx >=11.0"
+    ],
+    "fn": "icu-78.3-hef89b57_0.conda",
+    "license": "MIT",
+    "md5": "f1182c91c0de31a7abd40cedf6a5ebef",
+    "name": "icu",
+    "platform": "osx",
+    "sha256": "3a7907a17e9937d3a46dfd41cffaf815abad59a569440d1e25177c15fd0684e5",
+    "size": 12361647,
+    "subdir": "osx-arm64",
+    "timestamp": 1773822915,
+    "url": "https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.3-hef89b57_0.conda",
+    "version": "78.3"
+}

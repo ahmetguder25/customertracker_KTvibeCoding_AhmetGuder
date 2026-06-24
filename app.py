@@ -3,6 +3,7 @@
 import os
 import platform
 import json
+import requests
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, redirect, url_for,
                    send_file, flash, jsonify, session, has_request_context,
@@ -17,7 +18,7 @@ load_dotenv()
 # ── App Setup ─────────────────────────────────────────────────────────────────
 # ── Global Configurations & Hooks ──
 app = Flask(__name__)
-app.secret_key = "customer-tracker-secret-key-2026"
+app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 
 from core.config import (
     BASE_DIR, QUERY_DIR, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_LOGO_SIZE,
@@ -25,6 +26,7 @@ from core.config import (
 )
 from core.db import get_db, get_customer_db, DbConnection
 from core.utils import load_query, to_tr_time, _fmt_dt, allowed_file, get_param_map
+from core.microservices import get_microservices_state, set_microservice_state
 
 app.jinja_env.filters["tr_time"] = to_tr_time
 app.jinja_env.filters["fmtdate"]     = lambda v: _fmt_dt(v, 10)
@@ -37,7 +39,7 @@ app.jinja_env.filters["fmtdatetime"] = lambda v: _fmt_dt(v, 16)
 def inject_lang_dict():
     """Inject lang_dict + current_lang into all templates."""
     if not has_request_context():
-        return dict(lang_dict={}, current_lang=0)
+        return dict(lang_dict={}, current_lang=0, microservices_state=get_microservices_state())
     lang_id = session.get("lang", 2)
     try:
         conn = get_db()
@@ -46,7 +48,7 @@ def inject_lang_dict():
         lang_dict = {row["Id"]: row["Description"] for row in rows}
     except Exception:
         lang_dict = {}
-    return dict(lang_dict=lang_dict, current_lang=lang_id)
+    return dict(lang_dict=lang_dict, current_lang=lang_id, microservices_state=get_microservices_state())
 
 
 # ── User Guard ──────────────────────────────────────────────────────────
@@ -92,10 +94,43 @@ def preserve_frame_on_redirect(response):
 
 
 
+@app.route("/microservices")
+def microservices():
+    return render_template("management/microservices.html", state=get_microservices_state())
 
+@app.route("/microservices/crawler")
+def microservices_crawler():
+    if not get_microservices_state().get('web_crawler', {}).get('enabled', True):
+        return "Crawler Microservice is Disabled", 403
+    return render_template("management/crawler_detail.html")
 
+@app.route("/api/microservices/toggle", methods=["POST"])
+def api_microservices_toggle():
+    data = request.get_json() or {}
+    service_id = data.get("service_id")
+    enabled = data.get("enabled")
+    if not service_id or enabled is None:
+        return jsonify({"error": "Missing parameters"}), 400
+    set_microservice_state(service_id, bool(enabled))
+    return jsonify({"success": True, "state": get_microservices_state()})
 
-
+@app.route("/api/microservices/reset", methods=["POST"])
+def api_microservices_reset():
+    data = request.get_json() or {}
+    service_id = data.get("service_id")
+    
+    port_map = {"chatbot": 5001, "sparx_ai": 5002}
+    port = port_map.get(service_id)
+    if not port:
+        return jsonify({"error": "Unknown service"}), 400
+        
+    try:
+        res = requests.post(f"http://127.0.0.1:{port}/api/reset", timeout=5)
+        if res.status_code == 200:
+            return jsonify({"success": True})
+        return jsonify({"error": f"Service returned {res.status_code}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
 
 # ── Blueprint Registration ───────────────────────────────────────────────────────────
 from admin.admin_bp import admin_bp  # noqa: E402
@@ -107,8 +142,6 @@ from blueprints.overview import overview_bp
 from blueprints.products import products_bp
 from blueprints.okrs import okrs_bp
 from blueprints.work_items import work_items_bp
-from ai_apps.overviewai.analysis_routes import ai_analysis_bp
-from ai_apps.chatbot1.chatbot_routes import chatbot_bp
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(auth_bp)
@@ -119,8 +152,6 @@ app.register_blueprint(overview_bp)
 app.register_blueprint(products_bp)
 app.register_blueprint(okrs_bp)
 app.register_blueprint(work_items_bp)
-app.register_blueprint(ai_analysis_bp)
-app.register_blueprint(chatbot_bp)
 
 # ── Entry Point ────────────────────────────────────────────────────────────────
 
@@ -159,12 +190,12 @@ def _ensure_isactive_columns():
     try:
         conn = get_db()
         for table in ("Comment",):
-            if not _col_exists(conn, table, "IsActive"):
-                conn.execute(f"ALTER TABLE BOA.ZZZ.{table} ADD IsActive TINYINT NOT NULL DEFAULT 1")
+            if not _col_exists(conn, table, "IsActive", schema="CUS"):
+                conn.execute(f"ALTER TABLE BOA.CUS.{table} ADD IsActive TINYINT NOT NULL DEFAULT 1")
                 conn.commit()
-                print(f"[startup] IsActive column added to BOA.ZZZ.{table}")
+                print(f"[startup] IsActive column added to BOA.CUS.{table}")
             else:
-                print(f"[startup] IsActive already present on BOA.ZZZ.{table} — skipping")
+                print(f"[startup] IsActive already present on BOA.CUS.{table} — skipping")
         conn.close()
     except Exception as e:
         print(f"[startup] IsActive migration warning (non-fatal): {e}")

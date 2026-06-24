@@ -1,0 +1,26 @@
+{
+    "arch": null,
+    "build": "pyh8b19718_0",
+    "build_number": 0,
+    "build_string": "pyh8b19718_0",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "python >=3.10,<3.13.0a0",
+        "setuptools",
+        "wheel"
+    ],
+    "fn": "pip-26.1.2-pyh8b19718_0.conda",
+    "license": "MIT",
+    "license_family": "MIT",
+    "md5": "511fbc2c63d2c73650ad1755e4d357ba",
+    "name": "pip",
+    "noarch": "python",
+    "platform": null,
+    "sha256": "29b7d75bf81ad11645a8e320b369abdc90a92b93f2a9178e853d9dddf82e5106",
+    "size": 1203173,
+    "subdir": "noarch",
+    "timestamp": 1780262795,
+    "url": "https://conda.anaconda.org/conda-forge/noarch/pip-26.1.2-pyh8b19718_0.conda",
+    "version": "26.1.2"
+}

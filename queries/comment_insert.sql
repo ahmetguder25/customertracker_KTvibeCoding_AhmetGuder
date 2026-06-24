@@ -1,2 +1,2 @@
-INSERT INTO BOA.ZZZ.Comment (customer_id, author, content)
+INSERT INTO BOA.CUS.Comment (customer_id, author, content)
 VALUES (?, ?, ?)

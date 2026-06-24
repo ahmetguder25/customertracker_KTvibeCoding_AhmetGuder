@@ -17,6 +17,7 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     platform: linux/amd64
     container_name: customertracker_sqlserver
+    user: "10001"
     restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"

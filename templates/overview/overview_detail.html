@@ -31,22 +31,18 @@
     <div class="t-kpi-card">
         <span class="t-kpi-label">{{ lang_dict.get('dash_total_deals', 'TOTAL DEALS') }}</span>
         <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">{{ deals|length }}</span>
-        <span class="t-trend t-trend-up">↗ +1 since last week</span>
     </div>
     <div class="t-kpi-card">
         <span class="t-kpi-label">{{ lang_dict.get('dash_credit_limit', 'CREDIT LIMIT') }}</span>
         <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">₺{{ "{:,.0f}".format(customer['credit_limit'] or 0) }}</span>
-        <span class="t-trend t-trend-up">↗ +12% YoY</span>
     </div>
     <div class="t-kpi-card">
         <span class="t-kpi-label">{{ lang_dict.get('dash_foreign_trade', 'FOREIGN TRADE') }}</span>
         <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">${{ "{:,.0f}".format(customer['foreign_trade_volume'] or 0) }}</span>
-        <span class="t-trend t-trend-down">↘ -3% YoY</span>
     </div>
     <div class="t-kpi-card">
         <span class="t-kpi-label">{{ lang_dict.get('dash_sector_peers', 'SECTOR PEERS') }}</span>
         <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">{{ same_sector }}</span>
-        <span class="t-trend t-trend-up">↗ Stable</span>
     </div>
 </div>
 
@@ -387,6 +383,7 @@
 
 <!-- ═══ TAB: AI ANALYSIS ═══ -->
 <div id="tab-ai" style="display:none;">
+    {% if microservices_state.get('sparx_ai', {}).get('enabled', True) %}
     <style>@keyframes t-spin { 100% { transform: rotate(360deg); } }</style>
     <div class="t-section-header" style="margin-bottom:16px;">AI ANALYSIS DASHBOARD</div>
     
@@ -421,6 +418,15 @@
         <!-- AI Analysis Results Container -->
         <div id="ai-analysis-result" style="display:none;margin-top:16px;"></div>
     </div>
+    {% else %}
+    <div class="t-panel" style="display: flex; align-items:center; justify-content:center; height: 150px; margin-top: 16px; background:var(--surface-2); border:1px solid var(--border); border-radius:12px;">
+        <div style="text-align:center;">
+            <span class="material-symbols-outlined" style="font-size:40px; color:var(--red); margin-bottom:12px; display:block;">power_off</span>
+            <div style="font-weight:bold; color:var(--on-surface); margin-bottom:8px; font-size:15px; text-transform:uppercase;">Microservice Disconnected</div>
+            <div style="color:var(--on-surface-3); font-size:13px;">The Sparx AI Analysis service has been disconnected by an Administrator.</div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 {% endblock %}
@@ -637,7 +643,7 @@ function handleAiDocChange() {
 function fetchStatusAndRender() {
     if (!currentAiDocId) return;
     
-    fetch('/api/status?document_id=' + currentAiDocId)
+    fetch('http://127.0.0.1:5002/api/status?document_id=' + currentAiDocId)
         .then(r => r.json())
         .then(data => {
             renderAiStatus(currentAiDocId, data);
@@ -777,7 +783,7 @@ function renderAiStatus(docId, data) {
 }
 
 function triggerChunking(docId) {
-    fetch('/api/chunk', {
+    fetch('http://127.0.0.1:5002/api/chunk', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({document_id: docId})
@@ -787,7 +793,7 @@ function triggerChunking(docId) {
 }
 
 function triggerMapping(docId) {
-    fetch('/api/map', {
+    fetch('http://127.0.0.1:5002/api/map', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({document_id: docId})
@@ -815,7 +821,7 @@ function triggerAnalysis(docId) {
         </div>
     `;
     
-    fetch('/api/analyze', {
+    fetch('http://127.0.0.1:5002/api/analyze', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({

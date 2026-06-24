@@ -1,0 +1,6 @@
+https://conda.anaconda.org/conda-forge/noarch/pip-26.1.2-pyh8b19718_0.conda
+https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.6.17-hbd8a1cb_0.conda
+https://conda.anaconda.org/conda-forge/noarch/packaging-26.2-pyhc364b38_0.conda
+https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
+https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
+https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda

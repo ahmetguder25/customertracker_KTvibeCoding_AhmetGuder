@@ -1,0 +1,5 @@
+#!/Users/ahmetguder/Documents/customertracker_KTvibeCoding_AhmetGuder/.mamba/envs/py312/bin/python3.12
+
+import pydoc
+if __name__ == '__main__':
+    pydoc.cli()

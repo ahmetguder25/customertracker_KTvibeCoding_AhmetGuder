@@ -1,0 +1,13 @@
+# Package Information for pkg-config
+
+prefix=/Users/ahmetguder/Documents/customertracker_KTvibeCoding_AhmetGuder/.mamba/envs/py312
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: SQLite
+Description: SQL database engine
+Version: 3.53.2
+Libs: -L${libdir} -lsqlite3
+Libs.private:  -lz   -Wl,-rpath,/Users/ahmetguder/Documents/customertracker_KTvibeCoding_AhmetGuder/.mamba/envs/py312/lib -L/Users/ahmetguder/Documents/customertracker_KTvibeCoding_AhmetGuder/.mamba/envs/py312/lib -licui18n -licuuc -licudata
+Cflags: -I${includedir}

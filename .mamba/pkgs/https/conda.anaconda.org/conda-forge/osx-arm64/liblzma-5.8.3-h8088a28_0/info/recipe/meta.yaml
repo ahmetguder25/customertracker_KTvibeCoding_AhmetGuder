@@ -1,0 +1,51 @@
+# This file created by conda-build 26.3.0
+# ------------------------------------------------
+
+package:
+  name: liblzma
+  version: 5.8.3
+source:
+  url: https://github.com/tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.gz
+  sha256: 3d3a1b973af218114f4f889bbaa2f4c037deaae0c8e815eec381c3d546b974a0
+build:
+  run_exports:
+    - liblzma >=5.8.3,<6.0a0
+  number: 0
+  string: h8088a28_0
+requirements:
+  build:
+    - clang_bootstrap_osx-arm64 19.1.7 h4c5f930_31
+    - macosx_deployment_target_osx-arm64 11.0 h214bdd9_7
+    - make 4.4.1 h00291cd_2
+  run_constrained:
+    - xz 5.8.3.*
+  host:
+    - __osx >=11.0
+  run:
+    - __osx >=11.0
+test:
+  commands:
+    - test ! -f ${PREFIX}/lib/liblzma.a
+    - test ! -f ${PREFIX}/lib/liblzma${SHLIB_EXT}
+    - test -f ${PREFIX}/lib/liblzma.*.dylib
+about:
+  home: http://tukaani.org/xz/
+  dev_url: http://git.tukaani.org/
+  summary: a compression library with an API similar to that of zlib
+  license: 0BSD
+  license_file:
+    - COPYING
+    - COPYING.0BSD
+extra:
+  recipe-maintainers:
+    - mingwandroid
+    - msarahan
+    - nehaljwani
+    - ocefpaf
+    - scopatz
+    - xhochy
+  final: true
+  copy_test_source_files: true
+  flow_run_id: azure_20260410.1.1
+  remote_url: https://github.com/conda-forge/xz-feedstock
+  sha: ea4ad279cfa9e94ff81e04f31f5b634fb50229d1

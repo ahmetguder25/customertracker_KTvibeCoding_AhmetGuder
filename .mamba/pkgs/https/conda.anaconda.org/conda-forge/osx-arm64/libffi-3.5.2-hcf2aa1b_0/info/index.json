@@ -1,0 +1,14 @@
+{
+  "arch": "arm64",
+  "build": "hcf2aa1b_0",
+  "build_number": 0,
+  "depends": [
+    "__osx >=11.0"
+  ],
+  "license": "MIT",
+  "name": "libffi",
+  "platform": "osx",
+  "subdir": "osx-arm64",
+  "timestamp": 1769456747661,
+  "version": "3.5.2"
+}

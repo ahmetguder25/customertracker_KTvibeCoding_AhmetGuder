@@ -1,0 +1,10 @@
+{
+  "target_platform": "osx-arm64",
+  "c_compiler": "clang_bootstrap",
+  "channel_targets": "conda-forge main",
+  "c_compiler_version": "19",
+  "c_stdlib": "macosx_deployment_target",
+  "CONDA_BUILD_SYSROOT": "/opt/conda-sdks/MacOSX11.0.sdk",
+  "c_stdlib_version": "11.0",
+  "__osx": "__osx >=11.0"
+}

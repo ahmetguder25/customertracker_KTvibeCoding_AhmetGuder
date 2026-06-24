@@ -1,0 +1,237 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}MICRO SERVICES — CUSTOMER TRACKER{% endblock %}
+
+{% block content %}
+<div class="t-page-header">
+    <div>
+        <div class="t-page-title">MICRO SERVICES MANAGEMENT</div>
+        <div class="t-page-subtitle">MONITOR AND CONTROL BACKGROUND AI PROCESSES</div>
+    </div>
+</div>
+
+<div style="display:flex; flex-direction:column; gap:24px;">
+    
+    <!-- STF Chatbot Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">smart_toy</span> STF Chatbot
+            </span>
+            <span id="chatbot-badge" class="t-chip t-chip-{% if state.get('chatbot', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('chatbot', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="chatbot-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="chatbot-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('chatbot', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('chatbot', false)" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span> DISCONNECT
+                </button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('chatbot', true)" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span> RECONNECT
+                </button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('chatbot')" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span> RESET TASKS
+                </button>
+                <button class="t-btn t-btn-cyan" onclick="ragSync()" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">sync</span> RAG SYNC
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sparx AI Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">troubleshoot</span> Sparx AI Analysis
+            </span>
+            <span id="sparx-badge" class="t-chip t-chip-{% if state.get('sparx_ai', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('sparx_ai', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="sparx-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="sparx-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('sparx_ai', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('sparx_ai', false)" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span> DISCONNECT
+                </button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('sparx_ai', true)" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span> RECONNECT
+                </button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('sparx_ai')" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span> RESET TASKS
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Web Crawler AI Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">travel_explore</span> Web Crawler AI
+            </span>
+            <span id="crawler-badge" class="t-chip t-chip-{% if state.get('web_crawler', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('web_crawler', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="crawler-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="crawler-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('web_crawler', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('web_crawler', false)" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span> DISCONNECT
+                </button>
+                <button class="t-btn t-btn-cyan" onclick="window.location.href='/microservices/crawler'" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">manage_search</span> MANAGE JOBS
+                </button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('web_crawler', true)" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span> RECONNECT
+                </button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('web_crawler')" style="width:140px;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span> RESET TASKS
+                </button>
+            </div>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const PORTS = { "chatbot": 5001, "sparx_ai": 5002, "web_crawler": 5003 };
+    
+    function toggleService(serviceId, enable) {
+        fetch('/api/microservices/toggle', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({service_id: serviceId, enabled: enable})
+        }).then(res => res.json()).then(data => {
+            if(data.success) location.reload();
+        });
+    }
+
+    function ragSync() {
+        if(!confirm("Start background RAG sync process?")) return;
+        fetch('http://127.0.0.1:5001/api/rag_sync', {
+            method: 'POST',
+        }).then(res => res.json()).then(data => {
+            if(data.success) {
+                alert("RAG Sync process started in background. Check Active Processes indicator.");
+                checkHealth('chatbot');
+            } else {
+                alert("Error: " + data.error);
+            }
+        });
+    }
+
+    function resetService(serviceId) {
+        if (serviceId === 'web_crawler') {
+            fetch('http://127.0.0.1:5003/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
+            return;
+        }
+        fetch('/api/microservices/reset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({service_id: serviceId})
+        }).then(res => res.json()).then(data => {
+            if(data.success) {
+                alert("Pending tasks cleared successfully.");
+                checkHealth(serviceId);
+            } else {
+                alert("Error: " + data.error);
+            }
+        });
+    }
+
+    function checkHealth(serviceId) {
+        let port = PORTS[serviceId];
+        let statusEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-status' : (serviceId === 'sparx_ai' ? 'sparx-status' : 'crawler-status'));
+        let procEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-process' : (serviceId === 'sparx_ai' ? 'sparx-process' : 'crawler-process'));
+
+        
+        fetch(`http://127.0.0.1:${port}/api/health`)
+            .then(res => {
+                if(!res.ok) throw new Error("HTTP error");
+                return res.json();
+            })
+            .then(data => {
+                if (data.status === "Online") {
+                    statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:var(--green);">check_circle</span> SUCCESSFUL';
+                    procEl.innerHTML = data.active_process ? 
+                        '<span style="color:var(--yellow);"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:bottom;margin-right:4px;">hourglass_top</span>' + data.message + '</span>' : 
+                        '<span style="color:var(--on-surface-3);">No active processes.</span>';
+                } else {
+                    statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:var(--red);">error</span> ERROR';
+                    procEl.innerHTML = data.message;
+                }
+            })
+            .catch(err => {
+                statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:var(--red);">cancel</span> OFFLINE';
+                procEl.innerHTML = '<span style="color:var(--red);">Connection refused.</span>';
+            });
+    }
+
+    // Auto poll every 3 seconds
+    checkHealth('chatbot');
+    checkHealth('sparx_ai');
+    checkHealth('web_crawler');
+    setInterval(() => {
+        checkHealth('chatbot');
+        checkHealth('sparx_ai');
+        checkHealth('web_crawler');
+    }, 3000);
+</script>
+{% endblock %}

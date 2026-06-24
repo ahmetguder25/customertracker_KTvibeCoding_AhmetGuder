@@ -1,0 +1,84 @@
+{
+    "arch": "arm64",
+    "build": "h1ae2325_0",
+    "build_number": 0,
+    "build_string": "h1ae2325_0",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "__osx >=11.0",
+        "icu >=78.3,<79.0a0",
+        "libzlib >=1.3.2,<2.0a0"
+    ],
+    "extracted_package_dir": "/Users/ahmetguder/Documents/customertracker_KTvibeCoding_AhmetGuder/.mamba/pkgs/https/conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.2-h1ae2325_0",
+    "files": [
+        "include/sqlite3.h",
+        "include/sqlite3ext.h",
+        "lib/libsqlite3.0.dylib",
+        "lib/libsqlite3.3.53.2.dylib",
+        "lib/libsqlite3.dylib",
+        "lib/pkgconfig/sqlite3.pc"
+    ],
+    "fn": "libsqlite-3.53.2-h1ae2325_0.conda",
+    "license": "blessing",
+    "link": {
+        "source": "/Users/ahmetguder/Documents/customertracker_KTvibeCoding_AhmetGuder/.mamba/pkgs/https/conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.2-h1ae2325_0",
+        "type": 1
+    },
+    "md5": "1ebde5c677f00765233a17e278571177",
+    "name": "libsqlite",
+    "package_tarball_full_path": "/Users/ahmetguder/Documents/customertracker_KTvibeCoding_AhmetGuder/.mamba/pkgs/https/conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.2-h1ae2325_0.tar.bz2",
+    "paths_data": {
+        "paths": [
+            {
+                "_path": "include/sqlite3.h",
+                "path_type": "hardlink",
+                "sha256": "9e69a1353a4288450b0d5239ede11fc7f1f4c8e5eb07491fc8317eacb5b7de7e",
+                "sha256_in_prefix": "9e69a1353a4288450b0d5239ede11fc7f1f4c8e5eb07491fc8317eacb5b7de7e",
+                "size_in_bytes": 690725
+            },
+            {
+                "_path": "include/sqlite3ext.h",
+                "path_type": "hardlink",
+                "sha256": "ac9645e5c9ff0cf176efdd6e75cb5e98f46295d38e02db5c4d208826a39ab4be",
+                "sha256_in_prefix": "ac9645e5c9ff0cf176efdd6e75cb5e98f46295d38e02db5c4d208826a39ab4be",
+                "size_in_bytes": 39175
+            },
+            {
+                "_path": "lib/libsqlite3.0.dylib",
+                "path_type": "softlink",
+                "sha256_in_prefix": "c9f75a6f34f660a317d9566ea3079c2402484bb66391272217266d8de684f1a5",
+                "size_in_bytes": 1766288
+            },
+            {
+                "_path": "lib/libsqlite3.3.53.2.dylib",
+                "path_type": "hardlink",
+                "sha256": "c9f75a6f34f660a317d9566ea3079c2402484bb66391272217266d8de684f1a5",
+                "sha256_in_prefix": "c9f75a6f34f660a317d9566ea3079c2402484bb66391272217266d8de684f1a5",
+                "size_in_bytes": 1766288
+            },
+            {
+                "_path": "lib/libsqlite3.dylib",
+                "path_type": "softlink",
+                "sha256_in_prefix": "c9f75a6f34f660a317d9566ea3079c2402484bb66391272217266d8de684f1a5",
+                "size_in_bytes": 1766288
+            },
+            {
+                "_path": "lib/pkgconfig/sqlite3.pc",
+                "path_type": "hardlink",
+                "sha256": "5527f217ad69a313eae2f08ab0eb042cbcb71bfd5bd8a1ff25f9b08aa8ca16a1",
+                "sha256_in_prefix": "f6bc6149f1d4990aac564bd2d7a4501a4e202466ec95c4d8822bb560ae4c92ae",
+                "size_in_bytes": 1075
+            }
+        ],
+        "paths_version": 1
+    },
+    "platform": "osx",
+    "requested_spec": "",
+    "sha256": "862463917e8ef5ac3ebdaf8f19914634b457609cc27ba678b7197124cefeb1f7",
+    "size": 927724,
+    "subdir": "osx-arm64",
+    "timestamp": 1780575223,
+    "url": "https://conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.2-h1ae2325_0.conda",
+    "version": "3.53.2"
+}

@@ -28,6 +28,9 @@
             <a data-href="/app" data-label="{{ lang_dict.get('nav_dashboard', 'Dashboard') }}" class="t-sidebar-link">
                 <span class="material-symbols-outlined">dashboard</span> {{ lang_dict.get('nav_dashboard', 'Dashboard') }}
             </a>
+            <a data-href="/overview" data-label="{{ lang_dict.get('nav_overview', 'Overview') }}" class="t-sidebar-link">
+                <span class="material-symbols-outlined">query_stats</span> {{ lang_dict.get('nav_overview', 'Overview') }}
+            </a>
             <a data-href="/backlog" data-label="{{ lang_dict.get('nav_backlog', 'Backlog') }}" class="t-sidebar-link">
                 <span class="material-symbols-outlined">view_list</span> {{ lang_dict.get('nav_backlog', 'Backlog') }}
             </a>
@@ -47,8 +50,8 @@
             <a data-href="/management" data-label="{{ lang_dict.get('nav_management', 'Mgmt') }}" class="t-sidebar-link">
                 <span class="material-symbols-outlined">shield</span> {{ lang_dict.get('nav_management', 'Mgmt') }}
             </a>
-            <a data-href="/overview" data-label="{{ lang_dict.get('nav_overview', 'Overview') }}" class="t-sidebar-link">
-                <span class="material-symbols-outlined">query_stats</span> {{ lang_dict.get('nav_overview', 'Overview') }}
+            <a data-href="/microservices" data-label="{{ lang_dict.get('nav_microservices', 'Micro Services') }}" class="t-sidebar-link">
+                <span class="material-symbols-outlined">hub</span> {{ lang_dict.get('nav_microservices', 'Micro Services') }}
             </a>
         </div>
         <div class="t-sidebar-footer">
@@ -89,7 +92,6 @@
         <div class="t-tabbar" id="tab-bar"></div>
         <div class="t-tab-content" id="tab-content"></div>
         <footer class="t-footer">
-            <div class="t-footer-status"><span class="t-footer-led">{{ lang_dict.get('footer_system', 'SYSTEM NOMINAL') }}</span></div>
             <div>{{ lang_dict.get('nav_footer', '&copy; 2026 STRUCTURED FINANCE — CUSTOMER TRACKER') | safe }}</div>
         </footer>
     </div>

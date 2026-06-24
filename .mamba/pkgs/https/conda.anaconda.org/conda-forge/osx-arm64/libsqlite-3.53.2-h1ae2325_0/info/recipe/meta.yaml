@@ -1,0 +1,90 @@
+# This file created by conda-build 26.5.0
+# ------------------------------------------------
+
+package:
+  name: libsqlite
+  version: 3.53.2
+source:
+  url: https://www.sqlite.org/2026/sqlite-autoconf-3530200.tar.gz
+  sha256: 588ad51949419a56ebe81fe56193d510c559eb94c9a57748387860b5d3069316
+build:
+  run_exports:
+    - libsqlite >=3.53.2,<4.0a0
+  number: 0
+  string: h1ae2325_0
+requirements:
+  build:
+    - ca-certificates 2026.5.20 hbd8a1cb_0
+    - cctools_impl_osx-64 1030.6.3 llvm19_1_h6ae9dcd_4
+    - cctools_impl_osx-arm64 1030.6.3 llvm19_1_h317eeb0_4
+    - cctools_osx-arm64 1030.6.3 llvm19_1_h0e16ad9_4
+    - clang 19.1.7 default_h1323312_5
+    - clang-19 19.1.7 default_hc369343_5
+    - clang_impl_osx-64 19.1.7 hc73cdc9_28
+    - clang_impl_osx-arm64 19.1.7 h4c5f930_32
+    - clang_osx-arm64 19.1.7 h877a2d5_32
+    - compiler-rt 19.1.7 he914875_1
+    - compiler-rt_osx-64 19.1.7 h138dee1_1
+    - ld64_osx-64 956.6 llvm19_1_hf4e8e46_4
+    - ld64_osx-arm64 956.6 llvm19_1_hd5dc7e1_4
+    - libclang-cpp19.1 19.1.7 default_hc369343_5
+    - libcxx 22.1.7 h19cb2f5_0
+    - libiconv 1.18 h57a12c2_2
+    - libllvm19 19.1.7 h56e7563_2
+    - liblzma 5.8.3 hbb4bfdb_0
+    - libsigtool 0.1.3 hc0f2934_0
+    - libxml2 2.15.3 h0712280_0
+    - libxml2-16 2.15.3 h0d7f165_0
+    - libzlib 1.3.2 hbb4bfdb_2
+    - llvm-tools 19.1.7 hb0207f0_2
+    - llvm-tools-19 19.1.7 h879f4bc_2
+    - macosx_deployment_target_osx-arm64 11.0 h214bdd9_7
+    - make 4.4.1 h00291cd_2
+    - ncurses 6.6 hcc0dc9a_0
+    - openssl 3.6.2 hc881268_0
+    - sdkroot_env_osx-arm64 26.0 ha3f98da_7
+    - sigtool-codesign 0.1.3 hc0f2934_0
+    - tapi 1600.0.11.8 h8d8e812_2
+    - zstd 1.5.7 h3eecb57_6
+  host:
+    - icu 78.3 hef89b57_0
+    - libzlib 1.3.2 h8088a28_2
+    - zlib 1.3.2 h8088a28_2
+  run:
+    - __osx >=11.0
+    - icu >=78.3,<79.0a0
+    - libzlib >=1.3.2,<2.0a0
+test:
+  commands:
+    - test -f $PREFIX/lib/libsqlite3${SHLIB_EXT}
+    - test ! -f $PREFIX/lib/libsqlite3.a
+    - test -f $PREFIX/include/sqlite3.h
+    - test -f $PREFIX/include/sqlite3ext.h
+    - test -f $PREFIX/lib/pkgconfig/sqlite3.pc
+about:
+  home: http://www.sqlite.org/
+  license: blessing
+  license_url: http://www.sqlite.org/copyright.html
+  summary: Implements a self-contained, zero-configuration, SQL database engine
+  description: 'SQLite is a self-contained, high-reliability, embedded, full-featured,
+
+    public-domain, SQL database engine.It is the most used database engine
+
+    in the world.
+
+    '
+  doc_url: http://www.sqlite.org/docs.html
+  doc_source_url: https://github.com/mackyle/sqlite/tree/master/doc
+  dev_url: https://github.com/mackyle/sqlite
+extra:
+  recipe-maintainers:
+    - flaviomartins
+    - jakirkham
+    - mingwandroid
+    - msarahan
+    - ocefpaf
+  final: true
+  copy_test_source_files: true
+  flow_run_id: azure_20260604.2.1
+  remote_url: https://github.com/conda-forge/sqlite-feedstock
+  sha: 3b2919a932e805bc2b052738835a77ef7308829e
