@@ -1,0 +1,153 @@
+{% extends "admin_base.html" %}
+{% block title %}ACTIVITY LOG — ADMIN{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin" class="admin-link">← Console</a>
+<a href="/admin/activity-log" class="admin-link" style="color:var(--primary);">↻ Refresh</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1400px;margin:0 auto;padding-top:24px;">
+    
+    <!-- Header & Stats -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;">
+        <div>
+            <div style="font-family:var(--font-head);font-size:20px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">ACTIVITY LOG</div>
+            <div style="font-family:var(--font-mono);font-size:13px;color:var(--on-surface-3);text-transform:uppercase;letter-spacing:0.04em;">Audit Trail & System Journal</div>
+        </div>
+        <div style="display:flex;gap:16px;">
+            <div style="background:var(--surface);padding:12px 20px;border-left:2px solid var(--primary);">
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);text-transform:uppercase;margin-bottom:4px;">TODAY'S REQUESTS</div>
+                <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--primary);">{{ stats.TotalRequests }}</div>
+            </div>
+            <div style="background:var(--surface);padding:12px 20px;border-left:2px solid var(--green);">
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);text-transform:uppercase;margin-bottom:4px;">UNIQUE USERS</div>
+                <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--green);">{{ stats.UniqueUsers }}</div>
+            </div>
+            <div style="background:var(--surface);padding:12px 20px;border-left:2px solid var(--red);">
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);text-transform:uppercase;margin-bottom:4px;">ERRORS TODAY</div>
+                <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--red);">{{ stats.ErrorCount }}</div>
+            </div>
+            <div style="background:var(--surface);padding:12px 20px;border-left:2px solid var(--tertiary);">
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--on-surface-3);text-transform:uppercase;margin-bottom:4px;">AVG RESPONSE</div>
+                <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--tertiary);">{{ stats.AvgResponseTime }} ms</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div style="background:var(--surface);padding:16px;margin-bottom:16px;display:flex;gap:16px;align-items:center;">
+        <form method="GET" action="/admin/activity-log" style="display:flex;gap:12px;align-items:center;margin:0;width:100%;">
+            <select name="user" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);color:var(--on-surface);font-family:var(--font-mono);font-size:12px;">
+                <option value="">All Users</option>
+                {% for u in users %}
+                <option value="{{ u }}" {% if request.args.get('user') == u %}selected{% endif %}>{{ u }}</option>
+                {% endfor %}
+            </select>
+            <select name="method" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);color:var(--on-surface);font-family:var(--font-mono);font-size:12px;">
+                <option value="">All Methods</option>
+                <option value="GET" {% if request.args.get('method') == 'GET' %}selected{% endif %}>GET</option>
+                <option value="POST" {% if request.args.get('method') == 'POST' %}selected{% endif %}>POST</option>
+            </select>
+            <select name="blueprint" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);color:var(--on-surface);font-family:var(--font-mono);font-size:12px;">
+                <option value="">All Blueprints</option>
+                {% for bp in blueprints %}
+                <option value="{{ bp }}" {% if request.args.get('blueprint') == bp %}selected{% endif %}>{{ bp }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);color:var(--on-surface);font-family:var(--font-mono);font-size:12px;">
+                <option value="">All Statuses</option>
+                <option value="2xx" {% if request.args.get('status') == '2xx' %}selected{% endif %}>Success (2xx)</option>
+                <option value="3xx" {% if request.args.get('status') == '3xx' %}selected{% endif %}>Redirect (3xx)</option>
+                <option value="4xx" {% if request.args.get('status') == '4xx' %}selected{% endif %}>Client Error (4xx)</option>
+                <option value="5xx" {% if request.args.get('status') == '5xx' %}selected{% endif %}>Server Error (5xx)</option>
+            </select>
+            <button type="submit" style="padding:6px 12px;background:var(--primary);color:var(--bg);border:none;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;">FILTER</button>
+            <a href="/admin/activity-log" style="font-family:var(--font-mono);font-size:12px;color:var(--on-surface-3);text-decoration:none;">Clear</a>
+            
+            <div style="flex:1;"></div>
+            
+            {% if is_test %}
+            <button type="submit" form="cleanup-form" style="padding:6px 12px;background:transparent;color:var(--red);border:1px solid var(--red);font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;transition:background 0.15s;" onmouseenter="this.style.background='rgba(223,35,43,0.1)'" onmouseleave="this.style.background='transparent'">CLEANUP &gt; 90 DAYS</button>
+            {% endif %}
+        </form>
+        <form id="cleanup-form" method="POST" action="/admin/activity-log/cleanup" style="display:none;" onsubmit="return confirm('Delete all activity logs older than 90 days?');"></form>
+    </div>
+
+    <!-- Data Table -->
+    <div style="background:var(--surface);overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px;">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border);background:var(--surface-high);color:var(--on-surface-2);">
+                    <th style="padding:12px 16px;text-align:left;font-weight:700;width:160px;">TIMESTAMP</th>
+                    <th style="padding:12px 16px;text-align:left;font-weight:700;width:120px;">USER</th>
+                    <th style="padding:12px 16px;text-align:left;font-weight:700;width:80px;">METHOD</th>
+                    <th style="padding:12px 16px;text-align:left;font-weight:700;">PATH</th>
+                    <th style="padding:12px 16px;text-align:left;font-weight:700;width:100px;">BLUEPRINT</th>
+                    <th style="padding:12px 16px;text-align:center;font-weight:700;width:80px;">STATUS</th>
+                    <th style="padding:12px 16px;text-align:right;font-weight:700;width:100px;">TIME</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="border-bottom:1px solid var(--border);transition:background 0.15s;cursor:pointer;" onmouseenter="this.style.background='var(--surface-high)'" onmouseleave="this.style.background='transparent'" onclick="document.getElementById('details-{{ log.LogID }}').style.display = document.getElementById('details-{{ log.LogID }}').style.display === 'none' ? 'table-row' : 'none';">
+                    <td style="padding:10px 16px;color:var(--on-surface-2);">{{ log.Timestamp|fmtdatetime }}</td>
+                    <td style="padding:10px 16px;color:var(--on-surface);">{{ log.Username or '—' }}</td>
+                    <td style="padding:10px 16px;">
+                        <span style="color:{% if log.Method == 'POST' %}var(--tertiary){% elif log.Method == 'DELETE' %}var(--red){% else %}var(--primary){% endif %};">{{ log.Method }}</span>
+                    </td>
+                    <td style="padding:10px 16px;color:var(--on-surface);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;" title="{{ log.Path }}">{{ log.Path }}</td>
+                    <td style="padding:10px 16px;color:var(--on-surface-3);">{{ log.Blueprint or '—' }}</td>
+                    <td style="padding:10px 16px;text-align:center;">
+                        {% set scolor = 'var(--green)' if log.StatusCode < 300 else ('var(--tertiary)' if log.StatusCode < 400 else 'var(--red)') %}
+                        <span style="display:inline-block;background:{{scolor}}20;color:{{scolor}};padding:2px 6px;border-radius:2px;font-weight:700;">{{ log.StatusCode }}</span>
+                    </td>
+                    <td style="padding:10px 16px;text-align:right;color:var(--on-surface-2);">{{ log.DurationMs }}ms</td>
+                </tr>
+                <!-- Details Row (Hidden by default) -->
+                <tr id="details-{{ log.LogID }}" style="display:none;background:var(--bg);border-bottom:2px solid var(--border);">
+                    <td colspan="7" style="padding:16px;">
+                        <div style="display:grid;grid-template-columns:1fr 2fr;gap:24px;">
+                            <div>
+                                <div style="margin-bottom:8px;"><strong style="color:var(--on-surface-3);">Log ID:</strong> {{ log.LogID }}</div>
+                                <div style="margin-bottom:8px;"><strong style="color:var(--on-surface-3);">IP Address:</strong> {{ log.IPAddress }}</div>
+                                <div style="margin-bottom:8px;"><strong style="color:var(--on-surface-3);">Environment:</strong> {{ log.Environment }}</div>
+                                <div><strong style="color:var(--on-surface-3);">Endpoint:</strong> {{ log.Endpoint }}</div>
+                            </div>
+                            <div>
+                                <div style="margin-bottom:8px;"><strong style="color:var(--on-surface-3);">User Agent:</strong><br><span style="color:var(--on-surface-2);">{{ log.UserAgent }}</span></div>
+                                {% if log.RequestBody %}
+                                <div style="margin-bottom:8px;"><strong style="color:var(--on-surface-3);">Request Body (Filtered):</strong><br><pre style="background:var(--surface);padding:8px;margin:4px 0 0 0;overflow-x:auto;white-space:pre-wrap;color:var(--on-surface-2);">{{ log.RequestBody }}</pre></div>
+                                {% endif %}
+                                {% if log.ErrorMessage %}
+                                <div><strong style="color:var(--red);">Error Message:</strong><br><pre style="background:rgba(223,35,43,0.1);padding:8px;margin:4px 0 0 0;overflow-x:auto;white-space:pre-wrap;color:var(--red);">{{ log.ErrorMessage }}</pre></div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not logs %}
+                <tr>
+                    <td colspan="7" style="padding:32px;text-align:center;color:var(--on-surface-3);">No logs found matching these filters.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;">
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--on-surface-3);">Page {{ page }}</div>
+        <div style="display:flex;gap:8px;">
+            {% if page > 1 %}
+            <a href="?page={{ page - 1 }}&user={{ request.args.get('user', '') }}&method={{ request.args.get('method', '') }}&blueprint={{ request.args.get('blueprint', '') }}&status={{ request.args.get('status', '') }}" style="padding:6px 12px;background:var(--surface);color:var(--on-surface);text-decoration:none;font-family:var(--font-mono);font-size:12px;border:1px solid var(--border);">&lt; Prev</a>
+            {% endif %}
+            {% if logs|length == 50 %}
+            <a href="?page={{ page + 1 }}&user={{ request.args.get('user', '') }}&method={{ request.args.get('method', '') }}&blueprint={{ request.args.get('blueprint', '') }}&status={{ request.args.get('status', '') }}" style="padding:6px 12px;background:var(--surface);color:var(--on-surface);text-decoration:none;font-family:var(--font-mono);font-size:12px;border:1px solid var(--border);">Next &gt;</a>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

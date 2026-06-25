@@ -1,7 +1,10 @@
 .venv/
+.mamba/
 __pycache__/
 *.pyc
+.DS_Store
 data/
 flask.log
 rag_vectors.db
+cookies.txt
 .env

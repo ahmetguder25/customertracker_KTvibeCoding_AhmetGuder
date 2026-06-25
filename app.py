@@ -4,10 +4,11 @@ import os
 import platform
 import json
 import requests
+import time
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, redirect, url_for,
                    send_file, flash, jsonify, session, has_request_context,
-                   Response, stream_with_context)
+                   Response, stream_with_context, g)
 from werkzeug.utils import secure_filename
 import io
 from dotenv import load_dotenv
@@ -82,6 +83,49 @@ def preserve_frame_on_redirect(response):
         if loc and '_frame=1' not in loc:
             sep = '&' if '?' in loc else '?'
             response.headers['Location'] = loc + sep + '_frame=1'
+    return response
+
+# ── Audit Logging ──────────────────────────────────────────────────────────────
+
+@app.before_request
+def mark_request_start():
+    g.request_start_time = time.time()
+
+@app.after_request
+def log_activity(response):
+    if request.endpoint == 'static':
+        return response
+    
+    try:
+        duration_ms = int((time.time() - g.get('request_start_time', time.time())) * 1000)
+        
+        body_summary = None
+        if request.method in ('POST', 'PUT', 'DELETE'):
+            safe_keys = {k: v for k, v in request.form.items() 
+                        if 'password' not in k.lower() and 'token' not in k.lower()}
+            body_summary = str(safe_keys)[:2000] if safe_keys else None
+        
+        conn = get_db()
+        conn.execute(load_query("auditlog_insert"), (
+            session.get('user_id'),
+            session.get('username', ''),
+            session.get('env', 'local'),
+            request.method,
+            request.path[:500],
+            request.blueprints[0] if request.blueprints else None,
+            request.endpoint,
+            response.status_code,
+            duration_ms,
+            request.remote_addr,
+            str(request.user_agent)[:300],
+            None,
+            body_summary
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[audit] logging failed (non-fatal): {e}")
+    
     return response
 
 # ── Authentication Routes ───────────────────────────────────────────────
@@ -290,9 +334,23 @@ def _ensure_wit_schema():
         print(f"[startup] WIT schema migration warning (non-fatal): {e}")
         import traceback; traceback.print_exc()
 
+def _ensure_auditlog_schema():
+    """Create BOA.COR.AuditLog if not exists."""
+    conn = get_db()
+    try:
+        if not _table_exists(conn, "AuditLog", "COR"):
+            conn.execute(load_query("schema/auditlog"))
+            conn.commit()
+            print("[startup] Created BOA.COR.AuditLog")
+    except Exception as e:
+        print(f"[startup] AuditLog schema migration warning (non-fatal): {e}")
+    finally:
+        conn.close()
+
 if __name__ == "__main__":
     _ensure_isactive_columns()
     _run_platform_migrations()
     _ensure_wit_schema()
     _ensure_customer_doc_schema()
+    _ensure_auditlog_schema()
     app.run(debug=True, port=5000)

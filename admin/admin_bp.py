@@ -269,3 +269,107 @@ def admin_dictionary_save():
         return jsonify({"status": "success", "message": "Saved successfully!"})
     except Exception as exc:
         return jsonify({"status": "error", "message": str(exc)}), 500
+
+# ── Activity Log ───────────────────────────────────────────────────────────────
+
+@admin_bp.route("/activity-log")
+def activity_log():
+    from core.utils import load_query
+    conn = get_db()
+    
+    # Get stats
+    stats_queries = [q.strip() for q in load_query("auditlog_stats").split(";") if q.strip()]
+    stats = {
+        "TotalRequests": 0,
+        "UniqueUsers": 0,
+        "ErrorCount": 0,
+        "AvgResponseTime": 0
+    }
+    try:
+        if len(stats_queries) >= 4:
+            stats["TotalRequests"] = conn.execute(stats_queries[0]).fetchone().get("TotalRequests", 0)
+            stats["UniqueUsers"] = conn.execute(stats_queries[1]).fetchone().get("UniqueUsers", 0)
+            stats["ErrorCount"] = conn.execute(stats_queries[2]).fetchone().get("ErrorCount", 0)
+            stats["AvgResponseTime"] = conn.execute(stats_queries[3]).fetchone().get("AvgResponseTime", 0)
+    except Exception as e:
+        print(f"Stats error: {e}")
+
+    # Build filter query
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (ValueError, TypeError):
+        page = 1
+    per_page = 50
+    offset = (page - 1) * per_page
+    
+    where_clauses = []
+    params = []
+    
+    user_filter = request.args.get("user")
+    if user_filter:
+        where_clauses.append("Username = ?")
+        params.append(user_filter)
+        
+    method_filter = request.args.get("method")
+    if method_filter:
+        where_clauses.append("Method = ?")
+        params.append(method_filter)
+        
+    bp_filter = request.args.get("blueprint")
+    if bp_filter:
+        where_clauses.append("Blueprint = ?")
+        params.append(bp_filter)
+        
+    status_filter = request.args.get("status")
+    if status_filter:
+        if status_filter == "2xx":
+            where_clauses.append("StatusCode >= 200 AND StatusCode < 300")
+        elif status_filter == "3xx":
+            where_clauses.append("StatusCode >= 300 AND StatusCode < 400")
+        elif status_filter == "4xx":
+            where_clauses.append("StatusCode >= 400 AND StatusCode < 500")
+        elif status_filter == "5xx":
+            where_clauses.append("StatusCode >= 500")
+            
+    query = "SELECT * FROM BOA.COR.AuditLog"
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+    query += " ORDER BY Timestamp DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+    
+    params.extend([offset, per_page])
+    logs = conn.execute(query, params).fetchall()
+    
+    # Get distinct options for dropdowns
+    users = [r["Username"] for r in conn.execute("SELECT DISTINCT Username FROM BOA.COR.AuditLog WHERE Username IS NOT NULL ORDER BY Username").fetchall()]
+    blueprints = [r["Blueprint"] for r in conn.execute("SELECT DISTINCT Blueprint FROM BOA.COR.AuditLog WHERE Blueprint IS NOT NULL ORDER BY Blueprint").fetchall()]
+    
+    conn.close()
+    
+    return render_template(
+        "admin_activity_log.html",
+        logs=logs,
+        stats=stats,
+        page=page,
+        users=users,
+        blueprints=blueprints,
+        is_test=is_local_env()
+    )
+
+@admin_bp.route("/activity-log/cleanup", methods=["POST"])
+def activity_log_cleanup():
+    if not is_local_env():
+        flash("Cleanup operations are only permitted in the LOCAL environment.", "error")
+        return redirect(url_for("admin.activity_log"))
+        
+    from core.utils import load_query
+    try:
+        conn = get_db()
+        # Execute delete
+        conn.execute(load_query("auditlog_cleanup"))
+        conn.commit()
+        conn.close()
+        flash("Old activity logs cleaned up successfully.", "success")
+    except Exception as exc:
+        flash(f"Error cleaning up logs: {exc}", "error")
+        
+    return redirect(url_for("admin.activity_log"))

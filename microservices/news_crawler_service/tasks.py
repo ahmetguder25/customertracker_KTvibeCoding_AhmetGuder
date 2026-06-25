@@ -70,7 +70,7 @@ def crawl_news_task_sync(job_id):
                 
                 res = requests.get(rss_url, timeout=10)
                 soup = BeautifulSoup(res.content, 'xml')
-                items = soup.find_all('item')[:5]
+                items = soup.find_all('item')[:10]
                 
                 for item in items:
                     title = item.title.text if item.title else "No Title"
@@ -139,7 +139,7 @@ def crawl_news_task_sync(job_id):
             prompt = (
                 f"Haber Başlığı: {title}\n\n"
                 f"İçerik: {full_text}\n\n"
-                "Lütfen bu haberi portföy yöneticileri için en fazla 2-3 cümleyle, net ve tamamen Türkçe olarak özetle. "
+                "Lütfen bu haberi portföy yöneticileri için en fazla 5 cümleyle, net ve tamamen Türkçe olarak özetle. "
                 "Eğer metin çok kısaysa, sadece ne anlatıldığını belirt ve detay uydurma."
             )
             

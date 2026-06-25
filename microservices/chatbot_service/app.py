@@ -194,6 +194,28 @@ def api_rag_sync():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ── Performance Log API ────────────────────────────────────────────────────────
+
+@app.route("/api/perf-logs", methods=["GET"])
+def api_perf_logs():
+    """Return recent performance logs for the chatbot pipeline."""
+    from microservices.chatbot_service.perf_log import get_perf_logs
+    try:
+        limit = int(request.args.get("limit", 50))
+        offset = int(request.args.get("offset", 0))
+    except (ValueError, TypeError):
+        limit, offset = 50, 0
+    return jsonify(get_perf_logs(limit=limit, offset=offset))
+
+@app.route("/api/perf-logs/summary", methods=["GET"])
+def api_perf_summary():
+    """Return aggregate performance stats for model/method comparison."""
+    from microservices.chatbot_service.perf_log import get_perf_summary
+    return jsonify(get_perf_summary())
+
 if __name__ == "__main__":
     init_db()
+    from microservices.chatbot_service.perf_log import init_perf_db
+    init_perf_db()
     app.run(port=5001, debug=True)
+

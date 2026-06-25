@@ -23,7 +23,7 @@ embedder = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Initialize Huey with a local SQLite database for the queue
 huey_db_path = os.path.join(os.path.dirname(__file__), 'huey_queue.db')
-huey = SqliteHuey('rag_tasks', filename=huey_db_path)
+huey = SqliteHuey('rag_tasks', filename=huey_db_path, immediate=True)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "").strip()
 if OLLAMA_BASE_URL:
@@ -36,16 +36,17 @@ else:
 LLM_MODEL = "gemma2"
 
 def check_vllm_status():
-    """Verify vLLM is running and the required model is loaded."""
+    """Verify Ollama is running and the required model is loaded."""
     try:
         resp = requests.get(f"{OLLAMA_URL}/v1/models", timeout=5)
         resp.raise_for_status()
         models = [m.get('id', 'unknown') for m in resp.json().get('data', [])]
-        if LLM_MODEL not in models:
-            return False, f"Model '{LLM_MODEL}' not found in vLLM. Found: {models}"
+        # Ollama returns names with tags like 'gemma2:latest', so match by prefix
+        if not any(m == LLM_MODEL or m.startswith(LLM_MODEL + ":") for m in models):
+            return False, f"Model '{LLM_MODEL}' not found in Ollama. Found: {models}"
         return True, "OK"
     except requests.exceptions.RequestException as e:
-        return False, f"vLLM server unreachable at {OLLAMA_URL}: {e}"
+        return False, f"Ollama server unreachable at {OLLAMA_URL}: {e}"
 
 def query_vllm(prompt, system="You are a helpful assistant."):
     """Send a prompt to vLLM using the OpenAI Chat Completions API format."""

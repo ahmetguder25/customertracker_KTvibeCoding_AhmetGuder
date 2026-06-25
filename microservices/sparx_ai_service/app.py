@@ -133,8 +133,38 @@ def api_analyze():
             top_summaries = [s["summary_text"] for s in summaries[:15]]
             
         context = "\n\n".join(top_summaries)
-        prompt = f"Aşağıdaki finansal grafik topluluk özetlerini dikkate alarak:\n\n{context}\n\nŞu soruyu cevapla: {query}"
-        system = "Sen uzman bir finansal analistsin. Verilen bağlamı sentezleyerek soruyu doğru, detaylı ve profesyonel bir Türkçe rapor olarak cevapla."
+
+        system = (
+            "Sen SPARX AI Service altyapısında çalışan üst düzey bir kurumsal finansman, "
+            "kredi tahsis ve yapılandırılmış finansman yöneticisisin. Temel amacın, şirketlerin "
+            "faaliyet raporlarından elde edilen verileri analiz ederek kredi risklerini ölçmek, "
+            "borç ödeme kapasitesini değerlendirmek ve banka için potansiyel uzun vadeli fonlama "
+            "fırsatlarını (proje finansmanı, kurumsal değer ortaklığı, sukuk vb.) tespit etmektir."
+        )
+
+        prompt = f"""Aşağıda, şirketin faaliyet raporundan çekilmiş bağlam (context) ve kullanıcının sorusu (query) yer almaktadır:
+
+BAĞLAM:
+{context}
+
+KULLANICI SORUSU:
+{query}
+
+LÜTFEN YANITINI KESİNLİKLE AŞAĞIDAKİ YAPIYA SADIK KALARAK İKİ AŞAMALI ŞEKİLDE VER:
+
+<akil_yurutme>
+(Bu bölümde nihai raporu yazmadan önce kendi kendine düşün, hesaplamalarını yap ve stratejini kur. Şu adımları izle:
+1. Veri Taraması: Bağlam (context) içinde kullanıcının sorusuna yanıt verecek hangi kritik finansal veriler, oranlar veya tablolar var?
+2. Risk ve Fırsat Analizi: Bu veriler bir bankacı gözüyle ne anlama geliyor? (Örneğin; FAVÖK düşüşü refinansman riski yaratır mı? Yatırım planları proje finansmanına uygun mu?)
+3. Doğrulama: Çıkardığım sonuçlar bağlamdaki verilerle birebir örtüşüyor mu? Halüsinasyon veya eksik bilgi var mı?)
+</akil_yurutme>
+
+<yonetici_ozeti>
+(Bu bölümde akıl yürütme sürecinden elde ettiğin sonuçları son kullanıcı için profesyonel, net ve veri destekli bir bankacı raporu olarak sun.
+- Markdown formatını kullan.
+- Varsa önemli finansal metrikleri kısa bir tablo veya madde imleri ile vurgula.
+- Cümlelerin objektif, analitik ve stratejik karar almaya yönelik olsun.)
+</yonetici_ozeti>"""
         
         response = tasks.query_vllm(prompt, system=system)
         return jsonify({"answer": response, "document_id": doc_id, "query": query})

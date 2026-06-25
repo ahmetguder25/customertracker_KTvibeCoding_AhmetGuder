@@ -21,6 +21,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 
 import numpy as np
 import ollama
@@ -29,7 +30,7 @@ from rank_bm25 import BM25Okapi
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 DB_PATH     = os.path.join(BASE_DIR, "rag_vectors.db")
 EMBED_MODEL = "nomic-embed-text"
-GEN_MODEL   = "qwen3.5:9b"
+GEN_MODEL   = "gemma2"
 
 # ── Module-level cache (populated on first request, shared across all) ─────────
 _cache_lock = threading.Lock()
@@ -126,9 +127,10 @@ _EXPAND_SYSTEM = (
 
 
 def expand_query(user_query: str) -> list:
-    """Use qwen3.5:9b to generate 3–4 diverse sub-queries.
+    """Use gemma2 to generate 3–4 diverse sub-queries.
     Returns [original_query, variant_1, ...]. Falls back to [user_query] on error.
     """
+    t0 = time.time()
     try:
         response = ollama.chat(
             model=GEN_MODEL,
@@ -151,10 +153,15 @@ def expand_query(user_query: str) -> list:
                 if q and q not in seen:
                     seen.add(q)
                     result.append(q)
+            elapsed = time.time() - t0
+            print(f"[rag] expand_query: {len(result)} queries in {elapsed:.2f}s", flush=True)
             return result
+        elapsed = time.time() - t0
+        print(f"[rag] expand_query: fallback (parse fail) in {elapsed:.2f}s", flush=True)
         return [user_query]
     except Exception as exc:
-        print(f"[expand_query] fallback to single query: {exc}")
+        elapsed = time.time() - t0
+        print(f"[rag] expand_query: fallback ({exc}) in {elapsed:.2f}s", flush=True)
         return [user_query]
 
 
@@ -163,27 +170,12 @@ def expand_query(user_query: str) -> list:
 def search_document_hybrid(user_query: str, n_results: int = 20, selected_docs: list = None) -> dict:
     """Hybrid BM25 + multi-query semantic search with Reciprocal Rank Fusion.
 
-    Pipeline
-    --------
-    1. expand_query() → 1 original + 3–4 semantic variants
-    2. Embed ALL queries → vectorised cosine similarity → pool & deduplicate
-       (semantic ranked list)
-    3. BM25 keyword search on original query
-       (BM25 ranked list)
-    4. RRF fusion of both ranked lists → final top-N
-
-    BM25 adds precision for exact legal terms (Murabaha, riba, gharar…) that
-    can fall into semantic blind-spots.
-
-    Returns
-    -------
-    dict:
-        "chunks"       : list[str]  — top-N texts, best-first
-        "queries_used" : list[str]  — expanded queries that were run
+    Returns dict with 'chunks', 'queries_used', and 'perf' timing breakdown.
     """
+    t_total_start = time.time()
     texts, matrix, bm25, doc_ids = _load_cache()
     if not texts:
-        return {"chunks": [], "queries_used": [user_query]}
+        return {"chunks": [], "queries_used": [user_query], "perf": {}}
 
     # Filter mask for selected documents
     mask = None
@@ -191,12 +183,17 @@ def search_document_hybrid(user_query: str, n_results: int = 20, selected_docs: 
         mask = [doc_id in selected_docs for doc_id in doc_ids]
 
     # ── 1. Query expansion ──────────────────────────────────────────────────────
+    t_expand_start = time.time()
     queries = expand_query(user_query)
+    t_expand_ms = int((time.time() - t_expand_start) * 1000)
 
     # ── 2. Multi-query semantic search ─────────────────────────────────────────
+    t_embed_start = time.time()
+    embed_calls = 0
     best_sem: dict = {}
     for q in queries:
         q_vec  = _embed(q)
+        embed_calls += 1
         scores = _cosine_scores(q_vec, matrix)    # (N,)
         for i, (text, score) in enumerate(zip(texts, scores.tolist())):
             # Apply mask if filtering
@@ -204,10 +201,12 @@ def search_document_hybrid(user_query: str, n_results: int = 20, selected_docs: 
                 continue
             if score > best_sem.get(text, -2.0):
                 best_sem[text] = score
+    t_embed_ms = int((time.time() - t_embed_start) * 1000)
 
     sem_ranked = [t for t, _ in sorted(best_sem.items(), key=lambda x: x[1], reverse=True)]
 
     # ── 3. BM25 keyword search ──────────────────────────────────────────────────
+    t_search_start = time.time()
     bm25_scores  = bm25.get_scores(_tokenize(user_query))   # (N,)
     # Apply mask by zeroing out scores
     if mask is not None:
@@ -218,10 +217,31 @@ def search_document_hybrid(user_query: str, n_results: int = 20, selected_docs: 
     # ── 4. Reciprocal Rank Fusion ───────────────────────────────────────────────
     fused = _rrf(sem_ranked, bm25_ranked, k=60)
     top_chunks = [t for t, _ in sorted(fused.items(), key=lambda x: x[1], reverse=True)]
+    t_search_ms = int((time.time() - t_search_start) * 1000)
+
+    t_total_ms = int((time.time() - t_total_start) * 1000)
+
+    perf = {
+        "t_expand_ms": t_expand_ms,
+        "t_embed_ms": t_embed_ms,
+        "t_search_ms": t_search_ms,
+        "t_rag_total_ms": t_total_ms,
+        "queries_expanded": len(queries),
+        "embed_calls": embed_calls,
+        "chunks_retrieved": min(len(top_chunks), n_results),
+    }
+
+    print(
+        f"[rag] search_document_hybrid: {t_total_ms}ms total "
+        f"(expand={t_expand_ms}ms, embed={t_embed_ms}ms [{embed_calls} calls], "
+        f"search+rrf={t_search_ms}ms, chunks={min(len(top_chunks), n_results)})",
+        flush=True
+    )
 
     return {
         "chunks":       top_chunks[:n_results],
         "queries_used": queries,
+        "perf":         perf,
     }
 
 
