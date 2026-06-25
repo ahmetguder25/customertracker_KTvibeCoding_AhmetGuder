@@ -22,8 +22,7 @@
     <button onclick="openEditProject()"
         style="color:var(--amber);background:none;border:1px solid rgba(245,158,11,0.25);cursor:pointer;padding:4px 10px;border-radius:5px;display:inline-flex;align-items:center;gap:4px;font-family:var(--font-head);font-size:13px;font-weight:700;letter-spacing:0.04em;"
         onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background='none'">
-        <span class="material-symbols-outlined" style="font-size:14px;">edit</span> EDIT
-    </button>
+        <span class="material-symbols-outlined" style="font-size:14px;">edit</span>{{ lang_dict.get('lbl_edit', 'EDIT') }}</button>
 </div>
 
 {% if project.Description %}
@@ -33,7 +32,7 @@
 <!-- ── Progress Bar ── -->
 <div class="t-panel" style="border-top:none;padding:8px 12px;margin-bottom:1px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="font-size:12px;font-family:var(--font-head);color:var(--on-surface-2);font-weight:700;letter-spacing:0.04em;">PROGRESS</span>
+        <span style="font-size:12px;font-family:var(--font-head);color:var(--on-surface-2);font-weight:700;letter-spacing:0.04em;">{{ lang_dict.get('lbl_progress', 'PROGRESS') }}</span>
         <span style="font-size:13px;font-family:var(--font-mono);color:{% if progress_pct >= 100 %}var(--green){% elif progress_pct > 0 %}var(--primary){% else %}var(--on-surface-3){% endif %};font-weight:700;">{{ progress_pct }}%</span>
     </div>
     <div style="height:8px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;">
@@ -58,17 +57,12 @@
      Connected to Global Backlog — items editable from both places
      ══════════════════════════════════════════════════════════ -->
 <div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;">
-    <span style="display:flex;align-items:center;gap:8px;">
-        WORK ITEMS
-        <span style="font-size:13px;color:var(--on-surface-3);">[{{ total_count }}]</span>
+    <span style="display:flex;align-items:center;gap:8px;">{{ lang_dict.get('lbl_work_items', 'WORK ITEMS') }}<span style="font-size:13px;color:var(--on-surface-3);">[{{ total_count }}]</span>
         <!-- Portal badge -->
         <a href="/backlog" style="display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--primary);text-decoration:none;background:rgba(45,212,191,0.08);border:1px solid rgba(45,212,191,0.2);border-radius:4px;padding:1px 6px;" title="View all in Global Backlog">
-            <span class="material-symbols-outlined" style="font-size:12px;">link</span> BACKLOG
-        </a>
+            <span class="material-symbols-outlined" style="font-size:12px;">link</span>{{ lang_dict.get('lbl_backlog', 'BACKLOG') }}</a>
     </span>
-    <button onclick="document.getElementById('modal-item').classList.add('open')" class="t-btn t-btn-sm">
-        + ADD ITEM
-    </button>
+    <button onclick="document.getElementById('modal-item').classList.add('open')" class="t-btn t-btn-sm">{{ lang_dict.get('lbl_add_plus', '+ ADD ITEM') }}</button>
 </div>
 
 {% if items %}
@@ -136,11 +130,11 @@
                 {% endfor %}
             </div>
             {% endif %}
-            <button onclick="showAddSub({{ item.ItemID }})" style="font-size:12px;color:var(--on-surface-3);background:none;border:none;cursor:pointer;margin-top:3px;">+ SUB-ITEM</button>
+            <button onclick="showAddSub({{ item.ItemID }})" style="font-size:12px;color:var(--on-surface-3);background:none;border:none;cursor:pointer;margin-top:3px;">{{ lang_dict.get('lbl_add_sub_item', '+ SUB-ITEM') }}</button>
             <div id="sub-form-{{ item.ItemID }}" style="display:none;margin-top:4px;">
                 <div style="display:flex;gap:4px;">
                     <input type="text" id="sub-title-{{ item.ItemID }}" placeholder="Sub-item..." class="t-input" style="flex:1;font-size:13px;padding:2px 6px;">
-                    <button onclick="saveSub({{ item.ItemID }})" class="t-btn t-btn-sm">ADD</button>
+                    <button onclick="saveSub({{ item.ItemID }})" class="t-btn t-btn-sm">{{ lang_dict.get('lbl_add', 'ADD') }}</button>
                 </div>
             </div>
         </div>
@@ -148,9 +142,7 @@
 </div>
 {% endfor %}
 {% else %}
-<div class="t-panel" style="border-top:none;text-align:center;padding:16px;color:var(--on-surface-3);font-size:13px;">
-    NO WORK ITEMS YET. ADD ONE ABOVE OR FROM THE
-    <a href="/backlog" style="color:var(--primary);">GLOBAL BACKLOG</a>.
+<div class="t-panel" style="border-top:none;text-align:center;padding:16px;color:var(--on-surface-3);font-size:13px;">{{ lang_dict.get('msg_no_work_items_project', 'NO WORK ITEMS YET. ADD ONE ABOVE OR FROM THE') }}<a href="/backlog" style="color:var(--primary);">{{ lang_dict.get('lbl_global_backlog', 'GLOBAL BACKLOG') }}</a>.
 </div>
 {% endif %}
 
@@ -159,7 +151,7 @@
 <div id="modal-item" class="t-modal-backdrop">
     <div class="t-modal" style="max-width:440px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div class="t-panel-header" style="border:none;margin:0;padding:0;">ADD WORK ITEM</div>
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('lbl_add_work_item', 'ADD WORK ITEM') }}</div>
             <button onclick="document.getElementById('modal-item').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
         </div>
         <div style="display:grid;gap:8px;">
@@ -169,9 +161,9 @@
                 <div>
                     <label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_status', 'STATUS') }}</label>
                     <select id="wi-status" class="t-input">
-                        <option value="not_started">NOT STARTED</option>
-                        <option value="in_progress">IN PROGRESS</option>
-                        <option value="blocked">BLOCKED</option>
+                        <option value="not_started">{{ lang_dict.get('lbl_status_not_started', 'NOT STARTED') }}</option>
+                        <option value="in_progress">{{ lang_dict.get('lbl_status_in_progress', 'IN PROGRESS') }}</option>
+                        <option value="blocked">{{ lang_dict.get('lbl_status_blocked', 'BLOCKED') }}</option>
                     </select>
                 </div>
                 <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_deadline', 'DEADLINE') }}</label><input id="wi-deadline" type="date" class="t-input"></div>
@@ -182,8 +174,8 @@
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:5px;padding-top:10px;">
-            <button onclick="document.getElementById('modal-item').classList.remove('open')" class="t-btn t-btn-outline">CANCEL</button>
-            <button onclick="saveItem()" class="t-btn t-btn-green">ADD</button>
+            <button onclick="document.getElementById('modal-item').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('lbl_cancel', 'CANCEL') }}</button>
+            <button onclick="saveItem()" class="t-btn t-btn-green">{{ lang_dict.get('lbl_add', 'ADD') }}</button>
         </div>
     </div>
 </div>
@@ -192,7 +184,7 @@
 <div id="modal-edit-project" class="t-modal-backdrop">
     <div class="t-modal" style="max-width:440px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div class="t-panel-header" style="border:none;margin:0;padding:0;">EDIT PROJECT</div>
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('lbl_edit_project', 'EDIT PROJECT') }}</div>
             <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
         </div>
         <div style="display:grid;gap:8px;">
@@ -209,10 +201,9 @@
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:5px;padding-top:10px;">
-            <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" class="t-btn t-btn-outline">CANCEL</button>
+            <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('lbl_cancel', 'CANCEL') }}</button>
             <button onclick="saveEditProject()" class="t-btn t-btn-cyan">
-                <span class="material-symbols-outlined" style="font-size:15px;">save</span> SAVE
-            </button>
+                <span class="material-symbols-outlined" style="font-size:15px;">save</span>{{ lang_dict.get('lbl_save', 'SAVE') }}</button>
         </div>
     </div>
 </div>

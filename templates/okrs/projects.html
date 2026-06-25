@@ -74,7 +74,7 @@
                 </div>
             </div>
             <div style="padding:6px 8px;background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.15);border-radius:4px;font-size:13px;color:var(--on-surface-3);">
-                ℹ️ Status is automatically derived from work items. New projects start as <strong>NOT STARTED</strong>.
+                ℹ️ Status is automatically derived from work items. New projects start as <strong>{{ lang_dict.get('lbl_status_not_started', 'NOT STARTED') }}</strong>.
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
@@ -88,7 +88,7 @@
 <div id="modal-edit-project" class="t-modal-backdrop">
     <div class="t-modal">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div class="t-panel-header" style="border:none;margin:0;padding:0;">EDIT PROJECT</div>
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('lbl_edit_project', 'EDIT PROJECT') }}</div>
             <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
         </div>
         <input type="hidden" id="ep-id">
@@ -106,10 +106,9 @@
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
-            <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" class="t-btn t-btn-outline">CANCEL</button>
+            <button onclick="document.getElementById('modal-edit-project').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('lbl_cancel', 'CANCEL') }}</button>
             <button onclick="saveEditProject()" class="t-btn t-btn-cyan">
-                <span class="material-symbols-outlined" style="font-size:15px;">save</span> SAVE
-            </button>
+                <span class="material-symbols-outlined" style="font-size:15px;">save</span>{{ lang_dict.get('lbl_save', 'SAVE') }}</button>
         </div>
     </div>
 </div>

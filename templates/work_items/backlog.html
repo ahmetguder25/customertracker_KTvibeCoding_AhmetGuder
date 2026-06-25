@@ -9,9 +9,7 @@
 <!-- ── Page Header ── -->
 <div class="t-page-header" style="align-items:flex-start;">
     <div>
-        <div class="t-page-title" style="display:flex;align-items:center;gap:10px;">
-            GLOBAL BACKLOG
-            <span class="t-chip t-chip-dim" style="font-size:13px;">{{ items|length }} ITEMS</span>
+        <div class="t-page-title" style="display:flex;align-items:center;gap:10px;">{{ lang_dict.get('lbl_global_backlog', 'GLOBAL BACKLOG') }}<span class="t-chip t-chip-dim" style="font-size:13px;">{{ items|length }} ITEMS</span>
         </div>
         <div class="t-page-subtitle" style="display:flex;gap:12px;margin-top:4px;">
             <span>
@@ -28,33 +26,32 @@
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <!-- Filters -->
         <select id="filter-type" onchange="applyFilters()" class="t-input" style="width:auto;">
-            <option value="">ALL TYPES</option>
-            <option value="project">PROJECTS</option>
-            <option value="syndication">SYNDICATIONS</option>
+            <option value="">{{ lang_dict.get('filter_all_types', 'ALL TYPES') }}</option>
+            <option value="project">{{ lang_dict.get('lbl_type_projects', 'PROJECTS') }}</option>
+            <option value="syndication">{{ lang_dict.get('lbl_type_syndications', 'SYNDICATIONS') }}</option>
         </select>
         <select id="filter-status" onchange="applyFilters()" class="t-input" style="width:auto;">
-            <option value="">ALL STATUS</option>
-            <option value="not_started">NOT STARTED</option>
-            <option value="in_progress">IN PROGRESS</option>
-            <option value="blocked">BLOCKED</option>
-            <option value="done">DONE</option>
+            <option value="">{{ lang_dict.get('filter_all_status', 'ALL STATUS') }}</option>
+            <option value="not_started">{{ lang_dict.get('lbl_status_not_started', 'NOT STARTED') }}</option>
+            <option value="in_progress">{{ lang_dict.get('lbl_status_in_progress', 'IN PROGRESS') }}</option>
+            <option value="blocked">{{ lang_dict.get('lbl_status_blocked', 'BLOCKED') }}</option>
+            <option value="done">{{ lang_dict.get('lbl_status_done', 'DONE') }}</option>
         </select>
         <select id="filter-assignee" onchange="applyFilters()" class="t-input" style="width:auto;max-width:160px;">
-            <option value="">ALL ASSIGNEES</option>
+            <option value="">{{ lang_dict.get('filter_all_assignees', 'ALL ASSIGNEES') }}</option>
             {% for st in stakeholders %}
             <option value="{{ st.StakeholderID }}">{{ st.FullName }}</option>
             {% endfor %}
         </select>
         <select id="filter-deadline" onchange="applyFilters()" class="t-input" style="width:auto;">
-            <option value="">ANY DEADLINE</option>
-            <option value="overdue">OVERDUE</option>
-            <option value="today">DUE TODAY</option>
-            <option value="week">THIS WEEK</option>
-            <option value="none">NO DEADLINE</option>
+            <option value="">{{ lang_dict.get('filter_any_deadline', 'ANY DEADLINE') }}</option>
+            <option value="overdue">{{ lang_dict.get('filter_overdue', 'OVERDUE') }}</option>
+            <option value="today">{{ lang_dict.get('filter_due_today', 'DUE TODAY') }}</option>
+            <option value="week">{{ lang_dict.get('filter_this_week', 'THIS WEEK') }}</option>
+            <option value="none">{{ lang_dict.get('filter_no_deadline', 'NO DEADLINE') }}</option>
         </select>
         <button onclick="document.getElementById('modal-add-item').classList.add('open')" class="t-btn t-btn-green" style="white-space:nowrap;">
-            <span class="material-symbols-outlined" style="font-size:15px;">add</span> ADD ITEM
-        </button>
+            <span class="material-symbols-outlined" style="font-size:15px;">add</span>{{ lang_dict.get('lbl_add_item', 'ADD ITEM') }}</button>
     </div>
 </div>
 
@@ -65,12 +62,12 @@
     <thead>
         <tr>
             <th style="width:36px;text-align:center;"></th>
-            <th style="width:40%;">TITLE / DESCRIPTION</th>
-            <th>PARENT</th>
-            <th style="text-align:center;width:110px;">TYPE</th>
-            <th style="text-align:center;width:140px;">STATUS</th>
-            <th style="text-align:center;width:120px;">DEADLINE</th>
-            <th style="text-align:center;width:80px;">ACTIONS</th>
+            <th style="width:40%;">{{ lang_dict.get('col_title_desc', 'TITLE / DESCRIPTION') }}</th>
+            <th>{{ lang_dict.get('col_parent', 'PARENT') }}</th>
+            <th style="text-align:center;width:110px;">{{ lang_dict.get('col_type', 'TYPE') }}</th>
+            <th style="text-align:center;width:140px;">{{ lang_dict.get('col_status', 'STATUS') }}</th>
+            <th style="text-align:center;width:120px;">{{ lang_dict.get('col_deadline', 'DEADLINE') }}</th>
+            <th style="text-align:center;width:80px;">{{ lang_dict.get('col_actions', 'ACTIONS') }}</th>
         </tr>
     </thead>
     <tbody>
@@ -146,7 +143,7 @@
             {% set day_diff = (item.Deadline - now.date()).days %}
             <span style="{% if day_diff < 0 and item.Status != 'done' %}color:var(--red);font-weight:800;{% elif day_diff <= 3 and item.Status != 'done' %}color:var(--tertiary);font-weight:600;{% else %}color:var(--on-surface-3);{% endif %}">
                 {{ item.Deadline }}
-                {% if day_diff < 0 and item.Status != 'done' %}<br><span style="font-size:12px;">{{ day_diff * -1 }}d OVERDUE</span>{% elif day_diff == 0 %}<br><span style="font-size:12px;">TODAY</span>{% endif %}
+                {% if day_diff < 0 and item.Status != 'done' %}<br><span style="font-size:12px;">{{ day_diff * -1 }}d OVERDUE</span>{% elif day_diff == 0 %}<br><span style="font-size:12px;">{{ lang_dict.get('filter_today', 'TODAY') }}</span>{% endif %}
             </span>
             {% else %}—{% endif %}
         </td>
@@ -174,9 +171,7 @@
 <div class="t-panel" style="text-align:center;padding:48px 24px;">
     <span class="material-symbols-outlined" style="font-size:48px;color:var(--on-surface-3);display:block;margin-bottom:12px;">checklist</span>
     <div style="color:var(--on-surface-3);font-size:15px;margin-bottom:16px;">ALL CLEAR — NO WORK ITEMS YET.</div>
-    <button onclick="document.getElementById('modal-add-item').classList.add('open')" class="t-btn t-btn-green">
-        + ADD FIRST ITEM
-    </button>
+    <button onclick="document.getElementById('modal-add-item').classList.add('open')" class="t-btn t-btn-green">{{ lang_dict.get('lbl_add_first_item', '+ ADD FIRST ITEM') }}</button>
 </div>
 {% endif %}
 
@@ -187,7 +182,7 @@
 <div id="modal-add-item" class="t-modal-backdrop">
     <div class="t-modal" style="max-width:480px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <div class="t-panel-header" style="border:none;margin:0;padding:0;">ADD WORK ITEM</div>
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('lbl_add_work_item', 'ADD WORK ITEM') }}</div>
             <button onclick="document.getElementById('modal-add-item').classList.remove('open')"
                 style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:18px;">✕</button>
         </div>
@@ -197,8 +192,8 @@
                 <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_linked_to_star', 'LINKED TO *') }}</label>
                 <div style="display:flex;gap:6px;">
                     <select id="add-parent-type" onchange="syncParentSelect()" class="t-input" style="width:140px;">
-                        <option value="project">PROJECT</option>
-                        <option value="syndication">SYNDICATION</option>
+                        <option value="project">{{ lang_dict.get('lbl_type_project', 'PROJECT') }}</option>
+                        <option value="syndication">{{ lang_dict.get('lbl_type_syndication', 'SYNDICATION') }}</option>
                     </select>
                     <select id="add-parent-id-project" class="t-input" style="flex:1;">
                         <option value="">— Select Project —</option>
@@ -226,10 +221,10 @@
                 <div>
                     <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_status', 'STATUS') }}</label>
                     <select id="add-status" class="t-input">
-                        <option value="not_started">NOT STARTED</option>
-                        <option value="in_progress">IN PROGRESS</option>
-                        <option value="blocked">BLOCKED</option>
-                        <option value="done">DONE</option>
+                        <option value="not_started">{{ lang_dict.get('lbl_status_not_started', 'NOT STARTED') }}</option>
+                        <option value="in_progress">{{ lang_dict.get('lbl_status_in_progress', 'IN PROGRESS') }}</option>
+                        <option value="blocked">{{ lang_dict.get('lbl_status_blocked', 'BLOCKED') }}</option>
+                        <option value="done">{{ lang_dict.get('lbl_status_done', 'DONE') }}</option>
                     </select>
                 </div>
                 <div>
@@ -243,10 +238,9 @@
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:6px;padding-top:12px;">
-            <button onclick="document.getElementById('modal-add-item').classList.remove('open')" class="t-btn t-btn-outline">CANCEL</button>
+            <button onclick="document.getElementById('modal-add-item').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('lbl_cancel', 'CANCEL') }}</button>
             <button onclick="saveNewItem()" class="t-btn t-btn-green">
-                <span class="material-symbols-outlined" style="font-size:15px;">add</span> CREATE
-            </button>
+                <span class="material-symbols-outlined" style="font-size:15px;">add</span>{{ lang_dict.get('lbl_create', 'CREATE') }}</button>
         </div>
     </div>
 </div>
@@ -258,7 +252,7 @@
 <div id="modal-edit-item" class="t-modal-backdrop">
     <div class="t-modal" style="max-width:480px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <div class="t-panel-header" style="border:none;margin:0;padding:0;">EDIT WORK ITEM</div>
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('lbl_edit_work_item', 'EDIT WORK ITEM') }}</div>
             <button onclick="document.getElementById('modal-edit-item').classList.remove('open')"
                 style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:18px;">✕</button>
         </div>
@@ -269,8 +263,8 @@
                 <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_linked_to', 'LINKED TO') }}</label>
                 <div style="display:flex;gap:6px;">
                     <select id="edit-parent-type" onchange="syncEditParentSelect()" class="t-input" style="width:140px;">
-                        <option value="project">PROJECT</option>
-                        <option value="syndication">SYNDICATION</option>
+                        <option value="project">{{ lang_dict.get('lbl_type_project', 'PROJECT') }}</option>
+                        <option value="syndication">{{ lang_dict.get('lbl_type_syndication', 'SYNDICATION') }}</option>
                     </select>
                     <select id="edit-parent-id-project" class="t-input" style="flex:1;">
                         <option value="">— Select Project —</option>
@@ -298,10 +292,10 @@
                 <div>
                     <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_status', 'STATUS') }}</label>
                     <select id="edit-status" class="t-input">
-                        <option value="not_started">NOT STARTED</option>
-                        <option value="in_progress">IN PROGRESS</option>
-                        <option value="blocked">BLOCKED</option>
-                        <option value="done">DONE</option>
+                        <option value="not_started">{{ lang_dict.get('lbl_status_not_started', 'NOT STARTED') }}</option>
+                        <option value="in_progress">{{ lang_dict.get('lbl_status_in_progress', 'IN PROGRESS') }}</option>
+                        <option value="blocked">{{ lang_dict.get('lbl_status_blocked', 'BLOCKED') }}</option>
+                        <option value="done">{{ lang_dict.get('lbl_status_done', 'DONE') }}</option>
                     </select>
                 </div>
                 <div>
@@ -315,10 +309,9 @@
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:6px;padding-top:12px;">
-            <button onclick="document.getElementById('modal-edit-item').classList.remove('open')" class="t-btn t-btn-outline">CANCEL</button>
+            <button onclick="document.getElementById('modal-edit-item').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('lbl_cancel', 'CANCEL') }}</button>
             <button onclick="saveEditItem()" class="t-btn t-btn-cyan">
-                <span class="material-symbols-outlined" style="font-size:15px;">save</span> SAVE
-            </button>
+                <span class="material-symbols-outlined" style="font-size:15px;">save</span>{{ lang_dict.get('lbl_save', 'SAVE') }}</button>
         </div>
     </div>
 </div>

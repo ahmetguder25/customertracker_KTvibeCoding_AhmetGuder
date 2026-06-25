@@ -76,7 +76,7 @@ def _load_backlog(conn, parent_type, parent_id):
         for a in conn.execute(
             f"SELECT wa.ItemID, COALESCE(s.FullName, u.username + ' ' + ISNULL(u.surname, '')) AS AssigneeName "
             f"FROM BOA.WIT.WorkItemAssignee wa "
-            f"LEFT JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
+            f"LEFT JOIN BOA.COR.Stakeholder s ON wa.StakeholderID = s.StakeholderID "
             f"LEFT JOIN BOA.COR.[User] u ON wa.UserID = u.id "
             f"WHERE wa.ItemID IN ({ph}) AND wa.IsActive=1", item_ids
         ).fetchall():
@@ -110,7 +110,7 @@ def _load_backlog_json(conn, parent_type, parent_id):
 def _recalc_all_krs(conn):
     """Auto-recalculate AchievedValue for all active auto-measurement KRs."""
     krs = conn.execute(
-        "SELECT * FROM BOA.ZZZ.KeyResult WHERE IsActive=1 AND MeasurementType IN ('product','project')"
+        "SELECT * FROM BOA.WIT.KeyResult WHERE IsActive=1 AND MeasurementType IN ('product','project')"
     ).fetchall()
     for kr in krs:
         new_val = None
@@ -147,7 +147,7 @@ def _recalc_all_krs(conn):
 
             if new_val is not None:
                 conn.execute(
-                    "UPDATE BOA.ZZZ.KeyResult SET AchievedValue=? WHERE KRID=?",
+                    "UPDATE BOA.WIT.KeyResult SET AchievedValue=? WHERE KRID=?",
                     (new_val, kr["KRID"])
                 )
         except Exception as e:

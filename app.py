@@ -26,7 +26,7 @@ from core.config import (
 )
 from core.db import get_db, get_customer_db, DbConnection
 from core.utils import load_query, to_tr_time, _fmt_dt, allowed_file, get_param_map
-from core.microservices import get_microservices_state, set_microservice_state
+from blueprints.microservices import get_microservices_state
 
 app.jinja_env.filters["tr_time"] = to_tr_time
 app.jinja_env.filters["fmtdate"]     = lambda v: _fmt_dt(v, 10)
@@ -94,44 +94,6 @@ def preserve_frame_on_redirect(response):
 
 
 
-@app.route("/microservices")
-def microservices():
-    return render_template("management/microservices.html", state=get_microservices_state())
-
-@app.route("/microservices/crawler")
-def microservices_crawler():
-    if not get_microservices_state().get('web_crawler', {}).get('enabled', True):
-        return "Crawler Microservice is Disabled", 403
-    return render_template("management/crawler_detail.html")
-
-@app.route("/api/microservices/toggle", methods=["POST"])
-def api_microservices_toggle():
-    data = request.get_json() or {}
-    service_id = data.get("service_id")
-    enabled = data.get("enabled")
-    if not service_id or enabled is None:
-        return jsonify({"error": "Missing parameters"}), 400
-    set_microservice_state(service_id, bool(enabled))
-    return jsonify({"success": True, "state": get_microservices_state()})
-
-@app.route("/api/microservices/reset", methods=["POST"])
-def api_microservices_reset():
-    data = request.get_json() or {}
-    service_id = data.get("service_id")
-    
-    port_map = {"chatbot": 5001, "sparx_ai": 5002}
-    port = port_map.get(service_id)
-    if not port:
-        return jsonify({"error": "Unknown service"}), 400
-        
-    try:
-        res = requests.post(f"http://127.0.0.1:{port}/api/reset", timeout=5)
-        if res.status_code == 200:
-            return jsonify({"success": True})
-        return jsonify({"error": f"Service returned {res.status_code}"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
-
 # ── Blueprint Registration ───────────────────────────────────────────────────────────
 from admin.admin_bp import admin_bp  # noqa: E402
 from blueprints.auth import auth_bp
@@ -142,6 +104,7 @@ from blueprints.overview import overview_bp
 from blueprints.products import products_bp
 from blueprints.okrs import okrs_bp
 from blueprints.work_items import work_items_bp
+from blueprints.microservices import microservices_bp
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(auth_bp)
@@ -152,6 +115,7 @@ app.register_blueprint(overview_bp)
 app.register_blueprint(products_bp)
 app.register_blueprint(okrs_bp)
 app.register_blueprint(work_items_bp)
+app.register_blueprint(microservices_bp)
 
 # ── Entry Point ────────────────────────────────────────────────────────────────
 
@@ -208,10 +172,10 @@ def _run_platform_migrations():
     """
     conn = get_db()
     try:
-        if not _table_exists(conn, "Stakeholder"):
+        if not _table_exists(conn, "Stakeholder", "COR"):
             conn.execute(load_query("schema/stakeholder"))
             conn.commit()
-            print("[startup] Created BOA.ZZZ.Stakeholder")
+            print("[startup] Created BOA.COR.Stakeholder")
 
         if not _table_exists(conn, "Product", "COR"):
             conn.execute(load_query("schema/product"))
@@ -219,40 +183,21 @@ def _run_platform_migrations():
             conn.commit()
             print("[startup] Created BOA.COR.Product + seeded")
 
-        if not _table_exists(conn, "Objective"):
+        if not _table_exists(conn, "Objective", "WIT"):
             conn.execute(load_query("schema/objective"))
             conn.commit()
-            print("[startup] Created BOA.ZZZ.Objective")
+            print("[startup] Created BOA.WIT.Objective")
 
-        if not _table_exists(conn, "KeyResult"):
+        if not _table_exists(conn, "KeyResult", "WIT"):
             conn.execute(load_query("schema/keyresult"))
             conn.commit()
-            print("[startup] Created BOA.ZZZ.KeyResult")
+            print("[startup] Created BOA.WIT.KeyResult")
 
-        if not _table_exists(conn, "Project"):
+        if not _table_exists(conn, "Project", "STR"):
             conn.execute(load_query("schema/project"))
             conn.commit()
-            print("[startup] Created BOA.ZZZ.Project")
+            print("[startup] Created BOA.STR.Project")
 
-        if not _table_exists(conn, "WorkItem"):
-            conn.execute(load_query("schema/workitem"))
-            conn.commit()
-            print("[startup] Created BOA.ZZZ.WorkItem")
-
-        if not _table_exists(conn, "WorkSubItem"):
-            conn.execute(load_query("schema/worksubitem"))
-            conn.commit()
-            print("[startup] Created BOA.ZZZ.WorkSubItem")
-
-        if not _table_exists(conn, "WorkItemPrerequisite"):
-            conn.execute(load_query("schema/workitemprereq"))
-            conn.commit()
-            print("[startup] Created BOA.ZZZ.WorkItemPrerequisite")
-
-        if not _table_exists(conn, "WorkItemAssignee"):
-            conn.execute(load_query("schema/workitemassignee"))
-            conn.commit()
-            print("[startup] Created BOA.ZZZ.WorkItemAssignee")
 
         if not _table_exists(conn, "MainDeals", "STR"):
             conn.execute(load_query("schema/maindeals"))
@@ -297,7 +242,7 @@ def _ensure_customer_doc_schema():
 
 def _ensure_wit_schema():
     """
-    Idempotently create the WIT schema and migrate WorkItem tables from ZZZ.
+    Idempotently create the WIT schema and WorkItem tables.
     """
     try:
         conn = get_db()
@@ -313,51 +258,24 @@ def _ensure_wit_schema():
             conn.execute(load_query("schema/wit_workitem"))
             conn.commit()
             print("[startup] Created BOA.WIT.WorkItem")
-            if _table_exists(conn, "WorkItem", "ZZZ"):
-                conn.execute(load_query("schema/copy_wit_workitem"))
-                conn.commit()
-                print("[startup] Copied rows from BOA.ZZZ.WorkItem → BOA.WIT.WorkItem")
-        else:
-            if _table_exists(conn, "WorkItem", "ZZZ"):
-                missing = conn.execute(load_query("schema/count_missing_wit_workitem")).fetchone()
-                if missing and int(missing["cnt"]) > 0:
-                    conn.execute(load_query("schema/catchup_wit_workitem"))
-                    conn.commit()
 
         # 2. Migrate WorkSubItem
         if not _table_exists(conn, "WorkSubItem", "WIT"):
             conn.execute(load_query("schema/wit_worksubitem"))
             conn.commit()
             print("[startup] Created BOA.WIT.WorkSubItem")
-            if _table_exists(conn, "WorkSubItem", "ZZZ"):
-                conn.execute(load_query("schema/copy_wit_worksubitem"))
-                conn.commit()
-        else:
-            if _table_exists(conn, "WorkSubItem", "ZZZ"):
-                missing = conn.execute(load_query("schema/count_missing_wit_worksubitem")).fetchone()
-                if missing and int(missing["cnt"]) > 0:
-                    conn.execute(load_query("schema/catchup_wit_worksubitem"))
-                    conn.commit()
 
         # 3. Migrate WorkItemPrerequisite
         if not _table_exists(conn, "WorkItemPrerequisite", "WIT"):
             conn.execute(load_query("schema/wit_workitemprereq"))
             conn.commit()
-            if _table_exists(conn, "WorkItemPrerequisite", "ZZZ"):
-                conn.execute(load_query("schema/copy_wit_workitemprereq"))
-                conn.commit()
+            print("[startup] Created BOA.WIT.WorkItemPrerequisite")
 
         # 4. Migrate WorkItemAssignee
         if not _table_exists(conn, "WorkItemAssignee", "WIT"):
-            has_user_col = _col_exists(conn, "WorkItemAssignee", "UserID", "ZZZ")
             conn.execute(load_query("schema/wit_workitemassignee"))
             conn.commit()
-            if _table_exists(conn, "WorkItemAssignee", "ZZZ"):
-                if has_user_col:
-                    conn.execute(load_query("schema/copy_wit_workitemassignee"))
-                else:
-                    conn.execute(load_query("schema/copy_wit_workitemassignee_legacy"))
-                conn.commit()
+            print("[startup] Created BOA.WIT.WorkItemAssignee")
 
         # 5. Deal Remap and Orphan Deactivate
         result = conn.execute(load_query("schema/check_wit_deal")).fetchone()

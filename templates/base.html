@@ -19,7 +19,7 @@
         <div class="t-sidebar-header">
             <div class="t-sidebar-logo"><span class="material-symbols-outlined">account_tree</span></div>
             <div class="t-sidebar-brand">
-                <span class="t-sidebar-brand-title">TRACKER</span>
+                <span class="t-sidebar-brand-title">{{ lang_dict.get('lbl_tracker', 'TRACKER') }}</span>
                 <span class="t-sidebar-brand-sub">{{ session.get('username', 'USER') | upper }}</span>
             </div>
         </div>
@@ -63,7 +63,7 @@
 
     <!-- Top Bar -->
     <header class="t-topbar">
-        <div><span class="t-topbar-brand">CUSTOMER TRACKER</span></div>
+        <div><span class="t-topbar-brand">{{ lang_dict.get('lbl_tracker', 'CUSTOMER TRACKER') }}</span></div>
         <div class="t-topbar-actions">
             <div class="t-user-menu">
                 <button type="button" class="t-user-btn">
@@ -73,8 +73,8 @@
                 <div class="t-user-dropdown">
                     <div style="padding:6px 12px;font-size:13px;color:var(--on-surface-3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_lang', 'LANG') }}</div>
                     <div class="t-lang-row">
-                        <a href="/set_language/2" class="{% if current_lang == 2 %}active{% endif %}">ENG</a>
-                        <a href="/set_language/1" class="{% if current_lang == 1 %}active{% endif %}">TR</a>
+                        <a href="/set_language/2" class="{% if current_lang == 2 %}active{% endif %}">{{ lang_dict.get('nav_eng', 'ENG') }}</a>
+                        <a href="/set_language/1" class="{% if current_lang == 1 %}active{% endif %}">{{ lang_dict.get('nav_tr', 'TR') }}</a>
                     </div>
                     <div style="padding:6px 12px;font-size:13px;color:var(--on-surface-3);border-bottom:1px solid var(--border);border-top:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;">{{ lang_dict.get('menu_theme', 'THEME') }}</div>
                     <div class="t-lang-row">

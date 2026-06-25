@@ -18,7 +18,7 @@
         <div class="t-login-header">
             <div class="t-login-brand">
                 <span class="material-symbols-outlined t-login-brand-icon">terminal</span>
-                <span class="t-login-brand-title">CUSTOMER TRACKER</span>
+                <span class="t-login-brand-title">{{ lang_dict.get('login_brand', 'CUSTOMER TRACKER') }}</span>
             </div>
             <div class="t-login-brand-sub">{{ lang_dict.get('env_subtitle', 'SELECT TARGET ENVIRONMENT') }}</div>
         </div>
@@ -33,7 +33,7 @@
 
             <!-- Environment Cards -->
             <fieldset style="border:none;padding:0;">
-                <div class="t-login-title">TARGET_ENVIRONMENT</div>
+                <div class="t-login-title">{{ lang_dict.get('env_target_env', 'TARGET ENVIRONMENT') }}</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--surface-bright);">
                     <label class="env-card test selected" id="card-local" for="env-local">
                         <input type="radio" name="env" id="env-local" value="local" checked>
@@ -69,7 +69,7 @@
         <!-- Footer -->
         <div class="t-login-footer">
             <div></div>
-            <span>CUSTOMER TRACKER · INTERNAL USE</span>
+            <span>{{ lang_dict.get('env_internal_use', 'CUSTOMER TRACKER · INTERNAL USE') }}</span>
         </div>
     </main>
 </div>
@@ -159,12 +159,12 @@ function update() {
     document.getElementById('card-'+val).classList.add('selected');
     if (val==='prod') {
         warning.classList.add('visible');
-        btn.firstChild.textContent = '{{ lang_dict.get("env_connect_prod", "CONNECT TO PROD") }}';
+        btn.firstChild.textContent = {{ lang_dict.get("env_connect_prod", "CONNECT TO PROD") | tojson }};
         btn.style.background = 'var(--red-dim)';
         btn.style.borderColor = 'var(--red-dim)';
     } else {
         warning.classList.remove('visible');
-        btn.firstChild.textContent = '{{ lang_dict.get("env_connect_local", "CONNECT TO LOCAL") }}';
+        btn.firstChild.textContent = {{ lang_dict.get("env_connect_local", "CONNECT TO LOCAL") | tojson }};
         btn.style.background = '';
         btn.style.borderColor = '';
     }

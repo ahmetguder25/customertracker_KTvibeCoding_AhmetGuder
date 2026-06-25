@@ -17,7 +17,7 @@
     <!-- Conversations Sidebar -->
     <div style="width: 250px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--surface-2);">
         <div style="padding: 12px; border-bottom: 1px solid var(--border);">
-            <button class="t-btn t-btn-cyan" onclick="ragNewChat()" style="width: 100%;"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">add</span> NEW CHAT</button>
+            <button class="t-btn t-btn-cyan" onclick="ragNewChat()" style="width: 100%;"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">add</span>{{ lang_dict.get('lbl_new_chat', 'NEW CHAT') }}</button>
         </div>
         
         <!-- Add Document Filter Here -->
@@ -76,7 +76,7 @@
             Please select at least one document from the <b>Filter Documents</b> list before sending your question.
         </div>
         <div style="display:flex; justify-content:center;">
-            <button class="t-btn t-btn-cyan" style="width: 120px;" onclick="document.getElementById('rag-alert-modal').classList.remove('open')">OK</button>
+            <button class="t-btn t-btn-cyan" style="width: 120px;" onclick="document.getElementById('rag-alert-modal').classList.remove('open')">{{ lang_dict.get('lbl_ok', 'OK') }}</button>
         </div>
     </div>
 </div>
@@ -151,7 +151,7 @@
             var content = msg.content;
             var textHtml = "";
             if (msg.role === "assistant" && msg.status === "processing" && !content) {
-                textHtml = '<span class="rag-typing">PROCESSING<span class="rag-dots">...</span></span>';
+                textHtml = '<span class="rag-typing">{{ lang_dict.get('lbl_processing', 'PROCESSING') }}<span class="rag-dots">...</span></span>';
             } else {
                 textHtml = formatText(content);
                 if (msg.status === "processing") {
@@ -323,7 +323,7 @@
         var typingDiv = document.createElement("div");
         typingDiv.id = "msg-temp-ai";
         typingDiv.className = "rag-bubble-ai";
-        typingDiv.innerHTML = '<span class="rag-role">AI \u25b8</span><span class="rag-text"><span class="rag-typing">STARTING TASK<span class="rag-dots">...</span></span></span>';
+        typingDiv.innerHTML = '<span class="rag-role">AI \u25b8</span><span class="rag-text"><span class="rag-typing">{{ lang_dict.get('lbl_starting_task', 'STARTING TASK') }}<span class="rag-dots">...</span></span></span>';
         ragMessages.appendChild(typingDiv);
         ragScrollBottom();
 

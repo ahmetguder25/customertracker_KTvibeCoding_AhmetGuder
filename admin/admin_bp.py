@@ -18,7 +18,7 @@ admin_bp = Blueprint(
 # Value = dict with 'pk' (primary key column) and 'schema' (SQL Server schema).
 ALLOWED_TABLES: dict[str, dict] = {
     "Parameter": {"pk": "RowId", "schema": "COR"},
-    "Dictionary": {"pk": "RowId", "schema": "ZZZ"},
+    "Dictionary": {"pk": "RowId", "schema": "COR"},
     "User": {"pk": "id", "schema": "COR"},
 }
 
@@ -45,7 +45,7 @@ def get_pk_column(table_name: str) -> str:
 def get_schema(table_name: str) -> str:
     """Return the SQL Server schema for the given allowed table."""
     info = ALLOWED_TABLES.get(table_name, {})
-    return info.get("schema", "ZZZ") if isinstance(info, dict) else "ZZZ"
+    return info.get("schema", "COR") if isinstance(info, dict) else "COR"
 
 
 def get_table_columns(table_name: str) -> list[str]:
@@ -217,7 +217,7 @@ def admin_dictionary_editor():
         Id,
         MAX(CASE WHEN LanguageId = 2 THEN Description END) AS lang_en,
         MAX(CASE WHEN LanguageId = 1 THEN Description END) AS lang_tr
-    FROM BOA.ZZZ.Dictionary
+    FROM BOA.COR.Dictionary
     GROUP BY Id
     ORDER BY Id
     """
@@ -252,7 +252,7 @@ def admin_dictionary_save():
 
             # T-SQL MERGE: upsert each language variant of the Dictionary entry.
             upsert_sql = """
-                MERGE INTO BOA.ZZZ.Dictionary AS target
+                MERGE INTO BOA.COR.Dictionary AS target
                 USING (SELECT ? AS Id, ? AS LanguageId, ? AS Description) AS source
                     ON target.Id = source.Id AND target.LanguageId = source.LanguageId
                 WHEN MATCHED THEN

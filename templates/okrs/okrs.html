@@ -27,7 +27,7 @@
             {% if obj.Period %}<span style="color:var(--on-surface-3);font-size:13px;margin-left:6px;">{{ obj.Period }}</span>{% endif %}
         </div>
         <div style="display:flex;gap:4px;">
-            <button onclick="showAddKR({{ obj.ObjectiveID }})" class="t-btn t-btn-sm t-btn-cyan">+ KR</button>
+            <button onclick="showAddKR({{ obj.ObjectiveID }})" class="t-btn t-btn-sm t-btn-cyan">{{ lang_dict.get('lbl_add_kr', '+ KR') }}</button>
             <button onclick="deleteObjective({{ obj.ObjectiveID }})" class="t-btn t-btn-sm t-btn-danger" style="padding:0 8px;" title="Delete Objective">✕</button>
         </div>
     </div>
@@ -53,7 +53,7 @@
                     AUTO · Project
                 </span>
                 {% else %}
-                <span class="t-chip t-chip-dim" style="font-size:12px;">MANUAL</span>
+                <span class="t-chip t-chip-dim" style="font-size:12px;">{{ lang_dict.get('lbl_manual', 'MANUAL') }}</span>
                 {% endif %}
             </div>
             <div style="font-size:12px;color:var(--on-surface-3);margin-top:1px;">{{ kr.CalcMethod | upper }} · {{ kr.Unit or '—' }}</div>
@@ -120,8 +120,8 @@
         <div class="t-panel-header" style="border:none;margin-bottom:8px;padding:0;">{{ lang_dict.get('okr_modal_obj', 'NEW OBJECTIVE') }}</div>
         <div style="display:grid;gap:8px;">
             <div><label class="t-label" style="display:block;margin-bottom:2px;">TITLE *</label><input id="obj-title" type="text" placeholder="Objective title" class="t-input"></div>
-            <div><label class="t-label" style="display:block;margin-bottom:2px;">PERIOD</label><input id="obj-period" type="text" placeholder="2025-Annual" class="t-input"></div>
-            <div><label class="t-label" style="display:block;margin-bottom:2px;">DESCRIPTION</label><textarea id="obj-desc" rows="2" class="t-input"></textarea></div>
+            <div><label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_period', 'PERIOD') }}</label><input id="obj-period" type="text" placeholder="2025-Annual" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_description', 'DESCRIPTION') }}</label><textarea id="obj-desc" rows="2" class="t-input"></textarea></div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
             <button onclick="document.getElementById('modal-obj').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</button>
@@ -151,11 +151,11 @@
                     <input id="kr-target" type="number" min="0" placeholder="10" class="t-input">
                 </div>
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:2px;">UNIT</label>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_unit', 'UNIT') }}</label>
                     <input id="kr-unit" type="text" placeholder="deals" class="t-input">
                 </div>
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:2px;">METHOD</label>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_method', 'METHOD') }}</label>
                     <select id="kr-calc" class="t-input">
                         <option value="count">Count</option>
                         <option value="sum">Sum</option>
@@ -166,7 +166,7 @@
 
             <!-- Measurement Type -->
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">MEASUREMENT</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_measurement', 'MEASUREMENT') }}</label>
                 <div style="display:flex;gap:6px;">
                     <label style="flex:1;cursor:pointer;">
                         <input type="radio" name="kr-mtype" value="manual" checked onchange="onMtypeChange(this.value)"
@@ -198,7 +198,7 @@
             <!-- Product section (hidden by default) -->
             <div id="kr-product-section" style="display:none;padding:10px;background:rgba(45,212,191,0.04);border:1px solid rgba(45,212,191,0.15);border-radius:10px;">
                 <div style="margin-bottom:8px;">
-                    <label class="t-label" style="display:block;margin-bottom:2px;">PRODUCT</label>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_product', 'PRODUCT') }}</label>
                     <select id="kr-product" class="t-input">
                         <option value="">— Select product —</option>
                         {% for p in products %}
@@ -221,7 +221,7 @@
 
             <!-- Project section (hidden by default) -->
             <div id="kr-project-section" style="display:none;padding:10px;background:rgba(249,115,22,0.04);border:1px solid rgba(249,115,22,0.15);border-radius:10px;">
-                <label class="t-label" style="display:block;margin-bottom:2px;">LINKED PROJECT</label>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_linked_project', 'LINKED PROJECT') }}</label>
                 <select id="kr-project" class="t-input">
                     <option value="">— Select project —</option>
                     {% for proj in projects %}
@@ -260,11 +260,11 @@
                     <input id="edit-kr-target" type="number" min="0" class="t-input">
                 </div>
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:2px;">UNIT</label>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_unit', 'UNIT') }}</label>
                     <input id="edit-kr-unit" type="text" class="t-input">
                 </div>
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:2px;">METHOD</label>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_method', 'METHOD') }}</label>
                     <select id="edit-kr-calc" class="t-input">
                         <option value="count">Count</option>
                         <option value="sum">Sum</option>
@@ -274,7 +274,7 @@
             </div>
 
             <div>
-                <label class="t-label" style="display:block;margin-bottom:4px;">MEASUREMENT</label>
+                <label class="t-label" style="display:block;margin-bottom:4px;">{{ lang_dict.get('lbl_measurement', 'MEASUREMENT') }}</label>
                 <div style="display:flex;gap:6px;">
                     <div id="edt-mtype-manual-btn" class="t-mtype-btn" onclick="onEditMtypeChange('manual')">
                         <span class="material-symbols-outlined" style="font-size:16px;">edit</span> Manual
@@ -292,11 +292,11 @@
             <div id="edt-manual-section" style="display:none;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
                     <div>
-                        <label class="t-label" style="display:block;margin-bottom:2px;">ACHIEVED VALUE</label>
+                        <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_achieved_value', 'ACHIEVED VALUE') }}</label>
                         <input type="number" id="edit-kr-achieved" min="0" step="any" class="t-input">
                     </div>
                     <div>
-                        <label class="t-label" style="display:block;margin-bottom:2px;">PIPELINE VALUE</label>
+                        <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_pipeline_value', 'PIPELINE VALUE') }}</label>
                         <input type="number" id="edit-kr-pipeline" min="0" step="any" class="t-input">
                     </div>
                 </div>
@@ -305,7 +305,7 @@
             <!-- Product section -->
             <div id="edt-product-section" style="display:none;padding:10px;background:rgba(45,212,191,0.04);border:1px solid rgba(45,212,191,0.15);border-radius:10px;">
                 <div style="margin-bottom:8px;">
-                    <label class="t-label" style="display:block;margin-bottom:2px;">PRODUCT</label>
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_product', 'PRODUCT') }}</label>
                     <select id="edit-kr-product" class="t-input">
                         <option value="">— Select product —</option>
                         {% for p in products %}
@@ -314,7 +314,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="t-label" style="display:block;margin-bottom:6px;">DEAL STATUSES TO INCLUDE</label>
+                    <label class="t-label" style="display:block;margin-bottom:6px;">{{ lang_dict.get('lbl_deal_statuses_include', 'DEAL STATUSES TO INCLUDE') }}</label>
                     <div style="display:flex;flex-wrap:wrap;gap:6px;" id="edit-kr-status-checks">
                         {% for code, info in status_map.items()|sort %}
                         <div class="edt-status-pill" data-code="{{ code }}"
@@ -328,7 +328,7 @@
 
             <!-- Project section -->
             <div id="edt-project-section" style="display:none;padding:10px;background:rgba(249,115,22,0.04);border:1px solid rgba(249,115,22,0.15);border-radius:10px;">
-                <label class="t-label" style="display:block;margin-bottom:2px;">LINKED PROJECT</label>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_linked_project', 'LINKED PROJECT') }}</label>
                 <select id="edit-kr-project" class="t-input">
                     <option value="">— Select project —</option>
                     {% for proj in projects %}

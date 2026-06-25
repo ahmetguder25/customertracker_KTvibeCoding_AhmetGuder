@@ -1,4 +1,4 @@
-CREATE TABLE BOA.ZZZ.Project (
+CREATE TABLE BOA.STR.Project (
     ProjectID   INT IDENTITY(3200001,1) PRIMARY KEY,
     ProjectName NVARCHAR(300) NOT NULL,
     Description NVARCHAR(MAX),
@@ -10,5 +10,5 @@ CREATE TABLE BOA.ZZZ.Project (
     IsActive    TINYINT NOT NULL DEFAULT 1,
     CreatedAt   DATETIME NOT NULL DEFAULT GETDATE(),
     UpdatedAt   DATETIME,
-    FOREIGN KEY (ObjectiveID) REFERENCES BOA.ZZZ.Objective(ObjectiveID)
+    FOREIGN KEY (ObjectiveID) REFERENCES BOA.WIT.Objective(ObjectiveID)
 )

@@ -5,10 +5,8 @@
 <div class="t-page-header">
     <div>
         <div class="t-page-title" style="display:flex;align-items:center;gap:8px;">
-            <a href="/microservices" style="color:var(--cyan);text-decoration:none;"><span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span></a>
-            WEB CRAWLER JOBS
-        </div>
-        <div class="t-page-subtitle">CONFIGURE AND RUN AUTONOMOUS DOCUMENT SCRAPING</div>
+            <a href="/microservices" style="color:var(--cyan);text-decoration:none;"><span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span></a>{{ lang_dict.get('lbl_web_crawler_jobs', 'WEB CRAWLER JOBS') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('lbl_configure_doc_scraping', 'CONFIGURE AND RUN AUTONOMOUS DOCUMENT SCRAPING') }}</div>
     </div>
 </div>
 
@@ -33,7 +31,7 @@
                 <label class="t-label">Systematic Base Name (No spaces, english chars)</label>
                 <input type="text" id="systematic_base_name" class="t-input" placeholder="sermayehareketlerigenelgesi" pattern="[a-zA-Z0-9_]+" required>
             </div>
-            <button type="submit" class="t-btn t-btn-cyan" style="width:100%;">ADD CRAWLER JOB</button>
+            <button type="submit" class="t-btn t-btn-cyan" style="width:100%;">{{ lang_dict.get('lbl_add_crawler_job', 'ADD CRAWLER JOB') }}</button>
         </form>
     </div>
 
@@ -47,10 +45,10 @@
             <table class="t-table" id="jobs-table">
                 <thead>
                     <tr>
-                        <th>NAME</th>
-                        <th>TARGET</th>
-                        <th>STATUS</th>
-                        <th>ACTIONS</th>
+                        <th>{{ lang_dict.get('lbl_name', 'NAME') }}</th>
+                        <th>{{ lang_dict.get('lbl_target', 'TARGET') }}</th>
+                        <th>{{ lang_dict.get('col_status', 'STATUS') }}</th>
+                        <th>{{ lang_dict.get('col_actions', 'ACTIONS') }}</th>
                     </tr>
                 </thead>
                 <tbody id="jobs-body">
@@ -67,11 +65,11 @@
         <table class="t-table">
             <thead>
                 <tr>
-                    <th>JOB</th>
-                    <th>DOCUMENT SAVED AS</th>
-                    <th>EXTRACTED DATE</th>
-                    <th>STATUS</th>
-                    <th>TIME</th>
+                    <th>{{ lang_dict.get('lbl_job', 'JOB') }}</th>
+                    <th>{{ lang_dict.get('lbl_doc_saved_as', 'DOCUMENT SAVED AS') }}</th>
+                    <th>{{ lang_dict.get('lbl_extracted_date', 'EXTRACTED DATE') }}</th>
+                    <th>{{ lang_dict.get('col_status', 'STATUS') }}</th>
+                    <th>{{ lang_dict.get('lbl_time', 'TIME') }}</th>
                 </tr>
             </thead>
             <tbody id="history-body">
@@ -109,7 +107,7 @@
                             <span style="font-size:11px;color:var(--on-surface-3);">${job.last_message || ''}</span>
                         </td>
                         <td style="display:flex;gap:6px;">
-                            <button class="t-btn t-btn-sm t-btn-cyan" onclick="runJob(${job.id})" ${job.status==='Running'?'disabled':''}>RUN NOW</button>
+                            <button class="t-btn t-btn-sm t-btn-cyan" onclick="runJob(${job.id})" ${job.status==='Running'?'disabled':''}>{{ lang_dict.get('lbl_run_now', 'RUN NOW') }}</button>
                             <button class="t-btn t-btn-sm t-btn-red" onclick="deleteJob(${job.id})" ${job.status==='Running'?'disabled':''}>
                                 <span class="material-symbols-outlined" style="font-size:16px; margin:0;">delete</span>
                             </button>

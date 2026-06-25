@@ -109,7 +109,7 @@ input[type=number] { -moz-appearance: textfield; }
                     <td>{{ c['portfolio_manager'] or '—' }}</td>
                     <td style="text-align:center;white-space:nowrap;">
                         {% if session.get('env', 'test') == 'prod' %}
-                        <button data-id="{{ c.Customerid }}" data-name="{{ c.CustomerName }}" onclick="updateSingle(this.dataset.id, this.dataset.name)" class="t-btn t-btn-sm t-btn-cyan" style="margin-right:2px;">SYNC</button>
+                        <button data-id="{{ c.Customerid }}" data-name="{{ c.CustomerName }}" onclick="updateSingle(this.dataset.id, this.dataset.name)" class="t-btn t-btn-sm t-btn-cyan" style="margin-right:2px;">{{ lang_dict.get('lbl_sync', 'SYNC') }}</button>
                         {% endif %}
                         <a href="/management/edit/{{ c['Customerid'] }}" class="t-btn t-btn-sm" style="text-decoration:none;margin-right:2px;">{{ lang_dict.get('mgmt_btn_edit', 'EDIT') }}</a>
                         <form action="/management/customer/delete/{{ c['Customerid'] }}" method="POST" style="display:inline;" onsubmit="return confirm('{{ lang_dict.get('mgmt_confirm_remove', 'Remove {}?').format(c['CustomerName']) }}')">

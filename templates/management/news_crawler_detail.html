@@ -5,10 +5,8 @@
 <div class="t-page-header">
     <div>
         <div class="t-page-title" style="display:flex;align-items:center;gap:8px;">
-            <a href="/microservices" style="color:var(--cyan);text-decoration:none;"><span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span></a>
-            NEWS CRAWLER JOBS
-        </div>
-        <div class="t-page-subtitle">CONFIGURE AND RUN AUTONOMOUS NEWS SEARCHES</div>
+            <a href="/microservices" style="color:var(--cyan);text-decoration:none;"><span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span></a>{{ lang_dict.get('lbl_news_crawler_jobs', 'NEWS CRAWLER JOBS') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('lbl_configure_news_searches', 'CONFIGURE AND RUN AUTONOMOUS NEWS SEARCHES') }}</div>
     </div>
 </div>
 
@@ -38,7 +36,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <button type="submit" class="t-btn t-btn-cyan" style="width:100%;">START CRAWL</button>
+            <button type="submit" class="t-btn t-btn-cyan" style="width:100%;">{{ lang_dict.get('lbl_start_crawl', 'START CRAWL') }}</button>
         </form>
     </div>
 
@@ -52,12 +50,12 @@
             <table class="t-table" id="jobs-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>KEYWORDS</th>
-                        <th>TIME LIMIT</th>
-                        <th>CUSTOMER</th>
-                        <th>STATUS</th>
-                        <th>ACTIONS</th>
+                        <th>{{ lang_dict.get('col_id', 'ID') }}</th>
+                        <th>{{ lang_dict.get('lbl_keywords', 'KEYWORDS') }}</th>
+                        <th>{{ lang_dict.get('lbl_time_limit', 'TIME LIMIT') }}</th>
+                        <th>{{ lang_dict.get('col_customer', 'CUSTOMER') }}</th>
+                        <th>{{ lang_dict.get('col_status', 'STATUS') }}</th>
+                        <th>{{ lang_dict.get('col_actions', 'ACTIONS') }}</th>
                     </tr>
                 </thead>
                 <tbody id="jobs-body">

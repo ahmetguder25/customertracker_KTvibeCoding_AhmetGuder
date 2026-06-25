@@ -13,7 +13,7 @@ SELECT
     w.UpdatedAt,
     CASE w.ParentType
         WHEN 'project' THEN (
-            SELECT p.ProjectName FROM BOA.ZZZ.Project p WHERE p.ProjectID = w.ParentID
+            SELECT p.ProjectName FROM BOA.STR.Project p WHERE p.ProjectID = w.ParentID
         )
         WHEN 'syndication' THEN (
             SELECT c.CustomerName + ' / Syndication #' + CAST(m.DealId AS NVARCHAR)
@@ -36,7 +36,7 @@ SELECT
             ', '
         )
         FROM BOA.WIT.WorkItemAssignee wa
-        LEFT JOIN BOA.ZZZ.Stakeholder s ON wa.StakeholderID = s.StakeholderID
+        LEFT JOIN BOA.COR.Stakeholder s ON wa.StakeholderID = s.StakeholderID
         LEFT JOIN BOA.COR.[User] u ON wa.UserID = u.id
         WHERE wa.ItemID = w.ItemID AND wa.IsActive = 1
     ) AS Assignees,

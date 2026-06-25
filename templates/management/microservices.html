@@ -4,8 +4,8 @@
 {% block content %}
 <div class="t-page-header">
     <div>
-        <div class="t-page-title">MICRO SERVICES MANAGEMENT</div>
-        <div class="t-page-subtitle">MONITOR AND CONTROL BACKGROUND AI PROCESSES</div>
+        <div class="t-page-title">{{ lang_dict.get('lbl_microservices_mgmt', 'MICRO SERVICES MANAGEMENT') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('lbl_monitor_control', 'MONITOR AND CONTROL BACKGROUND AI PROCESSES') }}</div>
     </div>
 </div>
 
@@ -37,22 +37,18 @@
                 </div>
             </div>
             
-            <div style="display:flex; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
                 {% if state.get('chatbot', {}).get('enabled') %}
-                <button class="t-btn t-btn-red" onclick="toggleService('chatbot', false)" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span> DISCONNECT
-                </button>
+                <button class="t-btn t-btn-red" onclick="toggleService('chatbot', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
                 {% else %}
-                <button class="t-btn t-btn-green" onclick="toggleService('chatbot', true)" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span> RECONNECT
-                </button>
+                <button class="t-btn t-btn-green" onclick="toggleService('chatbot', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
                 {% endif %}
-                <button class="t-btn t-btn-outline" onclick="resetService('chatbot')" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span> RESET TASKS
-                </button>
-                <button class="t-btn t-btn-cyan" onclick="ragSync()" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">sync</span> RAG SYNC
-                </button>
+                <button class="t-btn t-btn-outline" onclick="resetService('chatbot')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
+                <button class="t-btn t-btn-cyan" onclick="ragSync()" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">sync</span>{{ lang_dict.get('lbl_rag_sync', 'RAG SYNC') }}</button>
             </div>
         </div>
     </div>
@@ -83,19 +79,16 @@
                 </div>
             </div>
             
-            <div style="display:flex; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
                 {% if state.get('sparx_ai', {}).get('enabled') %}
-                <button class="t-btn t-btn-red" onclick="toggleService('sparx_ai', false)" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span> DISCONNECT
-                </button>
+                <button class="t-btn t-btn-red" onclick="toggleService('sparx_ai', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
                 {% else %}
-                <button class="t-btn t-btn-green" onclick="toggleService('sparx_ai', true)" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span> RECONNECT
-                </button>
+                <button class="t-btn t-btn-green" onclick="toggleService('sparx_ai', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
                 {% endif %}
-                <button class="t-btn t-btn-outline" onclick="resetService('sparx_ai')" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span> RESET TASKS
-                </button>
+                <button class="t-btn t-btn-outline" onclick="resetService('sparx_ai')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
             </div>
         </div>
     </div>
@@ -126,22 +119,18 @@
                 </div>
             </div>
             
-            <div style="display:flex; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
                 {% if state.get('web_crawler', {}).get('enabled') %}
-                <button class="t-btn t-btn-red" onclick="toggleService('web_crawler', false)" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span> DISCONNECT
-                </button>
-                <button class="t-btn t-btn-cyan" onclick="window.location.href='/microservices/crawler'" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">manage_search</span> MANAGE JOBS
-                </button>
+                <button class="t-btn t-btn-red" onclick="toggleService('web_crawler', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                <button class="t-btn t-btn-cyan" onclick="window.location.href='/microservices/crawler'" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">manage_search</span>{{ lang_dict.get('lbl_manage_jobs', 'MANAGE JOBS') }}</button>
                 {% else %}
-                <button class="t-btn t-btn-green" onclick="toggleService('web_crawler', true)" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span> RECONNECT
-                </button>
+                <button class="t-btn t-btn-green" onclick="toggleService('web_crawler', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
                 {% endif %}
-                <button class="t-btn t-btn-outline" onclick="resetService('web_crawler')" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span> RESET TASKS
-                </button>
+                <button class="t-btn t-btn-outline" onclick="resetService('web_crawler')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
             </div>
         </div>
     </div>
@@ -172,22 +161,18 @@
                 </div>
             </div>
             
-            <div style="display:flex; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
                 {% if state.get('news_crawler', {}).get('enabled') %}
-                <button class="t-btn t-btn-red" onclick="toggleService('news_crawler', false)" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span> DISCONNECT
-                </button>
-                <button class="t-btn t-btn-cyan" onclick="window.location.href='/microservices/news_crawler'" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">manage_search</span> MANAGE JOBS
-                </button>
+                <button class="t-btn t-btn-red" onclick="toggleService('news_crawler', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                <button class="t-btn t-btn-cyan" onclick="window.location.href='/microservices/news_crawler'" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">manage_search</span>{{ lang_dict.get('lbl_manage_jobs', 'MANAGE JOBS') }}</button>
                 {% else %}
-                <button class="t-btn t-btn-green" onclick="toggleService('news_crawler', true)" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span> RECONNECT
-                </button>
+                <button class="t-btn t-btn-green" onclick="toggleService('news_crawler', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
                 {% endif %}
-                <button class="t-btn t-btn-outline" onclick="resetService('news_crawler')" style="width:140px;">
-                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span> RESET TASKS
-                </button>
+                <button class="t-btn t-btn-outline" onclick="resetService('news_crawler')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
             </div>
         </div>
     </div>

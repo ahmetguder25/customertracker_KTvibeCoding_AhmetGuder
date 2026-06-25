@@ -1,1 +1,0 @@
-SELECT COUNT(*) AS cnt FROM BOA.ZZZ.WorkSubItem z WHERE NOT EXISTS (SELECT 1 FROM BOA.WIT.WorkSubItem w WHERE w.SubItemID = z.SubItemID)
