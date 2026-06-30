@@ -35,6 +35,14 @@ def get_documents():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/info", methods=["GET"])
+def api_info():
+    try:
+        from microservices.chatbot_service.rag import GEN_MODEL, EMBED_MODEL
+        return jsonify({"gen_model": GEN_MODEL, "embed_model": EMBED_MODEL})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/conversations", methods=["POST"])
 def create_conversation():
     data = request.json

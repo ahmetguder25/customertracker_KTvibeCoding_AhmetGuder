@@ -22,7 +22,18 @@ def init_db():
             progress_message TEXT,
             percent_complete INTEGER,
             updated_at REAL,
+            start_time REAL,
             PRIMARY KEY (document_id, task_type)
+        )
+    ''')
+    
+    # Document Logs Table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS document_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id TEXT,
+            timestamp REAL,
+            message TEXT
         )
     ''')
     
@@ -51,21 +62,38 @@ def init_db():
         c.execute("ALTER TABLE graph_summaries ADD COLUMN embedding TEXT")
     except Exception:
         pass
+    try:
+        c.execute("ALTER TABLE document_tasks ADD COLUMN start_time REAL")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
 def upsert_task(document_id, task_type, status, progress_message, percent_complete=0):
     conn = get_db()
     c = conn.cursor()
-    c.execute('''
-        INSERT INTO document_tasks (document_id, task_type, status, progress_message, percent_complete, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(document_id, task_type) DO UPDATE SET
-            status=excluded.status,
-            progress_message=excluded.progress_message,
-            percent_complete=excluded.percent_complete,
-            updated_at=excluded.updated_at
-    ''', (document_id, task_type, status, progress_message, percent_complete, time.time()))
+    now = time.time()
+    if percent_complete == 0:
+        c.execute('''
+            INSERT INTO document_tasks (document_id, task_type, status, progress_message, percent_complete, updated_at, start_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(document_id, task_type) DO UPDATE SET
+                status=excluded.status,
+                progress_message=excluded.progress_message,
+                percent_complete=excluded.percent_complete,
+                updated_at=excluded.updated_at,
+                start_time=excluded.start_time
+        ''', (document_id, task_type, status, progress_message, percent_complete, now, now))
+    else:
+        c.execute('''
+            INSERT INTO document_tasks (document_id, task_type, status, progress_message, percent_complete, updated_at, start_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(document_id, task_type) DO UPDATE SET
+                status=excluded.status,
+                progress_message=excluded.progress_message,
+                percent_complete=excluded.percent_complete,
+                updated_at=excluded.updated_at
+        ''', (document_id, task_type, status, progress_message, percent_complete, now, now))
     conn.commit()
     conn.close()
 
@@ -99,6 +127,27 @@ def clear_chunks(document_id):
     c.execute('DELETE FROM processed_chunks WHERE document_id = ?', (document_id,))
     conn.commit()
     conn.close()
+
+def append_log(document_id, message):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO document_logs (document_id, timestamp, message)
+            VALUES (?, ?, ?)
+        ''', (document_id, time.time(), message))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Failed to append log: {e}")
+
+def get_logs(document_id, last_id=0):
+    conn = get_db()
+    c = conn.cursor()
+    logs = c.execute('SELECT * FROM document_logs WHERE document_id = ? AND id > ? ORDER BY id ASC', (document_id, last_id)).fetchall()
+    conn.close()
+    return [dict(l) for l in logs]
+
 
 def save_summary(document_id, community_id, summary_text, embedding=None):
     conn = get_db()

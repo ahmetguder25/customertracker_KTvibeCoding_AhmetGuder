@@ -33,7 +33,7 @@ else:
     OLLAMA_URL = "http://localhost:11434"
     print("GraphRAG: Running in local mode using local Ollama at 11434")
 
-LLM_MODEL = "gemma2"
+LLM_MODEL = "gemma3:27b"
 
 def check_vllm_status():
     """Verify Ollama is running and the required model is loaded."""
@@ -77,6 +77,7 @@ def process_chunking_task(document_id, filepath):
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Document file {filepath} not found.")
 
+        rag_db.append_log(document_id, f"Initializing PDF extraction from {filepath}...")
         # Extract text using PyMuPDF
         doc = fitz.open(filepath)
         total_pages = len(doc)
@@ -86,8 +87,10 @@ def process_chunking_task(document_id, filepath):
             full_text += page.get_text() + "\n"
             pct = int((i / total_pages) * 40)
             if i % 5 == 0:
+                rag_db.append_log(document_id, f"Reading page {i+1} / {total_pages}...")
                 rag_db.upsert_task(document_id, 'Chunking', 'Processing', f'Extracting text (Page {i+1}/{total_pages})...', pct)
         
+        rag_db.append_log(document_id, f"PDF extraction complete. Total characters: {len(full_text)}")
         rag_db.upsert_task(document_id, 'Chunking', 'Processing', 'Splitting text into chunks...', 40)
         
         # Split text
@@ -103,8 +106,10 @@ def process_chunking_task(document_id, filepath):
             
             if i % 10 == 0:
                 pct = 40 + int((i / total_chunks) * 60)
+                rag_db.append_log(document_id, f"Saving chunk hashes to DB ({i}/{total_chunks})...")
                 rag_db.upsert_task(document_id, 'Chunking', 'Processing', f'Saving chunks ({i}/{total_chunks})...', pct)
 
+        rag_db.append_log(document_id, f"Chunking complete. Successfully generated {total_chunks} chunks.")
         rag_db.upsert_task(document_id, 'Chunking', 'Completed', f'Successfully generated {total_chunks} chunks.', 100)
         
     except Exception as e:
@@ -130,6 +135,7 @@ def process_mapping_task(document_id):
             chunks = chunks[:500]
             
         total_chunks = len(chunks)
+        rag_db.append_log(document_id, f"Mapping initialized. Starting parallel extraction for {total_chunks} chunks.")
         rag_db.upsert_task(document_id, 'Mapping', 'Processing', f'Starting parallel extraction for {total_chunks} chunks...', 5)
         
         G = nx.Graph()
@@ -144,30 +150,39 @@ KESİNLİKLE VE SADECE aşağıdaki formata birebir uyan geçerli bir JSON objes
         import concurrent.futures
         
         def process_single_chunk(chunk):
+            chunk_id = chunk.get('id', 'unknown')
+            chunk_preview = chunk['raw_text'][:50].replace('\n', ' ') + "..."
+            rag_db.append_log(document_id, f"[Chunk {chunk_id}] Prompting LLM: '{chunk_preview}'")
+            
             prompt = f"Şu metinden grafik varlıklarını Türkçe olarak çıkar:\n\n{chunk['raw_text']}"
             local_sys_prompt = system_prompt
             max_retries = 2
             for attempt in range(max_retries + 1):
                 try:
                     response_text = query_vllm(prompt, system=local_sys_prompt)
+                    resp_preview = response_text[:60].replace('\n', ' ') + "..."
+                    rag_db.append_log(document_id, f"[Chunk {chunk_id}] Response: '{resp_preview}'")
+                    
                     cleaned = response_text.strip()
                     if cleaned.startswith("```json"): cleaned = cleaned[7:]
                     if cleaned.startswith("```"): cleaned = cleaned[3:]
                     if cleaned.endswith("```"): cleaned = cleaned[:-3]
                     cleaned = cleaned.strip()
-                    return json.loads(cleaned)
+                    return json.loads(cleaned), chunk_id
                 except requests.exceptions.RequestException:
+                    rag_db.append_log(document_id, f"[Chunk {chunk_id}] Network error connecting to LLM.")
                     raise
                 except json.JSONDecodeError:
+                    rag_db.append_log(document_id, f"[Chunk {chunk_id}] JSONDecodeError on attempt {attempt+1}.")
                     if attempt == max_retries:
-                        print(f"Failed to parse JSON for chunk {chunk.get('id', 'unknown')} after {max_retries} retries.")
-                        return None
+                        print(f"Failed to parse JSON for chunk {chunk_id} after {max_retries} retries.")
+                        return None, chunk_id
                     else:
                         local_sys_prompt += "\nÖNEMLİ HATA: Önceki cevabın geçerli bir JSON değildi. SADECE VE SADECE JSON DÖNDÜRMELİSİN."
-            return None
+            return None, chunk_id
 
         # Process all chunks with 20 parallel workers
-        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             future_to_chunk = {executor.submit(process_single_chunk, chunk): chunk for chunk in chunks}
             
             completed = 0
@@ -178,20 +193,25 @@ KESİNLİKLE VE SADECE aşağıdaki formata birebir uyan geçerli bir JSON objes
                 rag_db.upsert_task(document_id, 'Mapping', 'Processing', f'Yapay zeka analiz ediyor ({completed}/{total_chunks})...', pct_base + int((completed/total_chunks)*pct_range))
                 
                 try:
-                    data = future.result()
+                    data, chunk_id = future.result()
                     if data:
-                        for node in data.get("nodes", []):
+                        nodes = data.get("nodes", [])
+                        edges = data.get("edges", [])
+                        rag_db.append_log(document_id, f"[Chunk {chunk_id}] Parsed successfully: {len(nodes)} nodes, {len(edges)} edges.")
+                        for node in nodes:
                             if not isinstance(node, dict): continue
                             node_id = node.get("id") or node.get("name")
                             if node_id:
                                 G.add_node(node_id, type=node.get("type", "Unknown"))
-                        for edge in data.get("edges", []):
+                        for edge in edges:
                             if not isinstance(edge, dict): continue
                             src = edge.get("source")
                             tgt = edge.get("target")
                             rel = edge.get("relation", "ilgili")
                             if src and tgt:
                                 G.add_edge(src, tgt, relation=rel)
+                    else:
+                        rag_db.append_log(document_id, f"[Chunk {chunk_id}] Parsing yielded empty result.")
                 except requests.exceptions.RequestException as e:
                     rag_db.upsert_task(document_id, 'Mapping', 'Failed', f"Network Error: Unable to reach remote Ollama server", 0)
                     return

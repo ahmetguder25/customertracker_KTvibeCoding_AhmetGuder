@@ -1,0 +1,386 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}{{ lang_dict.get('fl_title_single', 'FOREIGNLOAN') }} #{{ syn['DealId'] }} — {{ syn['CustomerName'] }}{% endblock %}
+
+{% block content %}
+{% set cur = fec_map.get((syn['FEC'] or 0)|string, {}) %}
+{% set cur_symbol = cur.get('bg', 'TRY') %}
+{% set total_fl_amount = syn['Amount'] or 0 %}
+{% set total_bank_amount = namespace(val=0) %}
+{% for d in details %}{% set total_bank_amount.val = total_bank_amount.val + (d['Amount'] or 0) %}{% endfor %}
+{% set bank_pct = (total_bank_amount.val / total_fl_amount * 100) if total_fl_amount > 0 else 0 %}
+
+<a href="/foreignloans" style="font-size:12px;color:var(--on-surface-3);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:12px;">
+    ← {{ lang_dict.get('lbl_back_fl', 'BACK TO FOREIGNLOANS') }}
+</a>
+
+<!-- Header card -->
+<div class="t-panel" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+    <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="color:var(--on-surface-3);font-size:12px;">#{{ syn['DealId'] }}</span>
+            {% set st = status_map.get(syn['Status']|string, {}) %}
+            <span class="t-chip t-chip-cyan">{{ st.get('description', syn['Status']) or '—' }}</span>
+        </div>
+        <div style="display:flex;gap:20px;font-size:12px;color:var(--on-surface-3);">
+            <span>{{ lang_dict.get('col_company', 'COMPANY') }}: <span style="color:var(--amber-text);font-weight:600;">{{ syn['CustomerName'] }}</span></span>
+            <span>{{ lang_dict.get('col_exp_date', 'EXPECTED DATE') }}: <span style="color:var(--on-surface-2);">{{ syn['ExpectedDate'] or '—' }}</span></span>
+        </div>
+    </div>
+</div>
+
+<!-- KPI cards -->
+<div class="t-grid-4" style="margin-bottom:8px;">
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_total_amount', 'TOTAL AMOUNT') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">
+            {{ "{:,.0f}".format(total_fl_amount) }} {{ cur_symbol }}
+        </span>
+    </div>
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_pricing_pa', 'PRICING P.A.') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">
+            {% if syn['Pricing'] %}{{ "{:,.2f}".format(syn['Pricing']) }}%{% else %}—{% endif %}
+        </span>
+    </div>
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_currency', 'CURRENCY') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--on-surface);">
+            {{ cur.get('description', '—') }} ({{ cur_symbol }})
+        </span>
+    </div>
+    <div class="t-kpi-card">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_bank_total', 'BANK PARTICIPATIONS') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:var(--primary);">
+            {{ "{:,.0f}".format(total_bank_amount.val) }} {{ cur_symbol }}
+        </span>
+    </div>
+    <div class="t-kpi-card" style="border-color:{% if bank_pct >= 100 %}rgba(52,211,153,0.35){% elif bank_pct >= 75 %}rgba(251,191,36,0.25){% else %}rgba(248,113,113,0.25){% endif %};">
+        <span class="t-kpi-label">{{ lang_dict.get('lbl_bank_coverage', 'BANK COVERAGE') }}</span>
+        <span class="t-kpi-value" style="font-size:20px;color:{% if bank_pct >= 100 %}var(--green){% elif bank_pct >= 75 %}var(--amber){% else %}var(--red){% endif %};">
+            {{ "{:.1f}".format(bank_pct) }}%
+        </span>
+        <div style="margin-top:8px;height:4px;border-radius:2px;background:rgba(255,255,255,0.07);overflow:hidden;">
+            <div style="height:100%;width:{{ [bank_pct, 100]|min }}%;border-radius:2px;
+                background:{% if bank_pct >= 100 %}var(--green){% elif bank_pct >= 75 %}var(--amber){% else %}var(--red){% endif %};
+                transition:width 0.6s ease;"></div>
+        </div>
+        <span style="font-size:13px;color:var(--on-surface-3);margin-top:4px;display:block;">
+            {{ "{:,.0f}".format(total_bank_amount.val) }} / {{ "{:,.0f}".format(total_fl_amount) }} {{ cur_symbol }}
+        </span>
+    </div>
+</div>
+
+<!-- Participating Banks section -->
+<div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>
+        {{ lang_dict.get('lbl_part_banks', 'PARTICIPATING BANKS') }}
+        <span style="color:var(--on-surface-3);font-size:13px;">[{{ details|length }}]</span>
+    </span>
+    <button onclick="document.getElementById('modal-add-detail').classList.add('open')" class="t-btn t-btn-sm">
+        + {{ lang_dict.get('btn_add_bank', 'ADD BANK') }}
+    </button>
+</div>
+
+{% if details %}
+<div class="t-panel" style="overflow-x:auto;padding:0;margin-bottom:8px;">
+    <table class="t-table">
+        <thead>
+            <tr>
+                <th>{{ lang_dict.get('col_bank_name', 'BANK NAME') }}</th>
+                <th style="text-align:right;">{{ lang_dict.get('col_amount', 'AMOUNT') }} ({{ cur_symbol }})</th>
+                <th style="text-align:right;">{{ lang_dict.get('col_offer_pricing', 'OFFER PRICING (%)') }}</th>
+                <th style="text-align:center;width:80px;">{{ lang_dict.get('col_actions', 'ACTIONS') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in details %}
+            <tr id="bank-row-{{ d['DealDetailId'] }}">
+                <td style="color:var(--amber-text);font-weight:600;">{{ d['BankName'] }}</td>
+                <td style="text-align:right;color:var(--green);">{{ "{:,.0f}".format(d['Amount'] or 0) }}</td>
+                <td style="text-align:right;color:var(--amber);">{% if d['OfferPricing'] %}{{ "{:.2f}".format(d['OfferPricing']) }}%{% else %}—{% endif %}</td>
+                <td style="text-align:center;white-space:nowrap;">
+                    <button title="{{ lang_dict.get('btn_edit', 'Edit') }}"
+                            onclick="openBankEdit({{ d['DealDetailId'] }}, '{{ d['BankName']|replace("'","\\'")|replace('"','&quot;') }}', {{ d['Amount'] or 0 }}, {{ d['OfferPricing'] or 0 }})"
+                            style="color:var(--amber);background:none;border:none;cursor:pointer;padding:4px 5px;border-radius:6px;display:inline-flex;align-items:center;"
+                            onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background='none'">
+                        <span class="material-symbols-outlined" style="font-size:17px;">edit</span>
+                    </button>
+                    <button title="{{ lang_dict.get('btn_delete', 'Delete') }}"
+                            onclick="deleteBank({{ d['DealDetailId'] }})"
+                            style="color:var(--red);background:none;border:none;cursor:pointer;padding:4px 5px;border-radius:6px;display:inline-flex;align-items:center;"
+                            onmouseover="this.style.background='rgba(248,113,113,0.1)'" onmouseout="this.style.background='none'">
+                        <span class="material-symbols-outlined" style="font-size:17px;">delete</span>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="t-panel" style="text-align:center;padding:24px;color:var(--on-surface-3);margin-bottom:8px;">
+    {{ lang_dict.get('msg_no_banks', 'NO BANKS ADDED YET.') }}
+</div>
+{% endif %}
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     WORK ITEMS PORTAL PANEL — Connected to Global Backlog
+     ═══════════════════════════════════════════════════════════ -->
+<div class="t-section-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <span style="display:flex;align-items:center;gap:8px;">{{ lang_dict.get('lbl_work_items', 'WORK ITEMS') }}<span style="font-size:13px;color:var(--on-surface-3);">[{{ wit_items|length }}]</span>
+        <a href="/backlog" style="display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--primary);text-decoration:none;background:rgba(45,212,191,0.08);border:1px solid rgba(45,212,191,0.2);border-radius:4px;padding:1px 6px;" title="View all in Global Backlog">
+            <span class="material-symbols-outlined" style="font-size:12px;">link</span>{{ lang_dict.get('lbl_backlog', 'BACKLOG') }}</a>
+    </span>
+    <button onclick="document.getElementById('modal-wit-add').classList.add('open')" class="t-btn t-btn-sm">{{ lang_dict.get('lbl_add_plus', '+ ADD ITEM') }}</button>
+</div>
+
+{% if wit_items %}
+{% for item in wit_items %}
+{% set subs = wit_subitems_map.get(item.ItemID, []) %}
+<div class="t-panel" style="border-top:none;padding:6px 10px;" id="wit-item-{{ item.ItemID }}">
+    <div style="display:flex;align-items:flex-start;gap:7px;">
+        <button onclick="witToggleStatus({{ item.ItemID }}, '{{ item.Status }}')"
+            style="flex-shrink:0;width:15px;height:15px;margin-top:2px;border:2px solid {% if item.Status == 'done' %}var(--green){% elif item.Status == 'in_progress' %}var(--amber){% elif item.Status == 'blocked' %}var(--red){% else %}var(--border){% endif %};
+                background:{% if item.Status == 'done' %}var(--green){% else %}transparent{% endif %};
+                border-radius:3px;cursor:pointer;font-size:12px;color:var(--bg);
+                display:flex;align-items:center;justify-content:center;">
+            {% if item.Status == 'done' %}✓{% endif %}
+        </button>
+        <div style="flex:1;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <span style="font-size:13px;font-weight:700;
+                    color:{% if item.Status == 'done' %}var(--on-surface-3){% else %}var(--amber-text){% endif %};
+                    {% if item.Status == 'done' %}text-decoration:line-through;{% endif %}">
+                    {{ item.Title }}
+                </span>
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:8px;">
+                    {% set item_assignees = wit_assignees_map.get(item.ItemID, []) %}
+                    {% if item_assignees %}<span style="font-size:12px;color:var(--primary);">👤 {{ item_assignees | join(', ') }}</span>{% endif %}
+                    {% if item.Deadline %}<span style="font-size:12px;color:var(--on-surface-3);font-family:var(--font-mono);">{{ item.Deadline }}</span>{% endif %}
+                    <span class="t-chip {% if item.Status == 'in_progress' %}t-chip-green{% elif item.Status == 'blocked' %}t-chip-red{% elif item.Status == 'done' %}t-chip-cyan{% else %}t-chip-dim{% endif %}" style="font-size:12px;">
+                        {{ item.Status.replace('_',' ') | upper }}
+                    </span>
+                    <button onclick="witDeleteItem({{ item.ItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px;" title="Remove">✕</button>
+                </div>
+            </div>
+            {% if item.Description %}<div style="font-size:13px;color:var(--on-surface-3);margin-top:2px;">{{ item.Description }}</div>{% endif %}
+            {% if subs %}
+            <div style="margin-top:5px;">
+                {% for s in subs %}
+                <div class="t-nested-row" style="display:flex;align-items:center;gap:6px;padding:3px 8px;margin-bottom:2px;">
+                    <button onclick="witToggleSubStatus({{ s.SubItemID }}, '{{ s.Status }}')"
+                        style="width:12px;height:12px;border:1px solid {% if s.Status == 'done' %}var(--green){% else %}var(--border){% endif %};background:{% if s.Status == 'done' %}var(--green){% else %}transparent{% endif %};cursor:pointer;font-size:12px;color:var(--bg);display:flex;align-items:center;justify-content:center;">
+                        {% if s.Status == 'done' %}✓{% endif %}
+                    </button>
+                    <span style="font-size:12px;color:var(--on-surface-2);{% if s.Status == 'done' %}text-decoration:line-through;{% endif %}">{{ s.Title }}</span>
+                    {% if s.Deadline %}<span style="font-size:12px;color:var(--on-surface-3);margin-left:auto;">{{ s.Deadline }}</span>{% endif %}
+                    <button onclick="witDeleteSubItem({{ s.SubItemID }})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px;">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <button onclick="witShowAddSub({{ item.ItemID }})" style="font-size:12px;color:var(--on-surface-3);background:none;border:none;cursor:pointer;margin-top:3px;">{{ lang_dict.get('lbl_add_sub_item', '+ SUB-ITEM') }}</button>
+            <div id="wit-sub-form-{{ item.ItemID }}" style="display:none;margin-top:4px;">
+                <div style="display:flex;gap:4px;">
+                    <input type="text" id="wit-sub-title-{{ item.ItemID }}" placeholder="Sub-item..." class="t-input" style="flex:1;font-size:13px;padding:2px 6px;">
+                    <button onclick="witSaveSub({{ item.ItemID }})" class="t-btn t-btn-sm">{{ lang_dict.get('lbl_add', 'ADD') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="t-panel" style="border-top:none;text-align:center;padding:16px;color:var(--on-surface-3);font-size:13px;">{{ lang_dict.get('msg_no_work_items_fl', 'NO WORK ITEMS. ADD ONE ABOVE OR IN THE') }}<a href="/backlog" style="color:var(--primary);">{{ lang_dict.get('lbl_global_backlog', 'GLOBAL BACKLOG') }}</a>.
+</div>
+{% endif %}
+
+
+<!-- ═══ Add Bank Modal ═══ -->
+<div id="modal-add-detail" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:400px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('modal_add_bank', 'ADD BANK OFFER') }}</div>
+            <button onclick="document.getElementById('modal-add-detail').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:15px;">✕</button>
+        </div>
+        <form action="/foreignloans/{{ syn['DealId'] }}/detail" method="POST">
+            <div style="display:grid;gap:8px;">
+                <div><label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_bank_name', 'BANK NAME *') }}</label><input type="text" name="bank_name" required class="t-input" placeholder="e.g. Example Bank A.Ş."></div>
+                <div><label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_amount', 'AMOUNT') }}</label><input type="number" name="amount" step="1" class="t-input" placeholder="500000"></div>
+                <div><label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_offer_pricing', 'OFFER PRICING (%)') }}</label><input type="number" name="offer_pricing" step="0.01" class="t-input" placeholder="3.50"></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:12px;">
+                <button type="button" onclick="document.getElementById('modal-add-detail').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</button>
+                <button type="submit" class="t-btn t-btn-green">{{ lang_dict.get('btn_save', 'SAVE') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══ Edit Bank Modal ═══ -->
+<div id="modal-edit-bank" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:400px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('modal_edit_bank', 'EDIT BANK OFFER') }}</div>
+            <button onclick="document.getElementById('modal-edit-bank').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:15px;">✕</button>
+        </div>
+        <div style="display:grid;gap:8px;">
+            <input type="hidden" id="edit-bank-id">
+            <div><label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_bank_name', 'BANK NAME *') }}</label><input type="text" id="edit-bank-name" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_amount', 'AMOUNT') }}</label><input type="number" id="edit-bank-amount" step="1" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_offer_pricing', 'OFFER PRICING (%)') }}</label><input type="number" id="edit-bank-pricing" step="0.01" class="t-input"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:12px;">
+            <button onclick="document.getElementById('modal-edit-bank').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('btn_cancel', 'CANCEL') }}</button>
+            <button onclick="saveBankEdit()" class="t-btn t-btn-cyan">
+                <span class="material-symbols-outlined" style="font-size:16px;">save</span>
+                {{ lang_dict.get('btn_save', 'SAVE') }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Add Work Item Modal ═══ -->
+<div id="modal-wit-add" class="t-modal-backdrop">
+    <div class="t-modal" style="max-width:440px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="t-panel-header" style="border:none;margin:0;padding:0;">{{ lang_dict.get('lbl_add_work_item', 'ADD WORK ITEM') }}</div>
+            <button onclick="document.getElementById('modal-wit-add').classList.remove('open')" style="color:var(--on-surface-3);background:none;border:none;cursor:pointer;font-size:16px;">✕</button>
+        </div>
+        <div style="display:grid;gap:8px;">
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_title_star', 'TITLE *') }}</label><input id="wit-title" type="text" placeholder="Work item title" class="t-input"></div>
+            <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_description', 'DESCRIPTION') }}</label><textarea id="wit-desc" rows="2" class="t-input"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_status', 'STATUS') }}</label><select id="wit-status" class="t-input"><option value="not_started">{{ lang_dict.get('lbl_not_started', 'NOT STARTED') }}</option><option value="in_progress">{{ lang_dict.get('lbl_in_progress', 'IN PROGRESS') }}</option><option value="blocked">{{ lang_dict.get('lbl_blocked', 'BLOCKED') }}</option></select></div>
+                <div><label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_deadline', 'DEADLINE') }}</label><input id="wit-deadline" type="date" class="t-input"></div>
+            </div>
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:3px;">{{ lang_dict.get('lbl_assignees', 'ASSIGNEES') }}</label>
+                <div id="wit-assignees-picker"></div>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:5px;padding-top:10px;">
+            <button onclick="document.getElementById('modal-wit-add').classList.remove('open')" class="t-btn t-btn-outline">{{ lang_dict.get('lbl_cancel', 'CANCEL') }}</button>
+            <button onclick="witSaveItem()" class="t-btn t-btn-green">{{ lang_dict.get('lbl_add', 'ADD') }}</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+const DEAL_ID = {{ syn['DealId'] }};
+var WIT_STATUS_CYCLE = {'not_started':'in_progress','in_progress':'done','done':'not_started','blocked':'in_progress'};
+
+function openBankEdit(bankId, bankName, amount, pricing) {
+    document.getElementById('edit-bank-id').value      = bankId;
+    document.getElementById('edit-bank-name').value    = bankName;
+    document.getElementById('edit-bank-amount').value  = amount;
+    document.getElementById('edit-bank-pricing').value = pricing;
+    document.getElementById('modal-edit-bank').classList.add('open');
+}
+
+async function saveBankEdit() {
+    var bankId  = document.getElementById('edit-bank-id').value;
+    var payload = {
+        bank_name:     document.getElementById('edit-bank-name').value.trim(),
+        amount:        parseFloat(document.getElementById('edit-bank-amount').value) || null,
+        offer_pricing: parseFloat(document.getElementById('edit-bank-pricing').value) || null,
+    };
+    if (!payload.bank_name) { alert('Bank name is required.'); return; }
+    var res = await fetch('/api/foreignloans/' + DEAL_ID + '/banks/' + bankId, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    if ((await res.json()).ok) window.location.reload();
+}
+
+async function deleteBank(bankId) {
+    if (!confirm('{{ lang_dict.get("msg_confirm_delete_bank", "Remove this bank from the foreignloan?") }}')) return;
+    var res = await fetch('/api/foreignloans/' + DEAL_ID + '/banks/' + bankId, { method: 'DELETE' });
+    var data = await res.json();
+    if (data.ok) {
+        var row = document.getElementById('bank-row-' + bankId);
+        if (row) { row.style.opacity='0'; row.style.transition='opacity 0.3s'; setTimeout(function(){ row.remove(); }, 320); }
+    }
+}
+
+async function witToggleStatus(iid, current) {
+    var next = WIT_STATUS_CYCLE[current] || 'in_progress';
+    var res = await fetch('/api/workitems/' + iid + '/status', {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status: next})
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+async function witToggleSubStatus(sid, current) {
+    var res = await fetch('/api/subitems/' + sid + '/status', {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: current === 'done' ? 'not_started' : 'done'})
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+async function witSaveItem() {
+    var t = document.getElementById('wit-title').value.trim();
+    if (!t) return;
+    var assigns = document.getElementById('wit-assignees-picker').getValues();
+    var res = await fetch('/api/workitems', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            parent_type: 'foreignloan', parent_id: DEAL_ID,
+            title: t, description: document.getElementById('wit-desc').value,
+            status: document.getElementById('wit-status').value,
+            deadline: document.getElementById('wit-deadline').value || null,
+            assignees: assigns
+        })
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+async function witDeleteItem(iid) {
+    if (!confirm('Remove this work item?')) return;
+    var res = await fetch('/api/workitems/' + iid, {method: 'DELETE'});
+    if ((await res.json()).ok) {
+        var el = document.getElementById('wit-item-' + iid);
+        if (el) { el.style.opacity='0'; el.style.transition='opacity 0.25s'; setTimeout(function(){ el.remove(); }, 260); }
+    }
+}
+
+function witShowAddSub(iid) {
+    var el = document.getElementById('wit-sub-form-' + iid);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function witSaveSub(iid) {
+    var t = document.getElementById('wit-sub-title-' + iid).value.trim();
+    if (!t) return;
+    var res = await fetch('/api/subitems', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({parent_item_id: iid, title: t})
+    });
+    if ((await res.json()).ok) location.reload();
+}
+
+async function witDeleteSubItem(sid) {
+    var res = await fetch('/api/subitems/' + sid, {method: 'DELETE'});
+    if ((await res.json()).ok) location.reload();
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        ['modal-add-detail','modal-edit-bank','modal-wit-add'].forEach(function(id) {
+            document.getElementById(id).classList.remove('open');
+        });
+    }
+});
+</script>
+
+{% include '_assignee_picker.html' %}
+<script>
+(function() {
+    var u = [{% for u in users %}{id:{{ u.id }},username:{{ u.username|tojson }},surname:{{ (u.surname or '')|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
+    var s = [{% for st in stakeholders %}{StakeholderID:{{ st.StakeholderID }},FullName:{{ st.FullName|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
+    initAssigneePicker('wit-assignees-picker', u, s);
+})();
+</script>
+{% endblock %}

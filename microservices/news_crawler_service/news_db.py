@@ -102,6 +102,13 @@ def get_articles(job_id):
     conn.close()
     return [dict(a) for a in articles]
 
+def url_exists(url):
+    conn = get_db()
+    c = conn.cursor()
+    row = c.execute('SELECT id FROM news_articles WHERE url = ?', (url,)).fetchone()
+    conn.close()
+    return row is not None
+
 if __name__ == '__main__':
     init_db()
     print("news_crawler.db initialized.")

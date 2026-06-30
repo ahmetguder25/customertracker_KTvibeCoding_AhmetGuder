@@ -30,7 +30,7 @@ from rank_bm25 import BM25Okapi
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 DB_PATH     = os.path.join(BASE_DIR, "rag_vectors.db")
 EMBED_MODEL = "nomic-embed-text"
-GEN_MODEL   = "gemma2"
+GEN_MODEL   = "gemma3:27b"
 
 # ── Module-level cache (populated on first request, shared across all) ─────────
 _cache_lock = threading.Lock()

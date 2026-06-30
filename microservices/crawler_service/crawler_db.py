@@ -21,11 +21,23 @@ def init_db():
             target_url TEXT NOT NULL,
             search_query TEXT NOT NULL,
             systematic_base_name TEXT NOT NULL,
+            crawl_depth INTEGER DEFAULT 0,
+            file_types TEXT DEFAULT '.pdf',
             status TEXT DEFAULT 'Idle',
             last_run REAL,
             last_message TEXT
         )
     ''')
+    
+    try:
+        c.execute("ALTER TABLE crawler_jobs ADD COLUMN crawl_depth INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+        
+    try:
+        c.execute("ALTER TABLE crawler_jobs ADD COLUMN file_types TEXT DEFAULT '.pdf'")
+    except sqlite3.OperationalError:
+        pass
     # Document History
     c.execute('''
         CREATE TABLE IF NOT EXISTS crawled_documents (
@@ -41,12 +53,12 @@ def init_db():
     conn.commit()
     conn.close()
 
-def add_job(job_name, target_url, search_query, systematic_base_name):
+def add_job(job_name, target_url, search_query, systematic_base_name, crawl_depth=0, file_types='.pdf'):
     conn = get_db()
     conn.execute('''
-        INSERT INTO crawler_jobs (job_name, target_url, search_query, systematic_base_name)
-        VALUES (?, ?, ?, ?)
-    ''', (job_name, target_url, search_query, systematic_base_name))
+        INSERT INTO crawler_jobs (job_name, target_url, search_query, systematic_base_name, crawl_depth, file_types)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (job_name, target_url, search_query, systematic_base_name, crawl_depth, file_types))
     conn.commit()
     conn.close()
 

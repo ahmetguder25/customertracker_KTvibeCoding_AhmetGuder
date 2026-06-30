@@ -1,10 +1,39 @@
+# --- Environments & Secrets ---
+.env
 .venv/
 .mamba/
+venv/
+env/
+
+# --- Python ---
 __pycache__/
-*.pyc
-.DS_Store
+*.py[cod]
+*$py.class
+.Python
+pip-log.txt
+
+# --- Databases ---
+# Ignore all SQLite databases across the entire project
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Data & Sources ---
+# Ignore raw data folders and downloaded PDFs/Files
 data/
-flask.log
-rag_vectors.db
+sources/
+microservices/*/sources/
+temp/
+tmp/
+microservices/*/temp/
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Misc ---
+.DS_Store
 cookies.txt
-.env
+.vscode/
+.idea/
+.gemini/

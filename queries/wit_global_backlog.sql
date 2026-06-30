@@ -21,6 +21,12 @@ SELECT
             JOIN BOA.CUS.Customer c ON m.CustomerId = c.Customerid
             WHERE m.DealId = w.ParentID
         )
+        WHEN 'foreignloan' THEN (
+            SELECT c.CustomerName + ' / Foreign Loan #' + CAST(m.DealId AS NVARCHAR)
+            FROM BOA.STR.MainDeals m
+            JOIN BOA.CUS.Customer c ON m.CustomerId = c.Customerid
+            WHERE m.DealId = w.ParentID
+        )
     END AS ParentName,
     (
         SELECT STRING_AGG(

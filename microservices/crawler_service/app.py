@@ -43,7 +43,9 @@ def add_job():
         data.get("job_name", "Untitled"),
         data.get("target_url", ""),
         data.get("search_query", ""),
-        data.get("systematic_base_name", "")
+        data.get("systematic_base_name", ""),
+        int(data.get("crawl_depth", 0)),
+        data.get("file_types", ".pdf")
     )
     return jsonify({"success": True})
 

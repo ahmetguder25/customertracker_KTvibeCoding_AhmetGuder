@@ -33,7 +33,7 @@ def main():
     print("Starting Flask Web Server...")
     # Start the Flask app
     flask_process = subprocess.Popen(
-        [sys.executable, "app.py"],
+        [sys.executable, "-m", "app"],
         env=dict(os.environ, FLASK_DEBUG="1"),
         stdout=sys.stdout,
         stderr=sys.stderr
@@ -41,19 +41,19 @@ def main():
 
     services = {
         "chatbot": {
-            "path": os.path.join("microservices", "chatbot_service", "app.py"),
+            "module": "microservices.chatbot_service.app",
             "process": None
         },
         "sparx_ai": {
-            "path": os.path.join("microservices", "sparx_ai_service", "app.py"),
+            "module": "microservices.sparx_ai_service.app",
             "process": None
         },
         "web_crawler": {
-            "path": os.path.join("microservices", "crawler_service", "app.py"),
+            "module": "microservices.crawler_service.app",
             "process": None
         },
         "news_crawler": {
-            "path": os.path.join("microservices", "news_crawler_service", "app.py"),
+            "module": "microservices.news_crawler_service.app",
             "process": None
         }
     }
@@ -80,7 +80,7 @@ def main():
                         env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
                         
                         info["process"] = subprocess.Popen(
-                            [sys.executable, info["path"]],
+                            [sys.executable, "-m", info["module"]],
                             stdout=sys.stdout,
                             stderr=sys.stderr,
                             env=env

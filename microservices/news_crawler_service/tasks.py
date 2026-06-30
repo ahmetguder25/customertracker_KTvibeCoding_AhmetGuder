@@ -18,7 +18,7 @@ if OLLAMA_BASE_URL:
 else:
     OLLAMA_URL = "http://localhost:11434"
 
-LLM_MODEL = "gemma2"
+LLM_MODEL = "gemma3:27b"
 
 def query_vllm(prompt, system="You are a helpful assistant."):
     """Send a prompt to vLLM/Ollama for summarization."""
@@ -93,12 +93,14 @@ def crawl_news_task_sync(job_id):
             news_db.update_job_status(job_id, "Failed", "No results found or rate limited for all keywords.")
             return
             
-        # Deduplicate by URL
+        # Deduplicate by URL (and historical DB check)
         seen_urls = set()
         raw_results = []
         for r in all_results:
             url = r.get("url")
             if url and url not in seen_urls:
+                if news_db.url_exists(url):
+                    continue
                 seen_urls.add(url)
                 raw_results.append(r)
                 
@@ -118,32 +120,41 @@ def crawl_news_task_sync(job_id):
             
             # Try to scrape the full text
             full_text = snippet
+            is_valid_crawl = False
             try:
                 page_resp = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
                 if page_resp.status_code == 200:
                     soup = BeautifulSoup(page_resp.text, 'html.parser')
                     paragraphs = soup.find_all('p')
                     scraped = " ".join([p.get_text() for p in paragraphs])
-                    if len(scraped) > 200:
-                        # Truncate to reasonable length for summary to save time
+                    
+                    anti_bot_keywords = ['cookie', 'javascript', 'subscribe', 'paywall', 'browser', 'robot', 'captcha', 'abone ol']
+                    lower_scraped = scraped.lower()
+                    has_anti_bot = any(kw in lower_scraped for kw in anti_bot_keywords)
+                    
+                    if len(scraped) > 200 and not has_anti_bot:
                         full_text = scraped[:4000] 
+                        is_valid_crawl = True
             except Exception:
                 pass # fallback to snippet
                 
-            system = (
-                "Sen profesyonel bir finans ve haber analistisin. "
-                "Görevin, sana verilen haber metinlerini veya başlıkları kurumsal bir dille, SADECE TÜRKÇE (Turkish) kullanarak özetlemektir. "
-                "ASLA Çince veya başka bir dilde kelime kullanma. Cümleleri uydurma."
-            )
-            
-            prompt = (
-                f"Haber Başlığı: {title}\n\n"
-                f"İçerik: {full_text}\n\n"
-                "Lütfen bu haberi portföy yöneticileri için en fazla 5 cümleyle, net ve tamamen Türkçe olarak özetle. "
-                "Eğer metin çok kısaysa, sadece ne anlatıldığını belirt ve detay uydurma."
-            )
-            
-            summary = query_vllm(prompt, system=system)
+            if is_valid_crawl:
+                system = (
+                    "Sen profesyonel bir finans ve haber analistisin. "
+                    "Görevin, sana verilen haber metinlerini veya başlıkları kurumsal bir dille, SADECE TÜRKÇE (Turkish) kullanarak özetlemektir. "
+                    "ASLA Çince veya başka bir dilde kelime kullanma. Cümleleri uydurma."
+                )
+                
+                prompt = (
+                    f"Haber Başlığı: {title}\n\n"
+                    f"İçerik: {full_text}\n\n"
+                    "Lütfen bu haberi portföy yöneticileri için en fazla 5 cümleyle, net ve tamamen Türkçe olarak özetle. "
+                    "Eğer metin çok kısaysa, sadece ne anlatıldığını belirt ve detay uydurma."
+                )
+                
+                summary = query_vllm(prompt, system=system)
+            else:
+                summary = f"⚠️ *Metin çekilemedi (Anti-Bot).* Orijinal snippet:\n{snippet}"
             
             news_db.save_article(job_id, title, url, snippet, summary, published)
             

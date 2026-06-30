@@ -1,0 +1,364 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}MICRO SERVICES — CUSTOMER TRACKER{% endblock %}
+
+{% block content %}
+<div class="t-page-header">
+    <div>
+        <div class="t-page-title">{{ lang_dict.get('lbl_microservices_mgmt', 'MICRO SERVICES MANAGEMENT') }}</div>
+        <div class="t-page-subtitle">{{ lang_dict.get('lbl_monitor_control', 'MONITOR AND CONTROL BACKGROUND AI PROCESSES') }}</div>
+    </div>
+</div>
+
+<div style="display:flex; flex-direction:column; gap:24px;">
+    
+    <!-- STF Chatbot Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">smart_toy</span> STF Chatbot
+            </span>
+            <span id="chatbot-badge" class="t-chip t-chip-{% if state.get('chatbot', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('chatbot', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="chatbot-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="chatbot-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('chatbot', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('chatbot', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('chatbot', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('chatbot')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
+                <button class="t-btn t-btn-cyan" onclick="ragSync()" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">sync</span>{{ lang_dict.get('lbl_rag_sync', 'RAG SYNC') }}</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sparx AI Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">troubleshoot</span> Sparx AI Analysis
+            </span>
+            <span id="sparx-badge" class="t-chip t-chip-{% if state.get('sparx_ai', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('sparx_ai', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="sparx-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="sparx-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div id="sparx-tasks-timeline" style="margin-top:16px; margin-bottom:16px; padding:16px; background:var(--surface-1); border:1px solid var(--border); border-radius:8px; display:none; flex-direction:column; gap:10px;">
+            </div>
+            
+            <div id="sparx-terminal-container" style="display:none; margin-bottom:24px; padding:12px; background:#1e1e1e; border-radius:8px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);">
+                <div style="font-size:11px; color:#4af626; font-weight:600; text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid #333; padding-bottom:8px; display:flex; align-items:center; gap:6px;">
+                    <span class="material-symbols-outlined" style="font-size:14px;">terminal</span> Live Engine Terminal
+                </div>
+                <div id="sparx-terminal-content" style="max-height:250px; overflow-y:auto; font-family:'Consolas', 'Courier New', monospace; font-size:12px; line-height:1.4; display:flex; flex-direction:column; gap:2px; padding-right:8px;">
+                    <!-- logs here -->
+                </div>
+            </div>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('sparx_ai', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('sparx_ai', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('sparx_ai', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('sparx_ai')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Web Crawler AI Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">travel_explore</span> Web Crawler AI
+            </span>
+            <span id="crawler-badge" class="t-chip t-chip-{% if state.get('web_crawler', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('web_crawler', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="crawler-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="crawler-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('web_crawler', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('web_crawler', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                <button class="t-btn t-btn-cyan" onclick="window.location.href='/microservices/crawler'" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">manage_search</span>{{ lang_dict.get('lbl_manage_jobs', 'MANAGE JOBS') }}</button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('web_crawler', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('web_crawler')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- News Crawler Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">newspaper</span> News Crawler
+            </span>
+            <span id="newscrawler-badge" class="t-chip t-chip-{% if state.get('news_crawler', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('news_crawler', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="newscrawler-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="newscrawler-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('news_crawler', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('news_crawler', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                <button class="t-btn t-btn-cyan" onclick="window.location.href='/microservices/news_crawler'" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">manage_search</span>{{ lang_dict.get('lbl_manage_jobs', 'MANAGE JOBS') }}</button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('news_crawler', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('news_crawler')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
+            </div>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const PORTS = { "chatbot": 5001, "sparx_ai": 5002, "web_crawler": 5003, "news_crawler": 5004 };
+    
+    function toggleService(serviceId, enable) {
+        fetch('/api/microservices/toggle', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({service_id: serviceId, enabled: enable})
+        }).then(res => res.json()).then(data => {
+            if(data.success) location.reload();
+        });
+    }
+
+    function ragSync() {
+        if(!confirm("Start background RAG sync process?")) return;
+        fetch('http://127.0.0.1:5001/api/rag_sync', {
+            method: 'POST',
+        }).then(res => res.json()).then(data => {
+            if(data.success) {
+                alert("RAG Sync process started in background. Check Active Processes indicator.");
+                checkHealth('chatbot');
+            } else {
+                alert("Error: " + data.error);
+            }
+        });
+    }
+
+    function resetService(serviceId) {
+        if (serviceId === 'web_crawler') {
+            fetch('http://127.0.0.1:5003/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
+            return;
+        }
+        if (serviceId === 'news_crawler') {
+            fetch('http://127.0.0.1:5004/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
+            return;
+        }
+        fetch('/api/microservices/reset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({service_id: serviceId})
+        }).then(res => res.json()).then(data => {
+            if(data.success) {
+                alert("Pending tasks cleared successfully.");
+                checkHealth(serviceId);
+            } else {
+                alert("Error: " + data.error);
+            }
+        });
+    }
+
+    function checkHealth(serviceId) {
+        let port = PORTS[serviceId];
+        let statusEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-status' : (serviceId === 'sparx_ai' ? 'sparx-status' : (serviceId === 'news_crawler' ? 'newscrawler-status' : 'crawler-status')));
+        let procEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-process' : (serviceId === 'sparx_ai' ? 'sparx-process' : (serviceId === 'news_crawler' ? 'newscrawler-process' : 'crawler-process')));
+
+        
+        fetch(`http://127.0.0.1:${port}/api/health`)
+            .then(res => {
+                if(!res.ok) throw new Error("HTTP error");
+                return res.json();
+            })
+            .then(data => {
+                if (data.status === "Online") {
+                    statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:var(--green);">check_circle</span> SUCCESSFUL';
+                    procEl.innerHTML = data.active_process ? 
+                        '<span style="color:var(--yellow);"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:bottom;margin-right:4px;">hourglass_top</span>' + data.message + '</span>' : 
+                        '<span style="color:var(--on-surface-3);">No active processes.</span>';
+                        
+                    if (serviceId === 'sparx_ai') {
+                        let timelineEl = document.getElementById('sparx-tasks-timeline');
+                        if (data.tasks && data.tasks.length > 0) {
+                            timelineEl.style.display = 'flex';
+                            timelineEl.innerHTML = '<div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Task History & ETA</div>';
+                            data.tasks.forEach(task => {
+                                let icon = task.status === 'Completed' ? 'check_circle' : (task.status === 'Failed' ? 'error' : (task.status === 'Not Started' ? 'pending' : 'hourglass_top'));
+                                let color = task.status === 'Completed' ? 'var(--green)' : (task.status === 'Failed' ? 'var(--red)' : (task.status === 'Not Started' ? 'var(--on-surface-3)' : 'var(--yellow)'));
+                                let dateStr = task.updated_at ? new Date(task.updated_at * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}) : '';
+                                let etaStr = task.eta ? `<span style="margin-left:auto; color:var(--on-surface-3); font-size:12px;">${task.eta}</span>` : '';
+                                
+                                timelineEl.innerHTML += `
+                                    <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--on-surface);">
+                                        <span class="material-symbols-outlined" style="font-size:16px; color:${color};">${icon}</span>
+                                        <span style="font-weight:500; min-width:80px;">${task.task_type}</span>
+                                        <span style="color:var(--on-surface-2); font-size:13px;">${task.status} <span style="font-size:11px; color:var(--on-surface-3); margin-left:4px;">${dateStr}</span></span>
+                                        ${etaStr}
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            timelineEl.style.display = 'none';
+                        }
+                    }
+                } else {
+                    statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:var(--red);">error</span> ERROR';
+                    procEl.innerHTML = data.message;
+                }
+            })
+            .catch(err => {
+                statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:var(--red);">cancel</span> OFFLINE';
+                procEl.innerHTML = '<span style="color:var(--red);">Connection refused.</span>';
+            });
+    }
+
+    let sparxLastLogId = 0;
+    let sparxActiveDocId = null;
+
+    function fetchSparxLogs() {
+        let url = `http://127.0.0.1:${PORTS['sparx_ai']}/api/logs?last_id=${sparxLastLogId}`;
+        if (sparxActiveDocId) {
+            url += `&document_id=${sparxActiveDocId}`;
+        }
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.document_id) {
+                    document.getElementById('sparx-terminal-container').style.display = 'none';
+                    return;
+                }
+                
+                let termContainer = document.getElementById('sparx-terminal-container');
+                let termEl = document.getElementById('sparx-terminal-content');
+                
+                if (data.document_id !== sparxActiveDocId) {
+                    sparxActiveDocId = data.document_id;
+                    sparxLastLogId = 0;
+                    termEl.innerHTML = '';
+                    termContainer.style.display = 'block';
+                }
+                
+                termContainer.style.display = 'block';
+
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        let dateStr = new Date(log.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                        let row = document.createElement('div');
+                        row.style.wordBreak = 'break-word';
+                        let safeMsg = log.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        row.innerHTML = `<span style="color:#858585;">[${dateStr}]</span> <span style="color:#569cd6;">sparx</span><span style="color:#cccccc;">:</span> <span style="color:#ce9178;">${safeMsg}</span>`;
+                        termEl.appendChild(row);
+                        sparxLastLogId = Math.max(sparxLastLogId, log.id);
+                    });
+                    
+                    while(termEl.childNodes.length > 500) {
+                        termEl.removeChild(termEl.firstChild);
+                    }
+                    
+                    termEl.scrollTop = termEl.scrollHeight;
+                }
+            })
+            .catch(err => console.error("Sparx log error", err));
+    }
+
+    // Auto poll every 3 seconds
+    checkHealth('chatbot');
+    checkHealth('sparx_ai');
+    checkHealth('web_crawler');
+    checkHealth('news_crawler');
+    fetchSparxLogs();
+    
+    setInterval(() => {
+        checkHealth('chatbot');
+        checkHealth('sparx_ai');
+        checkHealth('web_crawler');
+        checkHealth('news_crawler');
+        fetchSparxLogs();
+    }, 3000);
+</script>
+{% endblock %}
