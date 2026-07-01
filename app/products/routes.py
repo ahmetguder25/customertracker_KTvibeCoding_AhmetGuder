@@ -16,17 +16,43 @@ def products_list():
         "  (SELECT COUNT(*) FROM BOA.STR.MainDeals d WHERE d.ProductCode=p.ProductCode) AS deal_count "
         "FROM BOA.COR.Product p WHERE p.IsActive=1 ORDER BY p.ProductName"
     ).fetchall()
+    res_rows = conn.execute(
+        "SELECT DISTINCT ResourceCode FROM BOA.COR.Product WHERE ResourceCode IS NOT NULL AND ResourceCode != '' AND IsActive=1"
+    ).fetchall()
+    resources = sorted(list(set([r["ResourceCode"] for r in res_rows] + ["FOREIGNLOAN", "SYNDICATION"])))
     conn.close()
-    return render_template("products/products.html", products=products)
+    return render_template("products/products.html", products=products, resources=resources)
+
+
+@products_bp.route("/api/products", methods=["GET"])
+def api_products_list():
+    resource_code = request.args.get("resource_code")
+    conn = get_db()
+    if resource_code:
+        products = conn.execute(
+            "SELECT ProductID, ProductCode, ProductName, ResourceCode FROM BOA.COR.Product "
+            "WHERE IsActive=1 AND (ResourceCode=? OR ResourceCode IS NULL OR ResourceCode='') "
+            "ORDER BY ProductName",
+            (resource_code.strip().upper(),)
+        ).fetchall()
+    else:
+        products = conn.execute(
+            "SELECT ProductID, ProductCode, ProductName, ResourceCode FROM BOA.COR.Product "
+            "WHERE IsActive=1 ORDER BY ProductName"
+        ).fetchall()
+    conn.close()
+    return jsonify({"ok": True, "products": [dict(p) for p in products]})
 
 
 @products_bp.route("/api/products", methods=["POST"])
 def api_product_create():
     data = request.get_json(silent=True) or {}
+    res_code = data.get("resource_code")
+    res_code = res_code.strip().upper() if res_code else None
     conn = get_db()
     conn.execute(
-        "INSERT INTO BOA.COR.Product (ProductCode,ProductName) VALUES (?,?)",
-        (data.get("code",""), data.get("name",""))
+        "INSERT INTO BOA.COR.Product (ProductCode,ProductName,ResourceCode) VALUES (?,?,?)",
+        (data.get("code",""), data.get("name",""), res_code)
     )
     conn.commit()
     pid = conn.execute("SELECT MAX(ProductID) AS id FROM BOA.COR.Product").fetchone()["id"]
@@ -38,10 +64,18 @@ def api_product_create():
 def api_product_update(pid):
     data = request.get_json(silent=True) or {}
     conn = get_db()
-    conn.execute(
-        "UPDATE BOA.COR.Product SET ProductName=? WHERE ProductID=?",
-        (data.get("name"), pid)
-    )
+    if "resource_code" in data:
+        res_code = data.get("resource_code")
+        res_code = res_code.strip().upper() if res_code else None
+        conn.execute(
+            "UPDATE BOA.COR.Product SET ProductName=?, ResourceCode=? WHERE ProductID=?",
+            (data.get("name"), res_code, pid)
+        )
+    else:
+        conn.execute(
+            "UPDATE BOA.COR.Product SET ProductName=? WHERE ProductID=?",
+            (data.get("name"), pid)
+        )
     conn.commit()
     conn.close()
     return jsonify({"ok": True})

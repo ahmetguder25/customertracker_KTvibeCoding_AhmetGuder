@@ -15,6 +15,9 @@ pip-log.txt
 # --- Databases ---
 # Ignore all SQLite databases across the entire project
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 *.sqlite
 *.sqlite3
 
@@ -37,3 +40,9 @@ cookies.txt
 .vscode/
 .idea/
 .gemini/
+
+# --- Secrets & API Keys ---
+tuik_api_key.*
+microservices/**/tuik_api_key.*
+*api_key*.json
+*api_key*.txt

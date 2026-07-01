@@ -189,12 +189,136 @@
         </div>
     </div>
     
+    <!-- Financial Reports Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">table_chart</span> Financial Reports AI
+            </span>
+            <span id="financialreports-badge" class="t-chip t-chip-{% if state.get('financial_reports', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('financial_reports', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="financialreports-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="financialreports-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                {% if state.get('financial_reports', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('financial_reports', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('financial_reports', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('financial_reports')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reference Rates Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">monitoring</span> Referans Oranlar (SOFR & EURIBOR)
+            </span>
+            <span id="referencerates-badge" class="t-chip t-chip-{% if state.get('reference_rates', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('reference_rates', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="referencerates-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="referencerates-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                <button class="t-btn t-btn-cyan" onclick="window.location.href='/referans-oranlar'" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">open_in_new</span>{{ lang_dict.get('lbl_open_page', 'ORANLAR SAYFASI') }}</button>
+                {% if state.get('reference_rates', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('reference_rates', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('reference_rates', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('reference_rates')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- TUIK SDMX Statistical Data Service Card -->
+    <div class="t-panel">
+        <div class="t-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:15px; text-transform:uppercase; color:var(--cyan);">
+                <span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:6px;">analytics</span> TÜİK Veri Servisi (SDMX & EVDS)
+            </span>
+            <span id="tuiksdmx-badge" class="t-chip t-chip-{% if state.get('tuik_sdmx', {}).get('enabled') %}green{% else %}red{% endif %}">
+                {% if state.get('tuik_sdmx', {}).get('enabled') %}ENABLED{% else %}DISABLED{% endif %}
+            </span>
+        </div>
+        <div style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Network Status</div>
+                    <div id="tuiksdmx-status" style="font-size:16px; color:var(--on-surface); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">sync</span> Checking...
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:var(--on-surface-3); font-weight:600; text-transform:uppercase; margin-bottom:4px;">Active Processes</div>
+                    <div id="tuiksdmx-process" style="font-size:14px; color:var(--on-surface-2);">
+                        ...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
+                <button class="t-btn t-btn-cyan" onclick="window.location.href='/tuik-data'" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">open_in_new</span>{{ lang_dict.get('lbl_tuik_page', 'TÜİK VERİLERİ') }}</button>
+                {% if state.get('tuik_sdmx', {}).get('enabled') %}
+                <button class="t-btn t-btn-red" onclick="toggleService('tuik_sdmx', false)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power_off</span>{{ lang_dict.get('lbl_disconnect', 'DISCONNECT') }}</button>
+                {% else %}
+                <button class="t-btn t-btn-green" onclick="toggleService('tuik_sdmx', true)" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">power</span>{{ lang_dict.get('lbl_reconnect', 'RECONNECT') }}</button>
+                {% endif %}
+                <button class="t-btn t-btn-outline" onclick="resetService('tuik_sdmx')" style="min-width:140px; white-space:nowrap;">
+                    <span class="material-symbols-outlined" style="font-size:16px; margin-right:4px;">restart_alt</span>{{ lang_dict.get('lbl_reset_tasks', 'RESET TASKS') }}</button>
+            </div>
+        </div>
+    </div>
+    
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const PORTS = { "chatbot": 5001, "sparx_ai": 5002, "web_crawler": 5003, "news_crawler": 5004 };
+    const PORTS = { "chatbot": 5001, "sparx_ai": 5002, "web_crawler": 5003, "news_crawler": 5004, "financial_reports": 5005, "reference_rates": 5006, "tuik_sdmx": 5007 };
     
     function toggleService(serviceId, enable) {
         fetch('/api/microservices/toggle', {
@@ -229,6 +353,18 @@
             fetch('http://127.0.0.1:5004/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
             return;
         }
+        if (serviceId === 'financial_reports') {
+            fetch('http://127.0.0.1:5005/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
+            return;
+        }
+        if (serviceId === 'reference_rates') {
+            fetch('http://127.0.0.1:5006/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
+            return;
+        }
+        if (serviceId === 'tuik_sdmx') {
+            fetch('http://127.0.0.1:5007/api/reset', { method: 'POST' }).then(r=>r.json()).then(d=>alert(d.message));
+            return;
+        }
         fetch('/api/microservices/reset', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -245,8 +381,8 @@
 
     function checkHealth(serviceId) {
         let port = PORTS[serviceId];
-        let statusEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-status' : (serviceId === 'sparx_ai' ? 'sparx-status' : (serviceId === 'news_crawler' ? 'newscrawler-status' : 'crawler-status')));
-        let procEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-process' : (serviceId === 'sparx_ai' ? 'sparx-process' : (serviceId === 'news_crawler' ? 'newscrawler-process' : 'crawler-process')));
+        let statusEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-status' : (serviceId === 'sparx_ai' ? 'sparx-status' : (serviceId === 'news_crawler' ? 'newscrawler-status' : (serviceId === 'financial_reports' ? 'financialreports-status' : (serviceId === 'reference_rates' ? 'referencerates-status' : (serviceId === 'tuik_sdmx' ? 'tuiksdmx-status' : 'crawler-status'))))));
+        let procEl = document.getElementById(serviceId === 'chatbot' ? 'chatbot-process' : (serviceId === 'sparx_ai' ? 'sparx-process' : (serviceId === 'news_crawler' ? 'newscrawler-process' : (serviceId === 'financial_reports' ? 'financialreports-process' : (serviceId === 'reference_rates' ? 'referencerates-process' : (serviceId === 'tuik_sdmx' ? 'tuiksdmx-process' : 'crawler-process'))))));
 
         
         fetch(`http://127.0.0.1:${port}/api/health`)
@@ -351,6 +487,9 @@
     checkHealth('sparx_ai');
     checkHealth('web_crawler');
     checkHealth('news_crawler');
+    checkHealth('financial_reports');
+    checkHealth('reference_rates');
+    checkHealth('tuik_sdmx');
     fetchSparxLogs();
     
     setInterval(() => {
@@ -358,6 +497,9 @@
         checkHealth('sparx_ai');
         checkHealth('web_crawler');
         checkHealth('news_crawler');
+        checkHealth('financial_reports');
+        checkHealth('reference_rates');
+        checkHealth('tuik_sdmx');
         fetchSparxLogs();
     }, 3000);
 </script>

@@ -16,7 +16,10 @@ def get_microservices_state():
             "chatbot": {"enabled": True},
             "sparx_ai": {"enabled": True},
             "web_crawler": {"enabled": True},
-            "news_crawler": {"enabled": True}
+            "news_crawler": {"enabled": True},
+            "financial_reports": {"enabled": True},
+            "reference_rates": {"enabled": True},
+            "tuik_sdmx": {"enabled": True}
         }
     try:
         with open(MICROSERVICES_FILE, "r", encoding="utf-8") as f:
@@ -26,7 +29,10 @@ def get_microservices_state():
             "chatbot": {"enabled": True},
             "sparx_ai": {"enabled": True},
             "web_crawler": {"enabled": True},
-            "news_crawler": {"enabled": True}
+            "news_crawler": {"enabled": True},
+            "financial_reports": {"enabled": True},
+            "reference_rates": {"enabled": True},
+            "tuik_sdmx": {"enabled": True}
         }
 
 def main():
@@ -54,6 +60,18 @@ def main():
         },
         "news_crawler": {
             "module": "microservices.news_crawler_service.app",
+            "process": None
+        },
+        "financial_reports": {
+            "module": "microservices.financial_reports_service.app",
+            "process": None
+        },
+        "reference_rates": {
+            "module": "microservices.reference_rates_service.app",
+            "process": None
+        },
+        "tuik_sdmx": {
+            "module": "microservices.tuik_sdmx_service.app",
             "process": None
         }
     }

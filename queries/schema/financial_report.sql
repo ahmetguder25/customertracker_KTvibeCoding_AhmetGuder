@@ -1,0 +1,20 @@
+CREATE TABLE BOA.STF.FinancialReports (
+    ReportLineID   INT IDENTITY(1,1) PRIMARY KEY,
+    DocID          INT NOT NULL,
+    CustomerID     INT NOT NULL,
+    StatementType  NVARCHAR(50) NOT NULL,
+    PeriodCode     VARCHAR(10) NOT NULL,
+    PeriodDate     DATE NULL,
+    PeriodLabel    NVARCHAR(100),
+    Section        NVARCHAR(100) NOT NULL,
+    ParentLabel    NVARCHAR(255),
+    LineLabel      NVARCHAR(500) NOT NULL,
+    NoteRef        NVARCHAR(20),
+    Amount         DECIMAL(22,2) NULL,
+    ScaleMultiplier INT DEFAULT 1000,
+    Depth          INT DEFAULT 0,
+    IsSubTotal     BIT DEFAULT 0,
+    LineOrder      INT DEFAULT 0,
+    ExtractedAt    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    IsActive       BIT DEFAULT 1
+)

@@ -1,0 +1,404 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}REFERANS ORANLAR (SOFR & EURIBOR) — CUSTOMER TRACKER{% endblock %}
+
+{% block content %}
+<div class="t-page-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+        <div class="t-page-title" style="display:flex;align-items:center;gap:8px;">
+            <a href="/microservices" style="color:var(--cyan);text-decoration:none;"><span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span></a>
+            {{ lang_dict.get('lbl_reference_rates_title', 'REFERANS ORANLAR (SOFR & EURIBOR)') }}
+        </div>
+        <div class="t-page-subtitle">{{ lang_dict.get('lbl_reference_rates_sub', 'OFFICIAL CENTRAL BANK REFERENCE RATES IMMUTABLE LEDGER') }}</div>
+    </div>
+    <div>
+        <button id="fetch-btn" class="t-btn t-btn-cyan" onclick="triggerFetch()" style="display:flex; align-items:center; gap:6px; font-weight:bold; padding:10px 20px;">
+            <span class="material-symbols-outlined" id="fetch-icon" style="font-size:20px;">sync</span>
+            {{ lang_dict.get('lbl_fetch_update', 'ORANLARI GÜNCELLE / FETCH NOW') }}
+        </button>
+    </div>
+</div>
+
+<!-- TOP SECTION: LATEST RATES SUMMARY CARDS -->
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:24px;">
+    <!-- SOFR CARD -->
+    <div class="t-panel" style="position:relative; overflow:hidden; border-left:4px solid var(--cyan);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <div style="font-size:12px; color:var(--on-surface-3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">New York Federal Reserve</div>
+                <div style="font-size:20px; font-weight:800; color:var(--on-surface); margin-top:4px; display:flex; align-items:center; gap:8px;">
+                    SOFR Overnight
+                    <span class="t-chip t-chip-cyan" style="font-size:10px;">USD</span>
+                </div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:36px; color:var(--cyan); opacity:0.2;">account_balance</span>
+        </div>
+        <div style="margin-top:16px; display:flex; align-items:baseline; gap:12px;">
+            <span id="sofr-rate-val" style="font-size:36px; font-weight:900; color:var(--cyan); font-family:monospace;">--.--%</span>
+            <span id="sofr-date-val" style="font-size:13px; color:var(--on-surface-2); font-weight:600;">Effective: --/--/----</span>
+        </div>
+        <div style="margin-top:12px; font-size:11px; color:var(--on-surface-3); display:flex; align-items:center; gap:4px;">
+            <span class="material-symbols-outlined" style="font-size:14px;">history</span>
+            Fetched At: <span id="sofr-fetch-val">--</span>
+        </div>
+    </div>
+
+    <!-- EURIBOR CARD -->
+    <div class="t-panel" style="position:relative; overflow:hidden; border-left:4px solid var(--green);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <div style="font-size:12px; color:var(--on-surface-3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">European Central Bank (ECB SDMX)</div>
+                <div style="font-size:20px; font-weight:800; color:var(--on-surface); margin-top:4px; display:flex; align-items:center; gap:8px;">
+                    EURIBOR 3-Month
+                    <span class="t-chip t-chip-green" style="font-size:10px;">EUR</span>
+                </div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:36px; color:var(--green); opacity:0.2;">euro_symbol</span>
+        </div>
+        <div style="margin-top:16px; display:flex; align-items:baseline; gap:12px;">
+            <span id="euribor-rate-val" style="font-size:36px; font-weight:900; color:var(--green); font-family:monospace;">--.--%</span>
+            <span id="euribor-date-val" style="font-size:13px; color:var(--on-surface-2); font-weight:600;">Effective: --/--/----</span>
+        </div>
+        <div style="margin-top:12px; font-size:11px; color:var(--on-surface-3); display:flex; align-items:center; gap:4px;">
+            <span class="material-symbols-outlined" style="font-size:14px;">history</span>
+            Fetched At: <span id="euribor-fetch-val">--</span>
+        </div>
+    </div>
+</div>
+
+<!-- FILTER & CONTROL PANEL -->
+<div class="t-panel" style="margin-bottom:24px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:12px;">
+        <span style="font-weight:bold; font-size:15px; color:var(--on-surface); display:flex; align-items:center; gap:6px;">
+            <span class="material-symbols-outlined" style="color:var(--cyan);">filter_alt</span>
+            Filter Historical Rates & Previous Runs
+        </span>
+        <button class="t-btn t-btn-outline" onclick="resetFilters()" style="padding:4px 12px; font-size:12px;">
+            <span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">refresh</span> Reset Filters
+        </button>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; align-items:end;">
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Rate Type (14 Official Benchmarks)</label>
+            <select id="filter-type" class="t-input" onchange="applyFilters()">
+                <option value="ALL">All Rate Types (14 Official Benchmarks)</option>
+                <optgroup label="USD — SOFR & Federal Reserve Rates (New York Fed Official API)">
+                    <option value="SOFR_ON">SOFR Overnight (SOFR_ON)</option>
+                    <option value="SOFR_30D_AVG">SOFR 30-Day Average (SOFR_30D_AVG)</option>
+                    <option value="SOFR_90D_AVG">SOFR 90-Day Average (SOFR_90D_AVG)</option>
+                    <option value="SOFR_180D_AVG">SOFR 180-Day Average (SOFR_180D_AVG)</option>
+                    <option value="SOFR_INDEX">SOFR Index (SOFR_INDEX)</option>
+                    <option value="EFFR">Effective Federal Funds Rate (EFFR)</option>
+                    <option value="OBFR">Overnight Bank Funding Rate (OBFR)</option>
+                    <option value="TGCR">Tri-Party General Collateral Rate (TGCR)</option>
+                    <option value="BGCR">Broad General Collateral Rate (BGCR)</option>
+                </optgroup>
+                <optgroup label="EUR — EURIBOR Benchmarks (Deutsche Bundesbank Official API)">
+                    <option value="EURIBOR_1W">EURIBOR 1-Week (EURIBOR_1W)</option>
+                    <option value="EURIBOR_1M">EURIBOR 1-Month (EURIBOR_1M)</option>
+                    <option value="EURIBOR_3M">EURIBOR 3-Month (EURIBOR_3M)</option>
+                    <option value="EURIBOR_6M">EURIBOR 6-Month (EURIBOR_6M)</option>
+                    <option value="EURIBOR_12M">EURIBOR 12-Month / 1-Year (EURIBOR_12M)</option>
+                </optgroup>
+            </select>
+        </div>
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
+                <span>Specific Effective Date</span>
+                <span style="display:flex; gap:8px;">
+                    <a href="javascript:void(0)" onclick="setLatestDate()" style="font-size:11px; color:var(--cyan); text-decoration:underline; font-weight:bold;">En Son Tarih</a>
+                    <a href="javascript:void(0)" onclick="clearDateFilter()" style="font-size:11px; color:var(--on-surface-3); text-decoration:underline;">Tüm Tarihler</a>
+                </span>
+            </label>
+            <input type="date" id="filter-date" class="t-input" onchange="applyFilters()" title="Varsayılan olarak en son güncel tarih seçilidir. Önceki tarihleri veya tüm geçmişi görmek için burayı değiştirin.">
+        </div>
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Min Rate Value (%)</label>
+            <input type="number" step="0.01" id="filter-min" class="t-input" placeholder="e.g. 2.00" oninput="applyFilters()">
+        </div>
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Max Rate Value (%)</label>
+            <input type="number" step="0.01" id="filter-max" class="t-input" placeholder="e.g. 60.00" oninput="applyFilters()">
+        </div>
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Record Limit</label>
+            <select id="filter-limit" class="t-input" onchange="loadHistoryData()">
+                <option value="100">Last 100 Records</option>
+                <option value="250">Last 250 Records</option>
+                <option value="500" selected>Last 500 Records (~24 Days)</option>
+                <option value="1000">Last 1,000 Records (~48 Days)</option>
+                <option value="2500">Last 2,500 Records (~120 Days)</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- HISTORICAL LEDGER TABLE -->
+<div class="t-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <span style="font-weight:bold; font-size:15px; color:var(--on-surface); display:flex; align-items:center; gap:6px;">
+            <span class="material-symbols-outlined" style="color:var(--cyan);">table_chart</span>
+            Historical Reference Rates Ledger
+        </span>
+        <span id="record-count-badge" class="t-chip t-chip-cyan" style="font-weight:bold;">Loading records...</span>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="t-table" style="width:100%; text-align:left; border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--border); color:var(--on-surface-2); font-size:12px; text-transform:uppercase;">
+                    <th style="padding:12px 8px;"># ID</th>
+                    <th style="padding:12px 8px;">Effective Date</th>
+                    <th style="padding:12px 8px;">Rate Type</th>
+                    <th style="padding:12px 8px;">Rate Value (%)</th>
+                    <th style="padding:12px 8px;">Ledger Ingestion Timestamp (UTC)</th>
+                </tr>
+            </thead>
+            <tbody id="rates-tbody">
+                <tr>
+                    <td colspan="5" style="text-align:center; padding:30px; color:var(--on-surface-3);">
+                        <span class="material-symbols-outlined" style="font-size:24px; animation: spin 1s linear infinite; vertical-align:middle;">sync</span> Loading historical reference rates...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allHistoricalRecords = [];
+
+    // Format ISO dates to readable string
+    function formatDate(dateStr) {
+        if (!dateStr) return '--';
+        try {
+            let parts = dateStr.split('T')[0].split('-');
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return dateStr;
+        } catch(e) { return dateStr; }
+    }
+
+    function formatDateTime(dtStr) {
+        if (!dtStr) return '--';
+        try {
+            let d = new Date(dtStr + (dtStr.endsWith('Z') ? '' : 'Z'));
+            return d.toLocaleString();
+        } catch(e) { return dtStr; }
+    }
+
+    // Load latest rates summary
+    function loadLatestRates() {
+        fetch('/api/referans-oranlar/latest')
+            .then(res => res.json())
+            .then(data => {
+                if (data.sofr) {
+                    document.getElementById('sofr-rate-val').innerText = `${Number(data.sofr.rate_value).toFixed(3)}%`;
+                    document.getElementById('sofr-date-val').innerText = `Effective: ${formatDate(data.sofr.effective_date)}`;
+                    document.getElementById('sofr-fetch-val').innerText = formatDateTime(data.sofr.fetched_at);
+                } else {
+                    document.getElementById('sofr-rate-val').innerText = "N/A";
+                }
+
+                if (data.euribor) {
+                    document.getElementById('euribor-rate-val').innerText = `${Number(data.euribor.rate_value).toFixed(3)}%`;
+                    document.getElementById('euribor-date-val').innerText = `Effective: ${formatDate(data.euribor.effective_date)}`;
+                    document.getElementById('euribor-fetch-val').innerText = formatDateTime(data.euribor.fetched_at);
+                } else {
+                    document.getElementById('euribor-rate-val').innerText = "N/A";
+                }
+            })
+            .catch(err => {
+                console.error("Error loading latest rates:", err);
+                document.getElementById('sofr-rate-val').innerText = "OFFLINE";
+                document.getElementById('euribor-rate-val').innerText = "OFFLINE";
+            });
+    }
+
+    // Load historical rates across all 21 tenors
+    function loadHistoryData() {
+        let limit = document.getElementById('filter-limit').value || 500;
+        
+        fetch(`/api/referans-oranlar/history?type=ALL&limit=${limit}`)
+            .then(r => r.json())
+            .then(data => {
+                allHistoricalRecords = data.rates || [];
+                // Sort descending by effective_date then ID
+                allHistoricalRecords.sort((a, b) => {
+                    let dCompare = b.effective_date.localeCompare(a.effective_date);
+                    if (dCompare !== 0) return dCompare;
+                    return b.id - a.id;
+                });
+                
+                // Requirement #2: Page default should be latest date available
+                if (!document.getElementById('filter-date').value && allHistoricalRecords.length > 0) {
+                    document.getElementById('filter-date').value = allHistoricalRecords[0].effective_date;
+                }
+                
+                applyFilters();
+            }).catch(err => {
+                console.error("Error loading historical records:", err);
+                document.getElementById('rates-tbody').innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align:center; padding:30px; color:var(--red);">
+                            <span class="material-symbols-outlined" style="font-size:24px; vertical-align:middle;">error</span> Failed to load reference rates from microservice. Ensure port 5006 is active.
+                        </td>
+                    </tr>`;
+            });
+    }
+
+    function setLatestDate() {
+        if (allHistoricalRecords.length > 0) {
+            document.getElementById('filter-date').value = allHistoricalRecords[0].effective_date;
+            applyFilters();
+        }
+    }
+
+    function clearDateFilter() {
+        document.getElementById('filter-date').value = '';
+        applyFilters();
+    }
+
+    function getRateMeta(rateType) {
+        const metas = {
+            "SOFR_ON": { label: "SOFR Overnight (SOFR_ON)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "SOFR_30D_AVG": { label: "SOFR 30-Day Average (SOFR_30D_AVG)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "SOFR_90D_AVG": { label: "SOFR 90-Day Average (SOFR_90D_AVG)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "SOFR_180D_AVG": { label: "SOFR 180-Day Average (SOFR_180D_AVG)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "SOFR_INDEX": { label: "SOFR Index (SOFR_INDEX)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "EFFR": { label: "Effective Federal Funds Rate (EFFR)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "OBFR": { label: "Overnight Bank Funding Rate (OBFR)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "TGCR": { label: "Tri-Party General Collateral Rate (TGCR)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "BGCR": { label: "Broad General Collateral Rate (BGCR)", chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "USD" },
+            "EURIBOR_1W": { label: "EURIBOR 1-Week (EURIBOR_1W)", chipClass: "t-chip-green", color: "var(--green)", ccy: "EUR" },
+            "EURIBOR_1M": { label: "EURIBOR 1-Month (EURIBOR_1M)", chipClass: "t-chip-green", color: "var(--green)", ccy: "EUR" },
+            "EURIBOR_3M": { label: "EURIBOR 3-Month (EURIBOR_3M)", chipClass: "t-chip-green", color: "var(--green)", ccy: "EUR" },
+            "EURIBOR_6M": { label: "EURIBOR 6-Month (EURIBOR_6M)", chipClass: "t-chip-green", color: "var(--green)", ccy: "EUR" },
+            "EURIBOR_12M": { label: "EURIBOR 12-Month / 1-Year (EURIBOR_12M)", chipClass: "t-chip-green", color: "var(--green)", ccy: "EUR" }
+        };
+        return metas[rateType] || { label: rateType, chipClass: "t-chip-cyan", color: "var(--cyan)", ccy: "---" };
+    }
+
+    // Filter and render records
+    function applyFilters() {
+        let typeVal = document.getElementById('filter-type').value;
+        let dateVal = document.getElementById('filter-date').value;
+        let minVal = document.getElementById('filter-min').value;
+        let maxVal = document.getElementById('filter-max').value;
+
+        let filtered = [];
+
+        // If no date is selected and Rate Type is ALL, show ONLY the latest available record for EACH rate type (exactly 21 records)
+        if (!dateVal && typeVal === 'ALL' && minVal === '' && maxVal === '') {
+            let seenTypes = new Set();
+            for (let r of allHistoricalRecords) {
+                if (!seenTypes.has(r.rate_type)) {
+                    seenTypes.add(r.rate_type);
+                    filtered.push(r);
+                }
+            }
+        } else {
+            filtered = allHistoricalRecords.filter(r => {
+                if (typeVal !== 'ALL' && r.rate_type !== typeVal) return false;
+                if (dateVal && r.effective_date !== dateVal) return false;
+                if (minVal !== '' && !isNaN(minVal) && Number(r.rate_value) < Number(minVal)) return false;
+                if (maxVal !== '' && !isNaN(maxVal) && Number(r.rate_value) > Number(maxVal)) return false;
+                return true;
+            });
+        }
+
+        renderTable(filtered);
+    }
+
+    function renderTable(records) {
+        let tbody = document.getElementById('rates-tbody');
+        let isDefaultView = (!document.getElementById('filter-date').value && document.getElementById('filter-type').value === 'ALL' && !document.getElementById('filter-min').value && !document.getElementById('filter-max').value);
+        
+        if (isDefaultView) {
+            document.getElementById('record-count-badge').innerText = `Showing ${records.length} Latest Active Tenors (Select Date or Type for History)`;
+        } else {
+            document.getElementById('record-count-badge').innerText = `Showing ${records.length} records`;
+        }
+
+        if (records.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align:center; padding:30px; color:var(--on-surface-3);">
+                        No reference rates match your selected filters. Try clicking "Tüm Tarihler" to clear the date filter.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        let html = '';
+        records.forEach(r => {
+            let meta = getRateMeta(r.rate_type);
+            let valStr = Number(r.rate_value).toFixed(3) + '%';
+            if (r.rate_type === 'SOFR_INDEX') {
+                valStr = Number(r.rate_value).toFixed(6);
+            }
+            
+            html += `<tr style="border-bottom:1px solid var(--border); transition:background 0.15s;">
+                <td style="padding:12px 8px; font-family:monospace; color:var(--on-surface-3);">#${r.id}</td>
+                <td style="padding:12px 8px; font-weight:bold; color:var(--on-surface);">${formatDate(r.effective_date)}</td>
+                <td style="padding:12px 8px;"><span class="t-chip ${meta.chipClass}" style="font-size:11px; font-weight:bold;">${meta.label}</span></td>
+                <td style="padding:12px 8px; font-family:monospace; font-weight:800; font-size:15px; color:${meta.color};">${valStr}</td>
+                <td style="padding:12px 8px; font-size:13px; color:var(--on-surface-2);">${formatDateTime(r.fetched_at)}</td>
+            </tr>`;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function resetFilters() {
+        document.getElementById('filter-type').value = 'ALL';
+        document.getElementById('filter-date').value = '';
+        document.getElementById('filter-min').value = '';
+        document.getElementById('filter-max').value = '';
+        applyFilters();
+    }
+
+    // Trigger immediate fetch from central bank APIs
+    function triggerFetch() {
+        let btn = document.getElementById('fetch-btn');
+        let icon = document.getElementById('fetch-icon');
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        icon.style.animation = 'spin 1s linear infinite';
+        
+        fetch('/api/referans-oranlar/fetch', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                icon.style.animation = 'none';
+                
+                if (data.success || data.records_ignored !== undefined) {
+                    alert(`✅ Ingestion Cycle Completed!\n\nInserted New Records: ${data.records_inserted || 0}\nExisting/Ignored Records: ${data.records_ignored || 0}\n\n${(data.errors && data.errors.length > 0) ? 'Notes: ' + data.errors[0] : 'All central bank APIs queried successfully.'}`);
+                    loadLatestRates();
+                    loadHistoryData();
+                } else {
+                    alert('⚠️ Ingestion response: ' + JSON.stringify(data));
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                icon.style.animation = 'none';
+                alert('❌ Error contacting reference rates service: ' + err);
+            });
+    }
+
+    // Add spin CSS animation if not already present
+    let style = document.createElement('style');
+    style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
+
+    // Initial load
+    document.addEventListener("DOMContentLoaded", () => {
+        loadLatestRates();
+        loadHistoryData();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,341 @@
+{% extends "base_frame.html" if request.args.get('_frame') == '1' else "base.html" %}
+{% block title %}TÜİK VERİ SERVİSİ (SDMX & EVDS) — CUSTOMER TRACKER{% endblock %}
+
+{% block content %}
+<div class="t-page-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+        <div class="t-page-title" style="display:flex;align-items:center;gap:8px;">
+            <a href="/microservices" style="color:var(--cyan);text-decoration:none;"><span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span></a>
+            {{ lang_dict.get('lbl_tuik_title', 'TÜİK VERİ SERVİSİ (ENFLASYON / TÜFE)') }}
+        </div>
+        <div class="t-page-subtitle">{{ lang_dict.get('lbl_tuik_sub', 'TÜİK SDMX & EVDS RESMİ İSTATİSTİKİ VERİLER VE ENFLASYON DEFTERİ') }}</div>
+    </div>
+    <div>
+        <button id="fetch-btn" class="t-btn t-btn-cyan" onclick="triggerFetch()" style="display:flex; align-items:center; gap:6px; font-weight:bold; padding:10px 20px;">
+            <span class="material-symbols-outlined" id="fetch-icon" style="font-size:20px;">sync</span>
+            {{ lang_dict.get('lbl_fetch_tuik', 'TÜFE VERİLERİNİ GÜNCELLE / FETCH NOW') }}
+        </button>
+    </div>
+</div>
+
+
+<!-- TOP SECTION: LATEST INDICATORS SUMMARY CARDS -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-bottom:24px;">
+    <!-- MONTHLY TUFE CARD -->
+    <div class="t-panel" style="position:relative; overflow:hidden; border-left:4px solid var(--cyan);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <div style="font-size:12px; color:var(--on-surface-3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">TÜİK Resmi İstatistik</div>
+                <div style="font-size:18px; font-weight:800; color:var(--on-surface); margin-top:4px; display:flex; align-items:center; gap:8px;">
+                    TÜFE Aylık Değişim
+                    <span class="t-chip t-chip-cyan" style="font-size:10px;">%</span>
+                </div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:36px; color:var(--cyan); opacity:0.2;">trending_up</span>
+        </div>
+        <div style="margin-top:16px; display:flex; align-items:baseline; gap:12px;">
+            <span id="monthly-val" style="font-size:34px; font-weight:900; color:var(--cyan); font-family:monospace;">--.--%</span>
+            <span id="monthly-period" style="font-size:13px; color:var(--on-surface-2); font-weight:600;">Dönem: --</span>
+        </div>
+        <div style="margin-top:12px; font-size:11px; color:var(--on-surface-3); display:flex; align-items:center; gap:4px;">
+            <span class="material-symbols-outlined" style="font-size:14px;">history</span>
+            Güncellenme: <span id="monthly-fetch">--</span>
+        </div>
+    </div>
+
+    <!-- YEARLY TUFE CARD -->
+    <div class="t-panel" style="position:relative; overflow:hidden; border-left:4px solid var(--green);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <div style="font-size:12px; color:var(--on-surface-3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">TÜİK Resmi İstatistik</div>
+                <div style="font-size:18px; font-weight:800; color:var(--on-surface); margin-top:4px; display:flex; align-items:center; gap:8px;">
+                    TÜFE Yıllık Değişim
+                    <span class="t-chip t-chip-green" style="font-size:10px;">%</span>
+                </div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:36px; color:var(--green); opacity:0.2;">bar_chart</span>
+        </div>
+        <div style="margin-top:16px; display:flex; align-items:baseline; gap:12px;">
+            <span id="yearly-val" style="font-size:34px; font-weight:900; color:var(--green); font-family:monospace;">--.--%</span>
+            <span id="yearly-period" style="font-size:13px; color:var(--on-surface-2); font-weight:600;">Dönem: --</span>
+        </div>
+        <div style="margin-top:12px; font-size:11px; color:var(--on-surface-3); display:flex; align-items:center; gap:4px;">
+            <span class="material-symbols-outlined" style="font-size:14px;">history</span>
+            Güncellenme: <span id="yearly-fetch">--</span>
+        </div>
+    </div>
+
+    <!-- INDEX TUFE CARD -->
+    <div class="t-panel" style="position:relative; overflow:hidden; border-left:4px solid var(--yellow);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <div style="font-size:12px; color:var(--on-surface-3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">TÜİK Endeks (2003=100)</div>
+                <div style="font-size:18px; font-weight:800; color:var(--on-surface); margin-top:4px; display:flex; align-items:center; gap:8px;">
+                    TÜFE Endeks Değeri
+                    <span class="t-chip t-chip-yellow" style="font-size:10px;">ENDEKS</span>
+                </div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:36px; color:var(--yellow); opacity:0.2;">equalizer</span>
+        </div>
+        <div style="margin-top:16px; display:flex; align-items:baseline; gap:12px;">
+            <span id="index-val" style="font-size:34px; font-weight:900; color:var(--yellow); font-family:monospace;">----.--</span>
+            <span id="index-period" style="font-size:13px; color:var(--on-surface-2); font-weight:600;">Dönem: --</span>
+        </div>
+        <div style="margin-top:12px; font-size:11px; color:var(--on-surface-3); display:flex; align-items:center; gap:4px;">
+            <span class="material-symbols-outlined" style="font-size:14px;">history</span>
+            Güncellenme: <span id="index-fetch">--</span>
+        </div>
+    </div>
+</div>
+
+<!-- FILTER & CONTROL PANEL -->
+<div class="t-panel" style="margin-bottom:24px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:12px;">
+        <span style="font-weight:bold; font-size:15px; color:var(--on-surface); display:flex; align-items:center; gap:6px;">
+            <span class="material-symbols-outlined" style="color:var(--cyan);">filter_alt</span>
+            Geçmiş Verileri ve Göstergeleri Filtrele
+        </span>
+        <button class="t-btn t-btn-outline" onclick="resetFilters()" style="padding:4px 12px; font-size:12px;">
+            <span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">refresh</span> Filtreleri Sıfırla
+        </button>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; align-items:end;">
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Gösterge Türü (Indicator)</label>
+            <select id="filter-indicator" class="t-input" onchange="applyFilters()">
+                <option value="ALL">Tüm Göstergeler (Aylık, Yıllık, Endeks)</option>
+                <option value="TUFE_MONTHLY" selected>TÜFE Aylık Değişim Oranı (%)</option>
+                <option value="TUFE_YEARLY">TÜFE Yıllık Değişim Oranı (%)</option>
+                <option value="TUFE_INDEX">TÜFE Endeks Değeri (2003=100)</option>
+            </select>
+        </div>
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Belirli Dönem (Örn: 2026-05, 2025-12)</label>
+            <input type="text" id="filter-period" class="t-input" oninput="applyFilters()" placeholder="Dönem ara (YYYY-AA)...">
+        </div>
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Min Değer</label>
+            <input type="number" step="0.01" id="filter-min" class="t-input" placeholder="Örn: 2.00" oninput="applyFilters()">
+        </div>
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Max Değer</label>
+            <input type="number" step="0.01" id="filter-max" class="t-input" placeholder="Örn: 50.00" oninput="applyFilters()">
+        </div>
+        <div>
+            <label class="t-label" style="font-size:12px; font-weight:600;">Kayıt Limiti</label>
+            <select id="filter-limit" class="t-input" onchange="loadHistoryData()">
+                <option value="24">Son 24 Dönem</option>
+                <option value="36" selected>Son 36 Dönem</option>
+                <option value="72">Son 72 Dönem</option>
+                <option value="120">Tüm Kayıtlar (120)</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- HISTORICAL LEDGER TABLE -->
+<div class="t-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <span style="font-weight:bold; font-size:15px; color:var(--on-surface); display:flex; align-items:center; gap:6px;">
+            <span class="material-symbols-outlined" style="color:var(--cyan);">table_chart</span>
+            TÜİK İstatistiki Veriler Defteri (Immutable Journal)
+        </span>
+        <span id="record-count-badge" class="t-chip t-chip-cyan" style="font-weight:bold;">Kayıtlar yükleniyor...</span>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="t-table" style="width:100%; text-align:left; border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--border); color:var(--on-surface-2); font-size:12px; text-transform:uppercase;">
+                    <th style="padding:12px 8px;"># ID</th>
+                    <th style="padding:12px 8px;">Dönem (Ay / Yıl)</th>
+                    <th style="padding:12px 8px;">Gösterge Kodu</th>
+                    <th style="padding:12px 8px;">Gösterge Adı</th>
+                    <th style="padding:12px 8px;">Değer</th>
+                    <th style="padding:12px 8px;">Birim</th>
+                    <th style="padding:12px 8px;">İşlem Tarihi (UTC)</th>
+                </tr>
+            </thead>
+            <tbody id="tuik-tbody">
+                <tr>
+                    <td colspan="7" style="text-align:center; padding:30px; color:var(--on-surface-3);">
+                        <span class="material-symbols-outlined" style="font-size:24px; animation: spin 1s linear infinite; vertical-align:middle;">sync</span> TÜİK verileri yükleniyor...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allTuikRecords = [];
+
+    function formatDateTime(dtStr) {
+        if (!dtStr) return '--';
+        try {
+            let d = new Date(dtStr + (dtStr.endsWith('Z') ? '' : 'Z'));
+            return d.toLocaleString();
+        } catch(e) { return dtStr; }
+    }
+
+    // Load latest indicators summary
+    function loadLatestIndicators() {
+        fetch('/api/tuik-data/latest')
+            .then(res => res.json())
+            .then(data => {
+                if (data.monthly_tufe) {
+                    document.getElementById('monthly-val').innerText = `${Number(data.monthly_tufe.value).toFixed(2)}%`;
+                    document.getElementById('monthly-period').innerText = `Dönem: ${data.monthly_tufe.period}`;
+                    document.getElementById('monthly-fetch').innerText = formatDateTime(data.monthly_tufe.fetched_at);
+                }
+                if (data.yearly_tufe) {
+                    document.getElementById('yearly-val').innerText = `${Number(data.yearly_tufe.value).toFixed(2)}%`;
+                    document.getElementById('yearly-period').innerText = `Dönem: ${data.yearly_tufe.period}`;
+                    document.getElementById('yearly-fetch').innerText = formatDateTime(data.yearly_tufe.fetched_at);
+                }
+                if (data.index_tufe) {
+                    document.getElementById('index-val').innerText = `${Number(data.index_tufe.value).toFixed(2)}`;
+                    document.getElementById('index-period').innerText = `Dönem: ${data.index_tufe.period}`;
+                    document.getElementById('index-fetch').innerText = formatDateTime(data.index_tufe.fetched_at);
+                }
+            })
+            .catch(err => {
+                console.error("Error loading latest TUIK indicators:", err);
+            });
+    }
+
+    // Load historical records for all indicators
+    function loadHistoryData() {
+        let limit = document.getElementById('filter-limit').value || 36;
+        
+        Promise.all([
+            fetch(`/api/tuik-data/history?indicator=TUFE_MONTHLY&limit=${limit}`).then(r => r.json()),
+            fetch(`/api/tuik-data/history?indicator=TUFE_YEARLY&limit=${limit}`).then(r => r.json()),
+            fetch(`/api/tuik-data/history?indicator=TUFE_INDEX&limit=${limit}`).then(r => r.json())
+        ]).then(([mDate, yDate, iDate]) => {
+            let mList = mDate.records || [];
+            let yList = yDate.records || [];
+            let iList = iDate.records || [];
+            
+            allTuikRecords = [...mList, ...yList, ...iList];
+            allTuikRecords.sort((a, b) => {
+                let dCompare = b.period.localeCompare(a.period);
+                if (dCompare !== 0) return dCompare;
+                return b.id - a.id;
+            });
+            
+            applyFilters();
+        }).catch(err => {
+            console.error("Error loading TUIK history:", err);
+            document.getElementById('tuik-tbody').innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; padding:30px; color:var(--red);">
+                        <span class="material-symbols-outlined" style="font-size:24px; vertical-align:middle;">error</span> TÜİK verileri çekilemedi. Servisin 5007 portunda çalıştığından emin olun.
+                    </td>
+                </tr>`;
+        });
+    }
+
+    function applyFilters() {
+        let indVal = document.getElementById('filter-indicator').value;
+        let periodVal = document.getElementById('filter-period').value.trim().toLowerCase();
+        let minVal = document.getElementById('filter-min').value;
+        let maxVal = document.getElementById('filter-max').value;
+
+        let filtered = allTuikRecords.filter(r => {
+            if (indVal !== 'ALL' && r.indicator_code !== indVal) return false;
+            if (periodVal && !r.period.toLowerCase().includes(periodVal)) return false;
+            if (minVal !== '' && !isNaN(minVal) && Number(r.value) < Number(minVal)) return false;
+            if (maxVal !== '' && !isNaN(maxVal) && Number(r.value) > Number(maxVal)) return false;
+            return true;
+        });
+
+        renderTable(filtered);
+    }
+
+    function renderTable(records) {
+        let tbody = document.getElementById('tuik-tbody');
+        document.getElementById('record-count-badge').innerText = `${records.length} kayıt gösteriliyor`;
+
+        if (records.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; padding:30px; color:var(--on-surface-3);">
+                        Seçilen filtrelere uygun TÜİK veri kaydı bulunamadı.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        let html = '';
+        records.forEach(r => {
+            let isMonthly = r.indicator_code === 'TUFE_MONTHLY';
+            let isYearly = r.indicator_code === 'TUFE_YEARLY';
+            let chipClass = isMonthly ? 't-chip-cyan' : (isYearly ? 't-chip-green' : 't-chip-yellow');
+            let valColor = isMonthly ? 'var(--cyan)' : (isYearly ? 'var(--green)' : 'var(--yellow)');
+            
+            html += `<tr style="border-bottom:1px solid var(--border); transition:background 0.15s;">
+                <td style="padding:12px 8px; font-family:monospace; color:var(--on-surface-3);">#${r.id}</td>
+                <td style="padding:12px 8px; font-weight:bold; color:var(--on-surface); font-size:14px;">${r.period}</td>
+                <td style="padding:12px 8px;"><span class="t-chip ${chipClass}" style="font-size:11px; font-weight:bold;">${r.indicator_code}</span></td>
+                <td style="padding:12px 8px; color:var(--on-surface); font-size:13px;">${r.indicator_name}</td>
+                <td style="padding:12px 8px; font-family:monospace; font-weight:800; font-size:15px; color:${valColor};">${Number(r.value).toFixed(2)}</td>
+                <td style="padding:12px 8px; color:var(--on-surface-2); font-size:12px;">${r.unit || ''}</td>
+                <td style="padding:12px 8px; font-size:13px; color:var(--on-surface-2);">${formatDateTime(r.fetched_at)}</td>
+            </tr>`;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function resetFilters() {
+        document.getElementById('filter-indicator').value = 'ALL';
+        document.getElementById('filter-period').value = '';
+        document.getElementById('filter-min').value = '';
+        document.getElementById('filter-max').value = '';
+        applyFilters();
+    }
+
+    function triggerFetch() {
+        let btn = document.getElementById('fetch-btn');
+        let icon = document.getElementById('fetch-icon');
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        icon.style.animation = 'spin 1s linear infinite';
+        
+        fetch('/api/tuik-data/fetch', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                icon.style.animation = 'none';
+                
+                if (data.success || data.records_ignored !== undefined) {
+                    alert(`✅ TÜİK Veri Güncelleme Başarılı!\n\nYeni Eklenen Kayıt: ${data.records_inserted || 0}\nMevcut (Atlanan) Kayıt: ${data.records_ignored || 0}`);
+                    loadLatestIndicators();
+                    loadHistoryData();
+                } else {
+                    alert('⚠️ Güncelleme uyarısı: ' + JSON.stringify(data));
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                icon.style.animation = 'none';
+                alert('❌ TÜİK veri servisine bağlanılamadı: ' + err);
+            });
+    }
+
+    let style = document.createElement('style');
+    style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadLatestIndicators();
+        loadHistoryData();
+    });
+</script>
+{% endblock %}

@@ -7,8 +7,8 @@
 </div>
 
 <!-- ═══ HEADER ═══ -->
-<div class="t-panel" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1px;">
-    <div style="flex:1;">
+<div class="t-panel" style="display:flex;align-items:center;gap:24px;margin-bottom:1px;">
+    <div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
             <span class="t-display" style="font-size:19px;">{{ customer['CustomerName'] }}</span>
             <span class="t-chip t-chip-green">{{ lang_dict.get('overview_active_deals', '{} DEALS').format(deals|length) }}</span>
@@ -20,8 +20,8 @@
         </div>
     </div>
     {% if customer['LogoFilename'] %}
-    <div style="width:40px;height:40px;border:1px solid var(--border);overflow:hidden;flex-shrink:0;">
-        <img src="{{ url_for('static', filename='logos/' + customer['LogoFilename']) }}" alt="" style="width:100%;height:100%;object-fit:cover;" id="company-logo">
+    <div style="height:56px;display:flex;align-items:center;flex-shrink:0;">
+        <img src="{{ url_for('static', filename='logos/' + customer['LogoFilename']) }}" alt="" style="height:100%;width:auto;max-width:180px;object-fit:contain;" id="company-logo">
     </div>
     {% endif %}
 </div>
@@ -380,7 +380,7 @@
 
 <!-- ═══ TAB: AI ANALYSIS ═══ -->
 <div id="tab-ai" style="display:none;">
-    {% if microservices_state.get('sparx_ai', {}).get('enabled', True) %}
+    {% if microservices_state.get('sparx_ai', {}).get('enabled', True) or microservices_state.get('financial_reports', {}).get('enabled', True) %}
     <style>@keyframes t-spin { 100% { transform: rotate(360deg); } }</style>
     <div class="t-section-header" style="margin-bottom:16px;">{{ lang_dict.get('lbl_ai_analysis_dash', 'AI ANALYSIS DASHBOARD') }}</div>
     
@@ -390,14 +390,14 @@
                 <span class="material-symbols-outlined" style="color:var(--primary);">description</span>
                 Document Analysis
             </div>
-            <div style="font-size:13px;color:var(--on-surface-3);">Analyze uploaded customer documents.</div>
+            <div style="font-size:13px;color:var(--on-surface-3);">Analyze uploaded customer documents with RAG.</div>
         </div>
-        <div onclick="selectAiMode('other')" id="ai-mode-other" class="t-panel" style="flex:1;cursor:pointer;border:2px solid var(--surface-2);transition:0.2s;opacity:0.7;">
+        <div onclick="selectAiMode('fin_table')" id="ai-mode-fintable" class="t-panel" style="flex:1;cursor:pointer;border:2px solid var(--surface-2);transition:0.2s;">
             <div style="display:flex;align-items:center;gap:8px;font-weight:bold;margin-bottom:4px;">
-                <span class="material-symbols-outlined" style="color:var(--amber);">auto_awesome</span>
-                Other (Coming Soon)
+                <span class="material-symbols-outlined" style="color:var(--cyan);">table_chart</span>
+                Financial Table Extractor
             </div>
-            <div style="font-size:13px;color:var(--on-surface-3);">General purpose AI queries.</div>
+            <div style="font-size:13px;color:var(--on-surface-3);">Extract structured balance sheets and financial hierarchies from PDFs.</div>
         </div>
     </div>
     
@@ -415,12 +415,56 @@
         <!-- AI Analysis Results Container -->
         <div id="ai-analysis-result" style="display:none;margin-top:16px;"></div>
     </div>
+    
+    <!-- Financial Table Extractor Section -->
+    <div id="ai-fintable-section" style="display:none;">
+        <div class="t-section-header" style="margin-bottom:8px;">Select PDF Financial Document</div>
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+            <select id="fintable-doc-select" class="t-input" style="max-width:400px; flex:1; min-width:250px;" onchange="handleFinTableDocChange()">
+                <option value="">— Select a document —</option>
+                {% for doc in documents %}
+                <option value="{{ doc['DocID'] }}">{{ doc['DocName'] }} ({{ doc['DocTypeCode'] }})</option>
+                {% endfor %}
+            </select>
+            <button id="btn-extract-fintable" class="t-btn t-btn-cyan" onclick="triggerFinTableExtraction()" style="display:none;">
+                <span class="material-symbols-outlined" style="font-size:18px; vertical-align:bottom; margin-right:4px;">table_view</span> Extract Financials
+            </button>
+            <button id="btn-view-fintable" class="t-btn t-btn-outline" onclick="loadFinTableReports()" style="display:none;">
+                <span class="material-symbols-outlined" style="font-size:18px; vertical-align:bottom; margin-right:4px;">visibility</span> Load Extracted Report
+            </button>
+        </div>
+        
+        <div id="fintable-status" class="t-panel" style="display:none; background:var(--surface-2); margin-bottom:16px;"></div>
+        
+        <div id="fintable-result-container" style="display:none; margin-top:16px;">
+            <div class="t-panel" style="padding:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:12px; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <div id="fintable-title" style="font-weight:bold; font-size:16px; color:var(--cyan);">Extracted Balance Sheet</div>
+                        <div id="fintable-subtitle" style="font-size:12px; color:var(--on-surface-3);">Structured hierarchical view of lines and subtotals.</div>
+                    </div>
+                    <span id="fintable-period-badges" style="display:flex; gap:8px; flex-wrap:wrap;"></span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="t-table" id="fintable-table" style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <thead>
+                            <tr id="fintable-thead-tr" style="background:var(--surface-1); text-align:left; border-bottom:2px solid var(--border);">
+                                <th style="padding:10px;">Line Item Label</th>
+                                <th style="padding:10px; width:80px; text-align:center;">Note</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fintable-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     {% else %}
     <div class="t-panel" style="display: flex; align-items:center; justify-content:center; height: 150px; margin-top: 16px; background:var(--surface-2); border:1px solid var(--border); border-radius:12px;">
         <div style="text-align:center;">
             <span class="material-symbols-outlined" style="font-size:40px; color:var(--red); margin-bottom:12px; display:block;">power_off</span>
-            <div style="font-weight:bold; color:var(--on-surface); margin-bottom:8px; font-size:15px; text-transform:uppercase;">Microservice Disconnected</div>
-            <div style="color:var(--on-surface-3); font-size:13px;">The Sparx AI Analysis service has been disconnected by an Administrator.</div>
+            <div style="font-weight:bold; color:var(--on-surface); margin-bottom:8px; font-size:15px; text-transform:uppercase;">AI Microservices Disconnected</div>
+            <div style="color:var(--on-surface-3); font-size:13px;">The AI Analysis services have been disconnected by an Administrator.</div>
         </div>
     </div>
     {% endif %}
@@ -782,17 +826,153 @@ document.addEventListener('keydown', function(e) {
 // ==========================================
 function selectAiMode(mode) {
     var docCard = document.getElementById('ai-mode-doc');
-    var otherCard = document.getElementById('ai-mode-other');
+    var fintableCard = document.getElementById('ai-mode-fintable');
     
-    docCard.style.borderColor = (mode === 'document') ? 'var(--primary)' : 'var(--surface-2)';
-    otherCard.style.borderColor = (mode === 'other') ? 'var(--amber)' : 'var(--surface-2)';
+    if (docCard) docCard.style.borderColor = (mode === 'document') ? 'var(--primary)' : 'var(--surface-2)';
+    if (fintableCard) fintableCard.style.borderColor = (mode === 'fin_table') ? 'var(--cyan)' : 'var(--surface-2)';
     
-    document.getElementById('ai-doc-section').style.display = (mode === 'document') ? 'block' : 'none';
+    var docSec = document.getElementById('ai-doc-section');
+    var finSec = document.getElementById('ai-fintable-section');
+    if (docSec) docSec.style.display = (mode === 'document') ? 'block' : 'none';
+    if (finSec) finSec.style.display = (mode === 'fin_table') ? 'block' : 'none';
+}
+
+function handleFinTableDocChange() {
+    var select = document.getElementById('fintable-doc-select');
+    var docId = select.value;
+    var btnExtract = document.getElementById('btn-extract-fintable');
+    var btnView = document.getElementById('btn-view-fintable');
+    var statusPanel = document.getElementById('fintable-status');
+    var resultPanel = document.getElementById('fintable-result-container');
     
-    if(mode === 'other') {
-        alert("This feature is coming soon!");
-        otherCard.style.borderColor = 'var(--surface-2)';
+    if (!docId) {
+        btnExtract.style.display = 'none';
+        btnView.style.display = 'none';
+        statusPanel.style.display = 'none';
+        resultPanel.style.display = 'none';
+        return;
     }
+    
+    btnExtract.style.display = 'inline-flex';
+    btnView.style.display = 'inline-flex';
+    statusPanel.style.display = 'none';
+    resultPanel.style.display = 'none';
+}
+
+function triggerFinTableExtraction() {
+    var select = document.getElementById('fintable-doc-select');
+    var docId = select.value;
+    if (!docId) return;
+    
+    var statusPanel = document.getElementById('fintable-status');
+    statusPanel.style.display = 'block';
+    statusPanel.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:12px;"><span class="material-symbols-outlined" style="animation:t-spin 1s linear infinite;color:var(--cyan);">refresh</span> <span>Extracting financial statements from PDF... This may take a few moments.</span></div>';
+    
+    var customerId = CUSTOMER_ID;
+    fetch(`/api/customers/${customerId}/documents/${docId}/extract-financials`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            statusPanel.innerHTML = `<div style="color:var(--green); font-weight:500; padding:12px;"><span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:4px;">check_circle</span> ${data.message}</div>`;
+            loadFinTableReports();
+        } else {
+            statusPanel.innerHTML = `<div style="color:var(--red); font-weight:500; padding:12px;"><span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:4px;">error</span> Error: ${data.error || 'Failed to extract financial report.'}</div>`;
+        }
+    })
+    .catch(err => {
+        statusPanel.innerHTML = `<div style="color:var(--red); font-weight:500; padding:12px;"><span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:4px;">error</span> Connection error: ${err.message}</div>`;
+    });
+}
+
+function loadFinTableReports() {
+    var select = document.getElementById('fintable-doc-select');
+    var docId = select.value;
+    if (!docId) return;
+    
+    var statusPanel = document.getElementById('fintable-status');
+    var resultPanel = document.getElementById('fintable-result-container');
+    var customerId = CUSTOMER_ID;
+    
+    statusPanel.style.display = 'block';
+    statusPanel.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:12px;"><span class="material-symbols-outlined" style="animation:t-spin 1s linear infinite;color:var(--cyan);">sync</span> <span>Loading structured financial report...</span></div>';
+    
+    fetch(`/api/customers/${customerId}/financial-reports?doc_id=${docId}`)
+    .then(r => r.json())
+    .then(res => {
+        if (!res.success || !res.data || res.data.length === 0) {
+            statusPanel.innerHTML = `<div style="color:var(--yellow); font-weight:500; padding:12px;"><span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:4px;">info</span> No extracted financial report found for this document. Please click 'Extract Financials' first.</div>`;
+            resultPanel.style.display = 'none';
+            return;
+        }
+        statusPanel.style.display = 'none';
+        renderFinTable(res.periods, res.data);
+    })
+    .catch(err => {
+        statusPanel.innerHTML = `<div style="color:var(--red); font-weight:500; padding:12px;"><span class="material-symbols-outlined" style="vertical-align:bottom; margin-right:4px;">error</span> Error loading report: ${err.message}</div>`;
+        resultPanel.style.display = 'none';
+    });
+}
+
+function renderFinTable(periods, rows) {
+    var resultPanel = document.getElementById('fintable-result-container');
+    var badgesEl = document.getElementById('fintable-period-badges');
+    var theadTr = document.getElementById('fintable-thead-tr');
+    var tbody = document.getElementById('fintable-tbody');
+    
+    resultPanel.style.display = 'block';
+    
+    // Render period badges
+    badgesEl.innerHTML = '';
+    periods.forEach(p => {
+        badgesEl.innerHTML += `<span class="t-chip t-chip-cyan" style="font-size:12px; font-weight:bold;">${p.label || p.code}</span>`;
+    });
+    
+    // Build table header
+    theadTr.innerHTML = '<th style="padding:10px;">Line Item Label</th><th style="padding:10px; width:80px; text-align:center;">Note</th>';
+    periods.forEach(p => {
+        theadTr.innerHTML += `<th style="padding:10px; text-align:right; min-width:140px;">${p.code} Amount</th>`;
+    });
+    
+    // Group rows by LineOrder
+    var orderMap = {};
+    rows.forEach(r => {
+        var lo = r.LineOrder;
+        if (!orderMap[lo]) {
+            orderMap[lo] = {
+                label: r.LineLabel,
+                depth: r.Depth,
+                isSubTotal: r.IsSubTotal,
+                note: r.NoteRef,
+                periods: {}
+            };
+        }
+        orderMap[lo].periods[r.PeriodCode] = r.Amount;
+    });
+    
+    // Render rows
+    tbody.innerHTML = '';
+    Object.keys(orderMap).sort((a,b) => Number(a) - Number(b)).forEach(lo => {
+        var item = orderMap[lo];
+        var indent = (item.depth || 0) * 20;
+        var isSectionHeader = (item.depth === 0);
+        var isBold = isSectionHeader || item.isSubTotal;
+        var rowStyle = isSectionHeader ? 'background:var(--surface-2); font-weight:bold; color:var(--cyan);' : (item.isSubTotal ? 'font-weight:bold; background:var(--surface-1);' : '');
+        
+        var tr = `<tr style="${rowStyle} border-bottom:1px solid var(--border-subtle, rgba(255,255,255,0.05));">`;
+        tr += `<td style="padding:8px 10px;"><div style="padding-left:${indent}px; display:inline-block;">${item.label || ''}</div></td>`;
+        tr += `<td style="padding:8px 10px; text-align:center; color:var(--on-surface-3); font-size:12px;">${item.note || '-'}</td>`;
+        
+        periods.forEach(p => {
+            var val = item.periods[p.code];
+            var valStr = val != null ? Number(val).toLocaleString('tr-TR') + ' ₺' : (isSectionHeader ? '' : '-');
+            tr += `<td style="padding:8px 10px; text-align:right; font-family:'Consolas',monospace;">${valStr}</td>`;
+        });
+        tr += '</tr>';
+        tbody.innerHTML += tr;
+    });
 }
 
 var currentAiDocId = null;

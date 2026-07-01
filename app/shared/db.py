@@ -42,6 +42,10 @@ class DbConnection:
     def commit(self):
         self._conn.commit()
 
+    def rollback(self):
+        if hasattr(self._conn, 'rollback'):
+            self._conn.rollback()
+
     def close(self):
         self._conn.close()
 

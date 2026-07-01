@@ -8,7 +8,7 @@
         <div class="t-page-subtitle">{{ lang_dict.get('fl_subtitle', 'ALL TRACKED FOREIGNLOANS ACROSS ACTIVE CUSTOMERS') }}</div>
     </div>
     <div style="display:flex;gap:8px;">
-        <button onclick="document.getElementById('modal-add-foreignloan').classList.add('open')" class="t-btn" id="btn-new-foreignloan">
+        <button onclick="openAddModal()" class="t-btn" id="btn-new-foreignloan">
             + {{ lang_dict.get('btn_new', 'NEW') }}
         </button>
         <a href="/foreignloans/export" class="t-btn t-btn-green" id="btn-export">{{ lang_dict.get('btn_export', '↓ EXPORT') }}</a>
@@ -22,6 +22,7 @@
             <tr>
                 <th>{{ lang_dict.get('col_id', 'ID') }}</th>
                 <th>{{ lang_dict.get('col_company', 'COMPANY') }}</th>
+                <th>{{ lang_dict.get('col_product', 'PRODUCT') }}</th>
                 <th style="text-align:right;">{{ lang_dict.get('col_amount', 'AMOUNT') }}</th>
                 <th style="text-align:right;">{{ lang_dict.get('col_pricing', 'PRICING') }}</th>
                 <th>{{ lang_dict.get('col_ccy', 'CCY') }}</th>
@@ -37,6 +38,7 @@
             <tr onclick="window.location='/foreignloans/{{ s['DealId'] }}'" style="cursor:pointer;" id="fl-row-{{ s['DealId'] }}">
                 <td style="color:var(--on-surface-3);">{{ s['DealId'] }}</td>
                 <td style="color:var(--amber-text);font-weight:700;">{{ s['CustomerName'] }}</td>
+                <td><span class="t-chip t-chip-dim">{{ s['ProductName'] or s['ProductCode'] or '—' }}</span></td>
                 <td style="text-align:right;color:var(--green);">{{ "{:,.0f}".format(s['Amount'] or 0) }} {{ cur.get('bg', 'TRY') }}</td>
                 <td style="text-align:right;color:var(--amber);">{% if s['Pricing'] %}{{ "{:.2f}".format(s['Pricing']) }}%{% else %}—{% endif %}</td>
                 <td><span class="t-chip t-chip-dim">{{ cur.get('bg', 'TRY') }}</span></td>
@@ -84,6 +86,15 @@
                         <option value="">{{ lang_dict.get('opt_select', 'SELECT') }}</option>
                         {% for c in customers %}
                         <option value="{{ c['Customerid'] }}">{{ c['CustomerName'] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="grid-column:span 2;">
+                    <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_product', 'PRODUCT *') }}</label>
+                    <select name="product_code" required class="t-input">
+                        <option value="">{{ lang_dict.get('opt_select', 'SELECT') }}</option>
+                        {% for p in products %}
+                        <option value="{{ p['ProductCode'] }}">{{ p['ProductName'] }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -173,6 +184,26 @@
 </div>
 
 <script>
+async function openAddModal() {
+    var modal = document.getElementById('modal-add-foreignloan');
+    modal.classList.add('open');
+    try {
+        var res = await fetch('/api/products?resource_code=FOREIGNLOAN');
+        var data = await res.json();
+        if (data.ok && data.products) {
+            var select = modal.querySelector('select[name="product_code"]');
+            var currentVal = select.value;
+            var html = '<option value="">{{ lang_dict.get("opt_select", "SELECT") }}</option>';
+            for (var i = 0; i < data.products.length; i++) {
+                var p = data.products[i];
+                html += '<option value="' + p.ProductCode + '">' + p.ProductName + '</option>';
+            }
+            select.innerHTML = html;
+            if (currentVal) select.value = currentVal;
+        }
+    } catch (e) { console.error('Error fetching dynamic products:', e); }
+}
+
 function openEditModal(dealId, amount, pricing, fec, status, expectedDate) {
     document.getElementById('edit-fl-id').value       = dealId;
     document.getElementById('edit-fl-amount').value   = amount;

@@ -230,6 +230,30 @@ def _run_platform_migrations():
             conn.commit()
             print("[startup] Created ForeignLoan, ForeignLoanDetail tables")
 
+        if not _table_exists(conn, "FinancialReports", "STF"):
+            try:
+                conn.execute("CREATE SCHEMA STF")
+                conn.commit()
+            except Exception:
+                pass
+            conn.execute(load_query("schema/financial_report"))
+            conn.commit()
+            print("[startup] Created BOA.STF.FinancialReports table")
+
+        if _table_exists(conn, "Product", "COR"):
+            if not _col_exists(conn, "Product", "ResourceCode", schema="COR"):
+                conn.execute("ALTER TABLE BOA.COR.Product ADD ResourceCode NVARCHAR(50) NULL")
+                conn.commit()
+                print("[startup] Added ResourceCode column to BOA.COR.Product")
+            try:
+                conn.execute("UPDATE BOA.COR.Product SET ResourceCode='SYNDICATION' WHERE ProductCode='SYNDICATION' AND ResourceCode IS NULL")
+                conn.execute("UPDATE BOA.COR.Product SET ResourceCode='FOREIGNLOAN' WHERE ProductCode='ABCYURTDISI' AND ResourceCode IS NULL")
+                if _table_exists(conn, "MainDeals", "STR"):
+                    conn.execute("UPDATE BOA.STR.MainDeals SET ProductCode='ABCYURTDISI' WHERE ProductCode='FOREIGNLOAN'")
+                conn.commit()
+            except Exception as exc:
+                print(f"[startup] Resource mapping sync note: {exc}")
+
     except Exception as e:
         print(f"[startup] Platform migration error (non-fatal): {e}")
     finally:

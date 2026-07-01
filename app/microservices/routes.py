@@ -12,7 +12,10 @@ def get_microservices_state():
             "chatbot": {"enabled": True},
             "sparx_ai": {"enabled": True},
             "web_crawler": {"enabled": True},
-            "news_crawler": {"enabled": True}
+            "news_crawler": {"enabled": True},
+            "financial_reports": {"enabled": True},
+            "reference_rates": {"enabled": True},
+            "tuik_sdmx": {"enabled": True}
         }
     try:
         with open(MICROSERVICES_FILE, "r", encoding="utf-8") as f:
@@ -22,7 +25,10 @@ def get_microservices_state():
             "chatbot": {"enabled": True},
             "sparx_ai": {"enabled": True},
             "web_crawler": {"enabled": True},
-            "news_crawler": {"enabled": True}
+            "news_crawler": {"enabled": True},
+            "financial_reports": {"enabled": True},
+            "reference_rates": {"enabled": True},
+            "tuik_sdmx": {"enabled": True}
         }
 
 def set_microservice_state(service_id: str, enabled: bool):
@@ -76,7 +82,7 @@ def api_microservices_reset():
     data = request.get_json() or {}
     service_id = data.get("service_id")
     
-    port_map = {"chatbot": 5001, "sparx_ai": 5002, "web_crawler": 5003, "news_crawler": 5004}
+    port_map = {"chatbot": 5001, "sparx_ai": 5002, "web_crawler": 5003, "news_crawler": 5004, "financial_reports": 5005, "reference_rates": 5006, "tuik_sdmx": 5007}
     port = port_map.get(service_id)
     if not port:
         return jsonify({"error": "Unknown service"}), 400
@@ -88,3 +94,91 @@ def api_microservices_reset():
         return jsonify({"error": f"Service returned {res.status_code}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 502
+
+
+@microservices_bp.route("/referans-oranlar")
+@microservices_bp.route("/microservices/reference_rates")
+def referans_oranlar_page():
+    if not get_microservices_state().get('reference_rates', {}).get('enabled', True):
+        return "Reference Rates Microservice is Disabled", 403
+    return render_template("management/reference_rates_detail.html")
+
+
+@microservices_bp.route("/api/referans-oranlar/latest")
+def api_referans_oranlar_latest():
+    try:
+        res = requests.get("http://127.0.0.1:5006/api/v1/rates/latest", timeout=10)
+        return jsonify(res.json()), res.status_code
+    except Exception as e:
+        return jsonify({"error": f"Reference rates microservice unreachable: {str(e)}"}), 502
+
+
+@microservices_bp.route("/api/referans-oranlar/history")
+def api_referans_oranlar_history():
+    rate_type = request.args.get("type", "ALL")
+    limit = request.args.get("limit", 500)
+    try:
+        res = requests.get(f"http://127.0.0.1:5006/api/v1/rates/history?type={rate_type}&limit={limit}", timeout=10)
+        return jsonify(res.json()), res.status_code
+    except Exception as e:
+        return jsonify({"error": f"Reference rates microservice unreachable: {str(e)}"}), 502
+
+
+@microservices_bp.route("/api/referans-oranlar/fetch", methods=["POST"])
+def api_referans_oranlar_fetch():
+    try:
+        res = requests.post("http://127.0.0.1:5006/api/v1/rates/fetch", timeout=30)
+        return jsonify(res.json()), res.status_code
+    except Exception as e:
+        return jsonify({"error": f"Reference rates microservice unreachable: {str(e)}"}), 502
+
+
+@microservices_bp.route("/tuik-data")
+@microservices_bp.route("/microservices/tuik_sdmx")
+def tuik_data_page():
+    if not get_microservices_state().get('tuik_sdmx', {}).get('enabled', True):
+        return "TUIK SDMX Microservice is Disabled", 403
+    return render_template("management/tuik_sdmx_detail.html")
+
+
+@microservices_bp.route("/api/tuik-data/latest")
+def api_tuik_data_latest():
+    try:
+        res = requests.get("http://127.0.0.1:5007/api/v1/tuik/latest", timeout=10)
+        return jsonify(res.json()), res.status_code
+    except Exception as e:
+        return jsonify({"error": f"TUIK SDMX microservice unreachable: {str(e)}"}), 502
+
+
+@microservices_bp.route("/api/tuik-data/history")
+def api_tuik_data_history():
+    indicator = request.args.get("indicator", "TUFE_MONTHLY")
+    limit = request.args.get("limit", 100)
+    try:
+        res = requests.get(f"http://127.0.0.1:5007/api/v1/tuik/history?indicator={indicator}&limit={limit}", timeout=10)
+        return jsonify(res.json()), res.status_code
+    except Exception as e:
+        return jsonify({"error": f"TUIK SDMX microservice unreachable: {str(e)}"}), 502
+
+
+@microservices_bp.route("/api/tuik-data/fetch", methods=["POST"])
+def api_tuik_data_fetch():
+    try:
+        res = requests.post("http://127.0.0.1:5007/api/v1/tuik/fetch", timeout=30)
+        return jsonify(res.json()), res.status_code
+    except Exception as e:
+        return jsonify({"error": f"TUIK SDMX microservice unreachable: {str(e)}"}), 502
+
+
+@microservices_bp.route("/api/tuik-data/api-key", methods=["GET", "POST"])
+def api_tuik_data_key():
+    try:
+        if request.method == "POST":
+            res = requests.post("http://127.0.0.1:5007/api/v1/tuik/api-key", json=request.get_json(), timeout=10)
+        else:
+            res = requests.get("http://127.0.0.1:5007/api/v1/tuik/api-key", timeout=10)
+        return jsonify(res.json()), res.status_code
+    except Exception as e:
+        return jsonify({"error": f"TUIK SDMX microservice unreachable: {str(e)}"}), 502
+
+

@@ -1,4 +1,5 @@
 import os
+import requests
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, send_file
@@ -244,3 +245,26 @@ def add_comment(customer_id):
         conn.commit()
         conn.close()
     return redirect(url_for("overview.overview_detail", customer_id=customer_id))
+
+@overview_bp.route("/api/customers/<int:cid>/documents/<int:doc_id>/extract-financials", methods=["POST"])
+def api_extract_financials(cid, doc_id):
+    try:
+        res = requests.post("http://127.0.0.1:5005/api/extract", json={"doc_id": doc_id, "customer_id": cid}, timeout=60)
+        return jsonify(res.json()), res.status_code
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Financial Reports microservice unreachable: {str(e)}"}), 502
+
+@overview_bp.route("/api/customers/<int:cid>/financial-reports", methods=["GET"])
+def api_get_financial_reports(cid):
+    doc_id = request.args.get("doc_id")
+    period_code = request.args.get("period_code", "")
+    if not doc_id:
+        return jsonify({"error": "Missing doc_id parameter"}), 400
+    try:
+        url = f"http://127.0.0.1:5005/api/report?doc_id={doc_id}"
+        if period_code:
+            url += f"&period_code={period_code}"
+        res = requests.get(url, timeout=10)
+        return jsonify(res.json()), res.status_code
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Financial Reports microservice unreachable: {str(e)}"}), 502

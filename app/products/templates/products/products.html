@@ -16,7 +16,7 @@
         <tr>
             <th>{{ lang_dict.get('prod_col_product', 'PRODUCT') }}</th>
             <th>{{ lang_dict.get('prod_col_code', 'CODE') }}</th>
-
+            <th>{{ lang_dict.get('prod_col_resource', 'SCREEN / RESOURCE') }}</th>
             <th style="text-align:center;">{{ lang_dict.get('prod_col_deals', 'DEALS') }}</th>
             <th style="text-align:center;">→</th>
         </tr>
@@ -28,7 +28,7 @@
                 <a href="/products/{{ p.ProductID }}" style="color:inherit;text-decoration:none;">{{ p.ProductName }}</a>
             </td>
             <td style="color:var(--on-surface-3);">{{ p.ProductCode or '—' }}</td>
-
+            <td><span class="t-chip t-chip-cyan">{{ p.ResourceCode or '—' }}</span></td>
             <td style="text-align:center;"><span class="t-chip t-chip-dim">{{ p.deal_count }}</span></td>
             <td style="text-align:center;">
                 <button onclick="event.stopPropagation();deleteProduct({{ p.ProductID }})" style="background:none;border:none;color:var(--red);cursor:pointer;" title="{{ lang_dict.get('btn_delete', 'Delete') }}">✕</button>
@@ -57,7 +57,15 @@
                 <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_code', 'CODE *') }}</label>
                 <input id="np-code" type="text" placeholder="KTAG-EUR" class="t-input">
             </div>
-
+            <div>
+                <label class="t-label" style="display:block;margin-bottom:2px;">{{ lang_dict.get('lbl_resource', 'SCREEN / RESOURCE') }}</label>
+                <input id="np-resource" list="resource-list-dl" type="text" placeholder="FOREIGNLOAN, SYNDICATION..." class="t-input">
+                <datalist id="resource-list-dl">
+                    {% for r in resources %}
+                    <option value="{{ r }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:4px;padding-top:8px;">
             <button onclick="document.getElementById('modal-add-product').classList.remove('open')" class="t-btn" style="border-color:var(--border);color:var(--on-surface-3);">{{ lang_dict.get('prod_btn_cancel', 'CANCEL') }}</button>
@@ -70,10 +78,11 @@
 async function saveProduct() {
     var name = document.getElementById('np-name').value.trim();
     var code = document.getElementById('np-code').value.trim();
+    var resource_code = document.getElementById('np-resource').value.trim();
     if (!name || !code) { alert('Name and Code required.'); return; }
     var res = await fetch('/api/products', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ name:name, code:code })
+        body: JSON.stringify({ name:name, code:code, resource_code:resource_code })
     });
     var data = await res.json();
     if (data.ok) window.location.reload();

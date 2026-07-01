@@ -60,6 +60,18 @@ def create_conversation():
     
     return jsonify({"id": conv_id, "title": title})
 
+@app.route("/api/conversations/<int:conv_id>", methods=["DELETE"])
+def delete_conversation(conv_id):
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
+        conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/messages", methods=["GET"])
 def get_messages():
     conversation_id = request.args.get("conversation_id")
@@ -91,8 +103,8 @@ def post_chat():
     
     # If no conversation_id, create one
     if not conversation_id:
-        # Title is the first 30 chars of the prompt
-        title = prompt[:30] + "..." if len(prompt) > 30 else prompt
+        # Title is the first 60 chars of the prompt
+        title = prompt[:60] + "..." if len(prompt) > 60 else prompt
         cursor = conn.execute("INSERT INTO conversations (user_id, title) VALUES (?, ?)", (user_id, title))
         conversation_id = cursor.lastrowid
         

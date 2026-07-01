@@ -13,14 +13,15 @@ def syndications_list():
     fec_map = get_param_map("FEC", conn)
     status_map = get_param_map("Status", conn)
     customers = conn.execute("SELECT Customerid, CustomerName FROM BOA.CUS.Customer WHERE IsStructured=1 ORDER BY CustomerName").fetchall()
+    products = conn.execute("SELECT ProductCode, ProductName FROM BOA.COR.Product WHERE IsActive=1 AND (ResourceCode='SYNDICATION' OR ResourceCode IS NULL OR ResourceCode='') ORDER BY ProductName").fetchall()
     conn.close()
-    return render_template("syndications/syndications.html", syndications=syndications, fec_map=fec_map, status_map=status_map, customers=customers)
+    return render_template("syndications/syndications.html", syndications=syndications, fec_map=fec_map, status_map=status_map, customers=customers, products=products)
 
 @syndications_bp.route("/syndications/add", methods=["POST"])
 def add_syndication():
     conn = get_db()
     cid = int(request.form["customerid"])
-    prod_code = "SYNDICATION"
+    prod_code = request.form.get("product_code") or "SYNDICATION"
     amt = float(request.form["amount"])
     pricing = float(request.form["pricing"]) if request.form.get("pricing") else None
     fec = int(request.form["fec"]) if request.form.get("fec") else 0
